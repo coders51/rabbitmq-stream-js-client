@@ -1,0 +1,62 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true
+  },
+  "extends": ["plugin:import/errors", "plugin:import/warnings", "plugin:prettier/recommended", "prettier"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": ["tsconfig.json", "test/tsconfig.json"],
+    "ecmaVersion": 2021,
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint", "import", "prettier", "deprecation", "no-only-tests"],
+  "rules": {
+    "@typescript-eslint/adjacent-overload-signatures": "error",
+    "@typescript-eslint/no-empty-function": "error",
+    "@typescript-eslint/no-empty-interface": "warn",
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-namespace": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
+    "@typescript-eslint/prefer-for-of": "warn",
+    "@typescript-eslint/triple-slash-reference": "error",
+    "@typescript-eslint/unified-signatures": "warn",
+    "@typescript-eslint/no-explicit-any": ["error"],
+    "constructor-super": "error",
+    "eqeqeq": ["warn", "always"],
+    "import/no-deprecated": "warn",
+    "import/no-extraneous-dependencies": "error",
+    "import/no-unassigned-import": "warn",
+    "no-cond-assign": "error",
+    "no-duplicate-case": "error",
+    "no-duplicate-imports": "error",
+    "deprecation/deprecation": "warn",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-invalid-this": "error",
+    "no-new-wrappers": "error",
+    "no-param-reassign": "error",
+    "no-redeclare": "error",
+    "no-sequences": "error",
+    "no-shadow": ["error", { "hoist": "all" }],
+    "no-throw-literal": "error",
+    "no-unsafe-finally": "error",
+    "no-unused-labels": "error",
+    "no-var": "warn",
+    "no-void": "error",
+    "prefer-const": "warn",
+    "no-only-tests/no-only-tests": "error"
+  },
+  "settings": {
+    "jsdoc": {
+      "tagNamePreference": {
+        "returns": "return"
+      }
+    },
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".ts"]
+      }
+    }
+  }
+}

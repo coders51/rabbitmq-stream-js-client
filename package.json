@@ -1,0 +1,48 @@
+{
+  "name": "rabbitmq-stream-js-client",
+  "version": "0.0.1",
+  "description": "Rabbit stream client for JS/TS application",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "mocha test",
+    "build": "tsc",
+    "check": "npm run check-ts && npm run check-lint && npm run check-format && npm run check-spell",
+    "check-ts": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
+    "check-lint": "tsc --noEmit && eslint 'src/**/*.ts' 'test/**/*.ts'",
+    "check-format": "prettier -c 'src/**/*.ts' 'test/**/*.ts'",
+    "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coders51/rabbitmq-stream-js-client.git"
+  },
+  "keywords": [
+    "RabbitMQ",
+    "Stream"
+  ],
+  "author": "coders51 <info@coders51.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/coders51/rabbitmq-stream-js-client/issues"
+  },
+  "homepage": "https://github.com/coders51/rabbitmq-stream-js-client#readme",
+  "devDependencies": {
+    "@tsconfig/node16": "^1.0.2",
+    "@types/chai": "^4.3.1",
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^16.11.38",
+    "@typescript-eslint/eslint-plugin": "^5.27.0",
+    "@typescript-eslint/parser": "^5.27.0",
+    "chai": "^4.3.6",
+    "cspell": "^6.1.1",
+    "eslint": "^8.16.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-deprecation": "^1.3.2",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-no-only-tests": "^2.6.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "mocha": "^10.0.0",
+    "ts-node": "^10.8.0",
+    "typescript": "^4.7.2"
+  }
+}
