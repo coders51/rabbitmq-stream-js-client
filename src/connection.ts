@@ -80,10 +80,13 @@ export class Connection {
   }
 
   async exchangeProperties(): Promise<PeerPropertiesResponse> {
-    this.logger.debug(`Exchange properties ...`)
+    this.logger.debug(`Exchange peer properties ...`)
     const req = new PeerPropertiesRequest()
     const res = await this.SendAndWait<PeerPropertiesResponse>(req)
-    this.logger.debug(`SendAndWait... return: ${inspect(res)}`) // TODO -> print properties
+    if (!res.ok) {
+      throw new Error(`Unable to exchange peer properties ${res.code} `)
+    }
+    this.logger.debug(`server properties: ${inspect(res.properties)}`)
     return res
   }
 
