@@ -1,10 +1,6 @@
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
 
-export function wait(timeout: number) {
-  return new Promise((res) => setTimeout(res, timeout))
-}
-
 export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefined {
   const i = l.findIndex(predicate)
   if (i === -1) return

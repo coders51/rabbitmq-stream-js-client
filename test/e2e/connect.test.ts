@@ -1,6 +1,7 @@
 import { expect } from "chai"
 import got from "got"
 import { connect } from "../../src"
+import { eventually } from "../support/util"
 
 interface RabbitConnectionResponse {
   name: string
@@ -46,7 +47,9 @@ describe("connect", () => {
       heartbeat: 0, // not user
     })
 
-    expect(await rabbit.getConnections()).lengthOf(1)
+    await eventually(async () => {
+      expect(await rabbit.getConnections()).lengthOf(1)
+    }, 5000)
     await connection.close()
   }).timeout(10000)
 

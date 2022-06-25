@@ -1,5 +1,31 @@
 import { Command } from "./command"
-import { PeerPropertiesResponse, SaslAuthenticateResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import {
+  OpenResponse,
+  PeerPropertiesResponse,
+  SaslAuthenticateResponse,
+  SaslHandshakeResponse,
+} from "./peer_properties_response"
+
+export class OpenRequest implements Command {
+  readonly responseKey = OpenResponse.key
+  readonly key = 0x0015
+  readonly version = 1
+
+  constructor(private params: { virtualHost: string }) {}
+
+  toBuffer(correlationId: number): Buffer {
+    let offset = 4
+    const b = Buffer.alloc(1024)
+    offset = b.writeUInt16BE(this.key, offset)
+    offset = b.writeUInt16BE(this.version, offset)
+    offset = b.writeUInt32BE(correlationId, offset)
+
+    offset = writeString(b, offset, this.params.virtualHost)
+
+    b.writeUInt32BE(offset - 4, 0)
+    return b.slice(0, offset)
+  }
+}
 
 export class SaslAuthenticateRequest implements Command {
   readonly responseKey = SaslAuthenticateResponse.key

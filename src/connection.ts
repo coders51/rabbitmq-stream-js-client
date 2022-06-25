@@ -1,8 +1,18 @@
 import { Socket } from "net"
 import { inspect } from "util"
 import { Command } from "./command"
-import { PeerPropertiesRequest, SaslAuthenticateRequest, SaslHandshakeRequest } from "./peer_properties_request"
-import { PeerPropertiesResponse, SaslAuthenticateResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import {
+  OpenRequest,
+  PeerPropertiesRequest,
+  SaslAuthenticateRequest,
+  SaslHandshakeRequest,
+} from "./peer_properties_request"
+import {
+  OpenResponse,
+  PeerPropertiesResponse,
+  SaslAuthenticateResponse,
+  SaslHandshakeResponse,
+} from "./peer_properties_response"
 import { Response } from "./response"
 import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
@@ -41,7 +51,7 @@ export class Connection {
         await this.exchangeProperties()
         await this.auth({ username: params.username, password: params.password })
         await this.tune()
-        await this.open()
+        await this.open({ virtualHost: params.vhost })
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${params.hostname}:${params.port}`))
@@ -63,12 +73,10 @@ export class Connection {
     this.decoder.add(data)
   }
 
-  open() {
-    throw new Error("Method not implemented.")
-  }
-
   tune() {
-    throw new Error("Method not implemented.")
+    // throw new Error("Method not implemented.")
+    // this.waitResponse<TuneResponse>
+    return Promise.resolve()
   }
 
   async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -98,6 +106,13 @@ export class Connection {
     }
 
     return authResponse
+  }
+
+  async open(params: { virtualHost: string }) {
+    this.logger.debug(`Open ...`)
+    const res = await this.SendAndWait<OpenResponse>(new OpenRequest(params))
+    this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
+    return res
   }
 
   SendAndWait<T extends Response>(cmd: Command): Promise<T> {
