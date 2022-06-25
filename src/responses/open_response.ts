@@ -1,13 +1,14 @@
+import { AbstractResponse } from "./abstract_response"
 import { RawResponse } from "./raw_response"
-import { readString, Response } from "./response"
+import { readString } from "./response"
 
-export class OpenResponse implements Response {
+export class OpenResponse extends AbstractResponse {
   static key = 0x8015
   readonly properties: Record<string, string> = {}
 
-  constructor(private response: RawResponse) {
-    if (response.key !== OpenResponse.key)
-      throw new Error(`Unable to create OpenResponse from data of type ${response.key}`)
+  constructor(response: RawResponse) {
+    super(response)
+    this.verifyKey(OpenResponse)
 
     let offset = 0
     const howMany = this.response.payload.readInt32BE(offset)
@@ -19,22 +20,6 @@ export class OpenResponse implements Response {
       offset = resValue.offset
       this.properties[resKey.value] = resValue.value
     }
-  }
-
-  get key() {
-    return this.response.key
-  }
-
-  public get correlationId(): number {
-    return this.response.correlationId
-  }
-
-  get code(): number {
-    return this.response.code
-  }
-
-  get ok(): boolean {
-    return this.code === 0x01
   }
 
   get data(): string {

@@ -1,13 +1,14 @@
+import { AbstractResponse } from "./abstract_response"
 import { RawResponse } from "./raw_response"
-import { readString, Response } from "./response"
+import { readString } from "./response"
 
-export class SaslHandshakeResponse implements Response {
+export class SaslHandshakeResponse extends AbstractResponse {
   static key = 0x8012
   readonly mechanisms: string[] = []
 
-  constructor(private response: RawResponse) {
-    if (response.key !== SaslHandshakeResponse.key)
-      throw new Error(`Unable to create SaslHandshakeResponse from data of type ${response.key}`)
+  constructor(response: RawResponse) {
+    super(response)
+    this.verifyKey(SaslHandshakeResponse)
 
     let offset = 0
     const numOfMechanisms = this.response.payload.readUint32BE(offset)
