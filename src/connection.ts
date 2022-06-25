@@ -1,8 +1,8 @@
 import { Socket } from "net"
 import { inspect } from "util"
 import { Command } from "./command"
-import { PeerPropertiesRequest, SaslHandshakeRequest } from "./peer_properties_request"
-import { PeerPropertiesResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import { PeerPropertiesRequest, SaslAuthenticateRequest, SaslHandshakeRequest } from "./peer_properties_request"
+import { PeerPropertiesResponse, SaslAuthenticateResponse, SaslHandshakeResponse } from "./peer_properties_response"
 import { Response } from "./response"
 import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
@@ -39,7 +39,7 @@ export class Connection {
       this.socket.on("connect", async () => {
         this.logger.info(`Connected to RabbitMQ ${params.hostname}:${params.port}`)
         await this.exchangeProperties()
-        await this.auth()
+        await this.auth({ username: params.username, password: params.password })
         await this.tune()
         await this.open()
         return res(this)
@@ -66,6 +66,7 @@ export class Connection {
   open() {
     throw new Error("Method not implemented.")
   }
+
   tune() {
     throw new Error("Method not implemented.")
   }
@@ -78,33 +79,25 @@ export class Connection {
     return res
   }
 
-  async auth() {
-    this.logger.debug(`auth ...`)
+  async auth(params: { username: string; password: string }) {
+    this.logger.debug(`Start authentication process ...`)
+    this.logger.debug(`Start SASL handshake ...`)
     const handshakeResponse = await this.SendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
     this.logger.debug(`Mechanisms: ${handshakeResponse.mechanisms}`)
     if (!handshakeResponse.mechanisms.find((m) => m === "PLAIN")) {
       throw new Error(`Unable to find PLAIN mechanism in ${handshakeResponse.mechanisms}`)
     }
 
-    return handshakeResponse
+    this.logger.debug(`Start SASL PLAIN authentication ...`)
+    const authResponse = await this.SendAndWait<SaslAuthenticateResponse>(
+      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
+    )
+    this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
+    if (!authResponse.ok) {
+      throw new Error(`Unable Authenticate -> ${authResponse.code}`)
+    }
 
-    /**
- *             var saslHandshakeResponse =
-                await client.Request<SaslHandshakeRequest, SaslHandshakeResponse>(
-                    corr => new SaslHandshakeRequest(corr));
-            foreach (var m in saslHandshakeResponse.Mechanisms)
-            {
-                Debug.WriteLine($"sasl mechanism: {m}");
-            }
-
-            var saslData = Encoding.UTF8.GetBytes($"\0{parameters.UserName}\0{parameters.Password}");
-            var authResponse =
-                await client.Request<SaslAuthenticateRequest, SaslAuthenticateResponse>(corr =>
-                    new SaslAuthenticateRequest(corr, "PLAIN", saslData));
-            Debug.WriteLine($"auth: {authResponse.ResponseCode} {authResponse.Data}");
-            ClientExceptions.MaybeThrowException(authResponse.ResponseCode, parameters.UserName);
-
- */
+    return authResponse
   }
 
   SendAndWait<T extends Response>(cmd: Command): Promise<T> {
@@ -112,12 +105,14 @@ export class Connection {
       const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer(correlationId)
       this.logger.debug(
-        `Write cmd key: ${cmd.key} - correlationId: ${correlationId}: data: ${inspect(body.toJSON())} length: ${
-          body.byteLength
-        }`
+        `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
+          body.toJSON()
+        )} length: ${body.byteLength}`
       )
       this.socket.write(body, (err) => {
-        this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key} - correlationId: ${correlationId} err: ${err}`)
+        this.logger.debug(
+          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`
+        )
         if (err) {
           return rej(err)
         }
@@ -130,7 +125,11 @@ export class Connection {
     const response = removeFrom(this.receivedResponses, (r) => r.correlationId === correlationId)
     if (response) {
       if (response.key !== key) {
-        throw new Error(`Error con correlationId: ${correlationId} waiting key: ${key} found key: ${response.key} `)
+        throw new Error(
+          `Error con correlationId: ${correlationId} waiting key: ${key.toString(
+            16
+          )} found key: ${response.key.toString(16)} `
+        )
       }
       return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
     }

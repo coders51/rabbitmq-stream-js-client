@@ -1,5 +1,34 @@
 import { Command } from "./command"
-import { PeerPropertiesResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import { PeerPropertiesResponse, SaslAuthenticateResponse, SaslHandshakeResponse } from "./peer_properties_response"
+
+export class SaslAuthenticateRequest implements Command {
+  readonly responseKey = SaslAuthenticateResponse.key
+  readonly key = 0x0013
+  readonly version = 1
+
+  constructor(private params: { mechanism: string; username: string; password: string }) {}
+
+  toBuffer(correlationId: number): Buffer {
+    let offset = 4
+    const b = Buffer.alloc(1024)
+    offset = b.writeUInt16BE(this.key, offset)
+    offset = b.writeUInt16BE(this.version, offset)
+    offset = b.writeUInt32BE(correlationId, offset)
+
+    offset = writeString(b, offset, this.params.mechanism)
+
+    offset = b.writeUInt32BE(this.params.password.length + this.params.username.length + 2, offset)
+    offset = b.writeUInt8(0, offset)
+    const uw = b.write(this.params.username, offset)
+    offset += uw
+    offset = b.writeUInt8(0, offset)
+    const pw = b.write(this.params.username, offset)
+    offset += pw
+
+    b.writeUInt32BE(offset - 4, 0)
+    return b.slice(0, offset)
+  }
+}
 
 export class SaslHandshakeRequest implements Command {
   readonly responseKey = SaslHandshakeResponse.key
@@ -45,17 +74,17 @@ export class PeerPropertiesRequest implements Command {
     offset = b.writeUInt32BE(this._properties.length, offset)
 
     this._properties.forEach(({ key, value }) => {
-      offset = this.writeString(b, offset, key)
-      offset = this.writeString(b, offset, value)
+      offset = writeString(b, offset, key)
+      offset = writeString(b, offset, value)
     })
 
     b.writeUInt32BE(offset - 4, 0)
     return b.slice(0, offset)
   }
+}
 
-  writeString(buffer: Buffer, offset: number, s: string) {
-    const newOffset = buffer.writeInt16BE(s.length, offset)
-    const written = buffer.write(s, newOffset, "utf8")
-    return newOffset + written
-  }
+function writeString(buffer: Buffer, offset: number, s: string) {
+  const newOffset = buffer.writeInt16BE(s.length, offset)
+  const written = buffer.write(s, newOffset, "utf8")
+  return newOffset + written
 }

@@ -39,8 +39,8 @@ describe("connect", () => {
     const connection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "guest",
-      password: "guest",
+      username: "rabbit",
+      password: "rabbit",
       vhost: "/",
       frameMax: 0, // not used
       heartbeat: 0, // not user
@@ -48,7 +48,7 @@ describe("connect", () => {
 
     expect(await rabbit.getConnections()).lengthOf(1)
     await connection.close()
-  }).timeout(100000)
+  }).timeout(10000)
 
   it("raise exception if goes in timeout")
   it("raise exception if server refuse port")

@@ -1,5 +1,5 @@
 import { DecoderListener } from "./decoder_listener"
-import { PeerPropertiesResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import { PeerPropertiesResponse, SaslAuthenticateResponse, SaslHandshakeResponse } from "./peer_properties_response"
 import { RawResponse } from "./raw_response"
 
 // Frame => Size (Request | Response | Command)
@@ -41,8 +41,12 @@ export class ResponseDecoder {
         this.listener.responseReceived(new SaslHandshakeResponse(response))
         break
 
+      case SaslAuthenticateResponse.key:
+        this.listener.responseReceived(new SaslAuthenticateResponse(response))
+        break
+
       default:
-        throw new Error(`Unknown response ${response.code}`)
+        throw new Error(`Unknown response ${response.key.toString(16)}`)
     }
   }
 }

@@ -1,6 +1,36 @@
 import { RawResponse } from "./raw_response"
 import { Response } from "./response"
 
+export class SaslAuthenticateResponse implements Response {
+  static key = 0x8013
+
+  constructor(private response: RawResponse) {
+    if (response.key !== SaslAuthenticateResponse.key)
+      throw new Error(`Unable to create SaslAuthenticateResponse from data of type ${response.key}`)
+  }
+
+  get key() {
+    return this.response.key
+  }
+
+  public get correlationId(): number {
+    return this.response.correlationId
+  }
+
+  get code(): number {
+    return this.response.code
+  }
+
+  get ok(): boolean {
+    return this.code === 0x01
+  }
+
+  get data(): string {
+    // TODO how to manage this data??
+    return this.response.payload.toString()
+  }
+}
+
 export class SaslHandshakeResponse implements Response {
   static key = 0x8012
   readonly mechanisms: string[] = []
@@ -13,9 +43,9 @@ export class SaslHandshakeResponse implements Response {
     const numOfMechanisms = this.response.payload.readUint32BE(offset)
     offset += 4
     for (let index = 0; index < numOfMechanisms; index++) {
-      const xyz = readString(this.response.payload, offset)
-      offset = xyz.offset
-      this.mechanisms.push(xyz.value)
+      const res = readString(this.response.payload, offset)
+      offset = res.offset
+      this.mechanisms.push(res.value)
     }
   }
 
@@ -28,7 +58,7 @@ export class SaslHandshakeResponse implements Response {
   }
 
   get code(): number {
-    return this.code
+    return this.response.code
   }
   get ok(): boolean {
     return this.code === 0x01
@@ -52,7 +82,7 @@ export class PeerPropertiesResponse implements Response {
   }
 
   get code(): number {
-    return this.code
+    return this.response.code
   }
   get ok(): boolean {
     return this.code === 0x01
