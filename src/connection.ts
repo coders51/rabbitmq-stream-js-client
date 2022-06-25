@@ -1,96 +1,33 @@
 import { Socket } from "net"
 import { inspect } from "util"
-import { createLogger, format, transports } from "winston"
-
-interface Command {
-  toBuffer(correlationId: number): Buffer
-  // commandSize(): number
-  readonly key: number
-  readonly version: 1
-  // getCorrelationId: () => number
-  // getSizeNeed: () => string
-  // append: (buffer: Buffer) => void
-}
-
-class PeerPropertiesResponse {
-  key = 0x11
-}
-
-// const sizeLength = 4
-// const keyLength = 2
-// const versionLength = 2
-// const correlationIdLength = 4
-
-const PROPERTIES = {
-  product: "RabbitMQ Stream",
-  version: "0.0.1",
-  platform: "javascript",
-  copyright: "Copyright (c) 2020-2021 VMware, Inc. or its affiliates.",
-  information: "Licensed under the Apache 2.0 and MPL 2.0 licenses. See https://www.rabbitmq.com/",
-  connection_name: "Unknown",
-}
-
-class PeerPropertiesRequest implements Command {
-  readonly key = 0x11
-  readonly version = 1
-  private readonly _properties: { key: string; value: string }[] = []
-
-  constructor(properties: Record<string, string> = PROPERTIES) {
-    this._properties = Object.keys(properties).map((key) => ({ key, value: properties[key] }))
-  }
-
-  // (2) Key => uint16 // 0x0011
-  // (2) Version => uint16
-  // (4) CorrelationId => uint32
-  // (4 -> size + array)PeerProperties => [PeerProperty]
-  // PeerProperty => Key Value
-  // Key => string
-  // Value => string
-
-  toBuffer(correlationId: number): Buffer {
-    let offset = 4
-    const b = Buffer.alloc(1024)
-    offset = b.writeUInt16BE(this.key, offset)
-    offset = b.writeUInt16BE(this.version, offset)
-    offset = b.writeUInt32BE(correlationId, offset)
-    offset = b.writeUInt32BE(this._properties.length, offset)
-
-    this._properties.forEach(({ key, value }) => {
-      offset = this.writeString(b, offset, key)
-      offset = this.writeString(b, offset, value)
-    })
-
-    b.writeUInt32BE(offset - 4, 0)
-    return b.slice(0, offset)
-  }
-
-  writeString(buffer: Buffer, offset: number, s: string) {
-    const newOffset = buffer.writeInt16BE(s.length, offset)
-    const written = buffer.write(s, newOffset, "utf8")
-    return newOffset + written
-  }
-}
+import { Command } from "./command"
+import { PeerPropertiesRequest, SaslHandshakeRequest } from "./peer_properties_request"
+import { PeerPropertiesResponse, SaslHandshakeResponse } from "./peer_properties_response"
+import { Response } from "./response"
+import { ResponseDecoder } from "./response_decoder"
+import { createConsoleLog, removeFrom } from "./util"
+import { WaitingResponse } from "./waiting_response"
 
 export class Connection {
   private readonly socket = new Socket()
-  private readonly logger = createLogger({
-    silent: false,
-    level: "debug",
-    format: format.combine(
-      format.colorize(),
-      format.timestamp(),
-      format.align(),
-      format.splat(),
-      format.label(),
-      format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`)
-    ),
-    transports: new transports.Console(),
-  })
+  private readonly logger = createConsoleLog()
   private correlationId = 100
+  private decoder: ResponseDecoder
+  private receivedResponses: Response[] = []
+  private waitingResponses: WaitingResponse<never>[] = []
+
+  constructor() {
+    this.decoder = new ResponseDecoder(this)
+  }
 
   static connect(params: ConnectionParams): Promise<Connection> {
     const c = new Connection()
     return c.start(params)
+  }
+
+  responseReceived<T extends Response>(response: T) {
+    const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
+    return wr ? wr.resolve(response) : this.receivedResponses.push(response)
   }
 
   start(params: ConnectionParams): Promise<Connection> {
@@ -113,36 +50,64 @@ export class Connection {
         return rej()
       })
       this.socket.on("data", (data) => {
-        this.logger.debug(`receiving data ...`)
-        this.logger.debug(inspect(data))
+        this.received(data)
       })
       this.socket.on("close", (had_error) => {
         this.logger.info(`Close event on socket, close cloud had_error? ${had_error}`)
       })
       this.socket.connect(params.port, params.hostname)
     })
-
-    console.log("establish_connection")
   }
+  private received(data: Buffer) {
+    this.logger.debug(`Receiving data ... ${inspect(data)}`)
+    this.decoder.add(data)
+  }
+
   open() {
     throw new Error("Method not implemented.")
   }
   tune() {
     throw new Error("Method not implemented.")
   }
-  auth() {
-    throw new Error("Method not implemented.")
-  }
 
-  exchangeProperties(): Promise<void> {
+  async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange properties ...`)
     const req = new PeerPropertiesRequest()
-    return this.send<PeerPropertiesResponse>(req).then((res) => {
-      this.logger.debug(inspect(res))
-    })
+    const res = await this.SendAndWait<PeerPropertiesResponse>(req)
+    this.logger.debug(`SendAndWait... return: ${inspect(res)}`) // TODO -> print properties
+    return res
   }
 
-  send<T>(cmd: Command): Promise<T> {
+  async auth() {
+    this.logger.debug(`auth ...`)
+    const handshakeResponse = await this.SendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
+    this.logger.debug(`Mechanisms: ${handshakeResponse.mechanisms}`)
+    if (!handshakeResponse.mechanisms.find((m) => m === "PLAIN")) {
+      throw new Error(`Unable to find PLAIN mechanism in ${handshakeResponse.mechanisms}`)
+    }
+
+    return handshakeResponse
+
+    /**
+ *             var saslHandshakeResponse =
+                await client.Request<SaslHandshakeRequest, SaslHandshakeResponse>(
+                    corr => new SaslHandshakeRequest(corr));
+            foreach (var m in saslHandshakeResponse.Mechanisms)
+            {
+                Debug.WriteLine($"sasl mechanism: {m}");
+            }
+
+            var saslData = Encoding.UTF8.GetBytes($"\0{parameters.UserName}\0{parameters.Password}");
+            var authResponse =
+                await client.Request<SaslAuthenticateRequest, SaslAuthenticateResponse>(corr =>
+                    new SaslAuthenticateRequest(corr, "PLAIN", saslData));
+            Debug.WriteLine($"auth: {authResponse.ResponseCode} {authResponse.Data}");
+            ClientExceptions.MaybeThrowException(authResponse.ResponseCode, parameters.UserName);
+
+ */
+  }
+
+  SendAndWait<T extends Response>(cmd: Command): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer(correlationId)
@@ -156,8 +121,21 @@ export class Connection {
         if (err) {
           return rej(err)
         }
-        return res
+        res(this.waitResponse<T>({ correlationId, key: cmd.responseKey }))
       })
+    })
+  }
+
+  waitResponse<T extends Response>({ correlationId, key }: { correlationId: number; key: number }): Promise<T> {
+    const response = removeFrom(this.receivedResponses, (r) => r.correlationId === correlationId)
+    if (response) {
+      if (response.key !== key) {
+        throw new Error(`Error con correlationId: ${correlationId} waiting key: ${key} found key: ${response.key} `)
+      }
+      return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
+    }
+    return new Promise((resolve, reject) => {
+      this.waitingResponses.push(new WaitingResponse<T>(correlationId, key, { resolve, reject }))
     })
   }
 
@@ -184,8 +162,4 @@ export interface ConnectionParams {
 
 export function connect(params: ConnectionParams): Promise<Connection> {
   return Connection.connect(params)
-}
-
-function wait(timeout: number) {
-  return new Promise((res) => setTimeout(res, timeout))
 }
