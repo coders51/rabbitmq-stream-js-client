@@ -5,9 +5,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [ main ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x, 14.x, 16.x]
+        node-version: [16.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     services:
@@ -32,11 +32,11 @@ jobs:
           - 15672:15672
           - 1883:1883
           - 61613:61613
-        volumes:
-            - ./conf/enabled_plugins:/etc/rabbitmq/enabled_plugins
 
     steps:
     - uses: actions/checkout@v3
+    - name: Enable RabbitMQ Plugins
+      run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
