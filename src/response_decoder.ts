@@ -1,11 +1,9 @@
 import { DecoderListener } from "./decoder_listener"
-import {
-  OpenResponse,
-  PeerPropertiesResponse,
-  SaslAuthenticateResponse,
-  SaslHandshakeResponse,
-} from "./peer_properties_response"
-import { RawResponse } from "./raw_response"
+import { OpenResponse } from "./responses/open_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { RawResponse } from "./responses/raw_response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)

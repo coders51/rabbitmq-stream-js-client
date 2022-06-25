@@ -1,4 +1,4 @@
-export interface Command {
+export interface Request {
   toBuffer(correlationId: number): Buffer
   readonly responseKey: number
   readonly key: number

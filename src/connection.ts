@@ -1,19 +1,15 @@
 import { Socket } from "net"
 import { inspect } from "util"
-import { Command } from "./command"
-import {
-  OpenRequest,
-  PeerPropertiesRequest,
-  SaslAuthenticateRequest,
-  SaslHandshakeRequest,
-} from "./peer_properties_request"
-import {
-  OpenResponse,
-  PeerPropertiesResponse,
-  SaslAuthenticateResponse,
-  SaslHandshakeResponse,
-} from "./peer_properties_response"
-import { Response } from "./response"
+import { OpenRequest } from "./requests/open_request"
+import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { Request } from "./requests/request"
+import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
+import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { OpenResponse } from "./responses/open_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { Response } from "./responses/response"
 import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
@@ -118,7 +114,7 @@ export class Connection {
     return res
   }
 
-  SendAndWait<T extends Response>(cmd: Command): Promise<T> {
+  SendAndWait<T extends Response>(cmd: Request): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer(correlationId)
