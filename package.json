@@ -41,8 +41,12 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-no-only-tests": "^2.6.0",
     "eslint-plugin-prettier": "^4.0.0",
+    "got": "^11.8.5",
     "mocha": "^10.0.0",
     "ts-node": "^10.8.0",
     "typescript": "^4.7.2"
+  },
+  "dependencies": {
+    "winston": "^3.7.2"
   }
 }
