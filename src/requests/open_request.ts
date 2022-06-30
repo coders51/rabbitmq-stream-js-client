@@ -1,5 +1,6 @@
 import { OpenResponse } from "../responses/open_response"
-import { AbstractRequest, writeString } from "./abstract_request"
+import { AbstractRequest } from "./abstract_request"
+import { DataWriter } from "./sasl_authenticate_request"
 
 export class OpenRequest extends AbstractRequest {
   readonly responseKey = OpenResponse.key
@@ -9,7 +10,7 @@ export class OpenRequest extends AbstractRequest {
     super()
   }
 
-  writeContent(b: Buffer, offset: number): number {
-    return writeString(b, offset, this.params.virtualHost)
+  writeContent(b: DataWriter) {
+    b.writeString(this.params.virtualHost)
   }
 }

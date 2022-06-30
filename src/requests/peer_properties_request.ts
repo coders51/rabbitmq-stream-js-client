@@ -1,7 +1,8 @@
 /* eslint-disable no-param-reassign */
 
 import { PeerPropertiesResponse } from "../responses/peer_properties_response"
-import { AbstractRequest, writeString } from "./abstract_request"
+import { AbstractRequest } from "./abstract_request"
+import { DataWriter } from "./sasl_authenticate_request"
 
 export const PROPERTIES = {
   product: "RabbitMQ Stream",
@@ -22,12 +23,11 @@ export class PeerPropertiesRequest extends AbstractRequest {
     this._properties = Object.keys(properties).map((key) => ({ key, value: properties[key] }))
   }
 
-  protected writeContent(b: Buffer, offset: number) {
-    offset = b.writeUInt32BE(this._properties.length, offset)
+  protected writeContent(b: DataWriter) {
+    b.writeUInt32(this._properties.length)
     this._properties.forEach(({ key, value }) => {
-      offset = writeString(b, offset, key)
-      offset = writeString(b, offset, value)
+      b.writeString(key)
+      b.writeString(value)
     })
-    return offset
   }
 }

@@ -1,6 +1,12 @@
-/* eslint-disable no-param-reassign */
 import { SaslAuthenticateResponse } from "../responses/sasl_authenticate_response"
-import { AbstractRequest, writeString } from "./abstract_request"
+import { AbstractRequest } from "./abstract_request"
+
+export interface DataWriter {
+  writeData(data: string): void
+  writeUInt8(data: number): void
+  writeUInt32(data: number): void
+  writeString(data: string): void
+}
 
 export class SaslAuthenticateRequest extends AbstractRequest {
   readonly responseKey = SaslAuthenticateResponse.key
@@ -10,16 +16,12 @@ export class SaslAuthenticateRequest extends AbstractRequest {
     super()
   }
 
-  protected writeContent(b: Buffer, offset: number) {
-    offset = writeString(b, offset, this.params.mechanism)
-
-    offset = b.writeUInt32BE(this.params.password.length + this.params.username.length + 2, offset)
-    offset = b.writeUInt8(0, offset)
-    const uw = b.write(this.params.username, offset)
-    offset += uw
-    offset = b.writeUInt8(0, offset)
-    const pw = b.write(this.params.username, offset)
-    offset += pw
-    return offset
+  protected writeContent(b: DataWriter): void {
+    b.writeString(this.params.mechanism)
+    b.writeUInt32(this.params.password.length + this.params.username.length + 2)
+    b.writeUInt8(0)
+    b.writeData(this.params.username)
+    b.writeUInt8(0)
+    b.writeData(this.params.username)
   }
 }
