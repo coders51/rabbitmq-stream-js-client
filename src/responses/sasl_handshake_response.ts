@@ -1,6 +1,5 @@
 import { AbstractResponse } from "./abstract_response"
 import { RawResponse } from "./raw_response"
-import { readString } from "./response"
 
 export class SaslHandshakeResponse extends AbstractResponse {
   static key = 0x8012
@@ -10,13 +9,10 @@ export class SaslHandshakeResponse extends AbstractResponse {
     super(response)
     this.verifyKey(SaslHandshakeResponse)
 
-    let offset = 0
-    const numOfMechanisms = this.response.payload.readUint32BE(offset)
-    offset += 4
+    const numOfMechanisms = this.response.payload.readInt32()
     for (let index = 0; index < numOfMechanisms; index++) {
-      const res = readString(this.response.payload, offset)
-      offset = res.offset
-      this.mechanisms.push(res.value)
+      const mechanism = this.response.payload.readString()
+      this.mechanisms.push(mechanism)
     }
   }
 
