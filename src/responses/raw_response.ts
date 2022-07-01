@@ -1,5 +1,6 @@
 export interface DataReader {
-  slice(): DataReader
+  readTo(size: number): DataReader
+  readToEnd(): DataReader
 
   readUInt16(): number
   readUInt32(): number
