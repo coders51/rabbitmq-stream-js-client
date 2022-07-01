@@ -1,9 +1,10 @@
 import { DecoderListener } from "./decoder_listener"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { DataReader, RawResponse } from "./responses/raw_response"
+import { DataReader, RawResponse, RawTuneResponse } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { TuneResponse } from "./responses/tune_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -14,11 +15,16 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse {
+function decode(data: DataReader): RawResponse | RawTuneResponse {
   const size = data.readUInt32()
   const dataResponse = data.readTo(size)
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
+  if (key === TuneResponse.key) {
+    const frameMax = dataResponse.readUInt32()
+    const heartbeat = dataResponse.readUInt32()
+    return { size, key, version, frameMax, heartbeat } as RawTuneResponse
+  }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
@@ -81,19 +87,23 @@ export class ResponseDecoder {
       const response = decode(dataReader)
       switch (response.key) {
         case PeerPropertiesResponse.key:
-          this.listener.responseReceived(new PeerPropertiesResponse(response))
+          this.listener.responseReceived(new PeerPropertiesResponse(response as RawResponse))
           break
 
         case SaslHandshakeResponse.key:
-          this.listener.responseReceived(new SaslHandshakeResponse(response))
+          this.listener.responseReceived(new SaslHandshakeResponse(response as RawResponse))
           break
 
         case SaslAuthenticateResponse.key:
-          this.listener.responseReceived(new SaslAuthenticateResponse(response))
+          this.listener.responseReceived(new SaslAuthenticateResponse(response as RawResponse))
           break
 
         case OpenResponse.key:
-          this.listener.responseReceived(new OpenResponse(response))
+          this.listener.responseReceived(new OpenResponse(response as RawResponse))
+          break
+
+        case TuneResponse.key:
+          this.listener.responseReceived(new TuneResponse(response as RawTuneResponse))
           break
 
         default:

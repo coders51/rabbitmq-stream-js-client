@@ -16,3 +16,11 @@ export interface RawResponse {
   code: number
   payload: DataReader
 }
+
+export interface RawTuneResponse {
+  size: number
+  key: 0x0014
+  version: number
+  frameMax: number
+  heartbeat: number
+}

@@ -13,6 +13,7 @@ import { Response } from "./responses/response"
 import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
+import { TuneResponse } from "./responses/tune_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -65,20 +66,25 @@ export class Connection {
     })
   }
   private received(data: Buffer) {
-    this.logger.debug(`Receiving data ... ${inspect(data)}`)
+    this.logger.debug(`Receiving ${data.length} (${data.readUInt32BE()}) bytes ... ${inspect(data)}`)
     this.decoder.add(data)
   }
 
-  tune() {
-    // throw new Error("Method not implemented.")
-    // this.waitResponse<TuneResponse>
-    return Promise.resolve()
+  async tune(): Promise<void> {
+    const data = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
+    this.logger.debug(`TUNE response -> ${inspect(data)}`)
+
+    return new Promise((res, rej) => {
+      this.socket.write(data.toBuffer(), (err) => {
+        this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(data)} - err: ${err}`)
+        return err ? rej(err) : res()
+      })
+    })
   }
 
   async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
-    const req = new PeerPropertiesRequest()
-    const res = await this.SendAndWait<PeerPropertiesResponse>(req)
+    const res = await this.SendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
     if (!res.ok) {
       throw new Error(`Unable to exchange peer properties ${res.code} `)
     }

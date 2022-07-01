@@ -27,6 +27,7 @@ export abstract class AbstractResponse implements Response {
   get code(): number {
     return this.response.code
   }
+
   get ok(): boolean {
     return this.code === 0x01
   }
