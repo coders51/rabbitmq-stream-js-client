@@ -20,6 +20,11 @@ function decode(data: DataReader): RawResponse | RawTuneResponse {
   const dataResponse = data.readTo(size)
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
+  if (key === TuneResponse.key) {
+    const frameMax = dataResponse.readUInt32()
+    const heartbeat = dataResponse.readUInt32()
+    return { size, key, version, frameMax, heartbeat } as RawTuneResponse
+  }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
@@ -82,19 +87,23 @@ export class ResponseDecoder {
       const response = decode(dataReader)
       switch (response.key) {
         case PeerPropertiesResponse.key:
-          this.listener.responseReceived(new PeerPropertiesResponse(response))
+          this.listener.responseReceived(new PeerPropertiesResponse(response as RawResponse))
           break
 
         case SaslHandshakeResponse.key:
-          this.listener.responseReceived(new SaslHandshakeResponse(response))
+          this.listener.responseReceived(new SaslHandshakeResponse(response as RawResponse))
           break
 
         case SaslAuthenticateResponse.key:
-          this.listener.responseReceived(new SaslAuthenticateResponse(response))
+          this.listener.responseReceived(new SaslAuthenticateResponse(response as RawResponse))
           break
 
         case OpenResponse.key:
-          this.listener.responseReceived(new OpenResponse(response))
+          this.listener.responseReceived(new OpenResponse(response as RawResponse))
+          break
+
+        case TuneResponse.key:
+          this.listener.responseReceived(new TuneResponse(response as RawTuneResponse))
           break
 
         default:
