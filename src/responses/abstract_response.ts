@@ -1,10 +1,11 @@
 import { RawResponse } from "./raw_response"
 import { Response } from "./response"
 
-interface AbstractTypeClass {
+export interface AbstractTypeClass {
   name: string
   key: number
-  new (...args: never[]): AbstractResponse
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  new (...args: any[]): AbstractResponse
 }
 
 export abstract class AbstractResponse implements Response {
