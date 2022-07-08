@@ -1,5 +1,6 @@
 export interface DataReader {
-  slice(): DataReader
+  readTo(size: number): DataReader
+  readToEnd(): DataReader
 
   readUInt16(): number
   readUInt32(): number
@@ -14,4 +15,12 @@ export interface RawResponse {
   correlationId: number
   code: number
   payload: DataReader
+}
+
+export interface RawTuneResponse {
+  size: number
+  key: 0x0014
+  version: number
+  frameMax: number
+  heartbeat: number
 }

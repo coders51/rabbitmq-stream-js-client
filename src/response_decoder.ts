@@ -1,9 +1,10 @@
 import { DecoderListener } from "./decoder_listener"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { DataReader, RawResponse } from "./responses/raw_response"
+import { DataReader, RawResponse, RawTuneResponse } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { TuneResponse } from "./responses/tune_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -14,22 +15,43 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse {
+function decode(data: DataReader): RawResponse | RawTuneResponse {
   const size = data.readUInt32()
-  const key = data.readUInt16()
-  const version = data.readUInt16()
-  const correlationId = data.readUInt32()
-  const responseCode = data.readUInt16()
-  const payload = data.slice()
+  const dataResponse = data.readTo(size)
+  const key = dataResponse.readUInt16()
+  const version = dataResponse.readUInt16()
+  if (key === TuneResponse.key) {
+    const frameMax = dataResponse.readUInt32()
+    const heartbeat = dataResponse.readUInt32()
+    return { size, key, version, frameMax, heartbeat } as RawTuneResponse
+  }
+  const correlationId = dataResponse.readUInt32()
+  const responseCode = dataResponse.readUInt16()
+  const payload = dataResponse.readToEnd()
   return { size, key, version, correlationId, code: responseCode, payload }
 }
 
 class BufferDataReader implements DataReader {
   private offset = 0
+
   constructor(private data: Buffer) {}
-  slice(): DataReader {
-    return new BufferDataReader(this.data.slice(this.offset))
+
+  readTo(size: number): DataReader {
+    const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    this.offset += size
+    return ret
   }
+
+  readToEnd(): DataReader {
+    const ret = new BufferDataReader(this.data.slice(this.offset))
+    this.offset = this.data.length
+    return ret
+  }
+
+  atEnd(): boolean {
+    return this.offset === this.data.length
+  }
+
   readUInt16(): number {
     const ret = this.data.readUInt16BE(this.offset)
     this.offset += 2
@@ -60,26 +82,33 @@ export class ResponseDecoder {
   constructor(private listener: DecoderListener) {}
 
   add(data: Buffer) {
-    const response = decode(new BufferDataReader(data))
-    switch (response.key) {
-      case PeerPropertiesResponse.key:
-        this.listener.responseReceived(new PeerPropertiesResponse(response))
-        break
+    const dataReader = new BufferDataReader(data)
+    while (!dataReader.atEnd()) {
+      const response = decode(dataReader)
+      switch (response.key) {
+        case PeerPropertiesResponse.key:
+          this.listener.responseReceived(new PeerPropertiesResponse(response as RawResponse))
+          break
 
-      case SaslHandshakeResponse.key:
-        this.listener.responseReceived(new SaslHandshakeResponse(response))
-        break
+        case SaslHandshakeResponse.key:
+          this.listener.responseReceived(new SaslHandshakeResponse(response as RawResponse))
+          break
 
-      case SaslAuthenticateResponse.key:
-        this.listener.responseReceived(new SaslAuthenticateResponse(response))
-        break
+        case SaslAuthenticateResponse.key:
+          this.listener.responseReceived(new SaslAuthenticateResponse(response as RawResponse))
+          break
 
-      case OpenResponse.key:
-        this.listener.responseReceived(new OpenResponse(response))
-        break
+        case OpenResponse.key:
+          this.listener.responseReceived(new OpenResponse(response as RawResponse))
+          break
 
-      default:
-        throw new Error(`Unknown response ${response.key.toString(16)}`)
+        case TuneResponse.key:
+          this.listener.responseReceived(new TuneResponse(response as RawTuneResponse))
+          break
+
+        default:
+          throw new Error(`Unknown response ${response.key.toString(16)}`)
+      }
     }
   }
 }

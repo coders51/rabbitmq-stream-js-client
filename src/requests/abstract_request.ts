@@ -1,7 +1,7 @@
 import { Request } from "./request"
 import { DataWriter } from "./sasl_authenticate_request"
 
-class BufferDataWriter implements DataWriter {
+export class BufferDataWriter implements DataWriter {
   private _offset = 0
 
   constructor(private buffer: Buffer, startFrom: number) {
@@ -30,6 +30,10 @@ class BufferDataWriter implements DataWriter {
   }
 
   writeUInt32(data: number): void {
+    this._offset = this.buffer.writeUInt32BE(data, this._offset)
+  }
+
+  writeInt32(data: number): void {
     this._offset = this.buffer.writeUInt32BE(data, this._offset)
   }
 
