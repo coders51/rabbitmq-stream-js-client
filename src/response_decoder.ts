@@ -1,4 +1,5 @@
 import { DecoderListener } from "./decoder_listener"
+import { AbstractTypeClass } from "./responses/abstract_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { DataReader, RawResponse, RawTuneResponse } from "./responses/raw_response"
@@ -17,7 +18,10 @@ import { TuneResponse } from "./responses/tune_response"
 
 function decode(data: DataReader): RawResponse | RawTuneResponse {
   const size = data.readUInt32()
-  const dataResponse = data.readTo(size)
+  return decodeResponse(data.readTo(size), size)
+}
+
+function decodeResponse(dataResponse: DataReader, size: number): RawResponse | RawTuneResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === TuneResponse.key) {
@@ -78,37 +82,50 @@ class BufferDataReader implements DataReader {
   }
 }
 
+function isTuneResponse(params: RawResponse | RawTuneResponse): params is RawTuneResponse {
+  return params.key === TuneResponse.key
+}
+
 export class ResponseDecoder {
-  constructor(private listener: DecoderListener) {}
+  private responseFactories = new Map<number, AbstractTypeClass>()
+
+  constructor(private listener: DecoderListener) {
+    this.addFactoryFor(PeerPropertiesResponse)
+    this.addFactoryFor(SaslHandshakeResponse)
+    this.addFactoryFor(SaslAuthenticateResponse)
+    this.addFactoryFor(OpenResponse)
+  }
 
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
     while (!dataReader.atEnd()) {
       const response = decode(dataReader)
-      switch (response.key) {
-        case PeerPropertiesResponse.key:
-          this.listener.responseReceived(new PeerPropertiesResponse(response as RawResponse))
-          break
-
-        case SaslHandshakeResponse.key:
-          this.listener.responseReceived(new SaslHandshakeResponse(response as RawResponse))
-          break
-
-        case SaslAuthenticateResponse.key:
-          this.listener.responseReceived(new SaslAuthenticateResponse(response as RawResponse))
-          break
-
-        case OpenResponse.key:
-          this.listener.responseReceived(new OpenResponse(response as RawResponse))
-          break
-
-        case TuneResponse.key:
-          this.listener.responseReceived(new TuneResponse(response as RawTuneResponse))
-          break
-
-        default:
-          throw new Error(`Unknown response ${response.key.toString(16)}`)
+      if (isTuneResponse(response)) {
+        this.emitTuneResponseReceived(response)
+      } else {
+        this.emitResponseReceived(response)
       }
     }
+  }
+
+  private addFactoryFor(type: AbstractTypeClass) {
+    this.responseFactories.set(type.key, type)
+  }
+
+  private emitTuneResponseReceived(response: RawTuneResponse) {
+    this.listener.responseReceived(new TuneResponse(response))
+  }
+
+  private emitResponseReceived(response: RawResponse) {
+    const value = this.getFactoryFor(response.key)
+    this.listener.responseReceived(new value(response))
+  }
+
+  private getFactoryFor(key: number): AbstractTypeClass {
+    const value = this.responseFactories.get(key)
+    if (!value) {
+      throw new Error(`Unknown response ${key.toString(16)}`)
+    }
+    return value
   }
 }
