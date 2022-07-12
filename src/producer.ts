@@ -1,3 +1,3 @@
 export class Producer {
-  constructor(private _stream: string, private _publisherId: number, private _publisherRef?: string) {}
+  constructor(public stream: string, public publisherId: number, public publisherRef?: string) {}
 }
