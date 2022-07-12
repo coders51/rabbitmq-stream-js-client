@@ -14,6 +14,7 @@ import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
+import { Producer } from "./producer"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -30,6 +31,10 @@ export class Connection {
   static connect(params: ConnectionParams): Promise<Connection> {
     const c = new Connection()
     return c.start(params)
+  }
+
+  public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    return new Producer()
   }
 
   responseReceived<T extends Response>(response: T) {
@@ -177,6 +182,11 @@ export interface ConnectionParams {
   vhost: string
   frameMax: number // not used
   heartbeat: number // not user
+}
+
+export interface DeclarePublisherParams {
+  stream: string
+  publisherRef?: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
