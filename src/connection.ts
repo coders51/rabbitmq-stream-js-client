@@ -17,6 +17,8 @@ import { TuneResponse } from "./responses/tune_response"
 import { Producer } from "./producer"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { CreateStreamRequest } from "./requests/create_stream_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -137,6 +139,13 @@ export class Connection {
     this.logger.debug(`Open ...`)
     const res = await this.SendAndWait<OpenResponse>(new OpenRequest(params))
     this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
+    return res
+  }
+
+  async createStream(params: { stream: string; arguments: { key: string; value: string } }) {
+    this.logger.debug(`Create Stream...`)
+    const res = await this.SendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    this.logger.debug(`Create Stream response: ${res.ok} - '${inspect(params.arguments)}'`)
     return res
   }
 
