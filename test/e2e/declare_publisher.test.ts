@@ -55,5 +55,7 @@ describe("declare publisher", () => {
       Error,
       "Declare Publisher command returned error with code 2"
     )
+
+    await connection.close()
   })
 })
