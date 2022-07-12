@@ -2,10 +2,13 @@ import { CreateStreamResponse } from "../responses/create_stream_response"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
-// arguments.put("x-queue-type", "stream")
-// arguments.put("x-max-length-bytes", 20_000_000_000) // maximum stream size: 20 GB
-// arguments.put("x-stream-max-segment-size-bytes", 100_000_000) // size of segment files: 100 MB
-
+export const validArguments = [
+  "x-queue-leader-locator",
+  "x-max-age",
+  "x-stream-max-segment-size-bytes",
+  "x-initial-cluster-size",
+  "x-max-length-bytes",
+]
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
@@ -14,8 +17,11 @@ export class CreateStreamRequest extends AbstractRequest {
 
   constructor(params: { stream: string; arguments: Record<string, string> }) {
     super()
-    this._arguments = Object.keys(params.arguments).map((key) => ({ key, value: params.arguments[key] }))
+    this._arguments = Object.keys(params.arguments)
+      .filter((key) => validArguments.includes(key))
+      .map((key) => ({ key, value: params.arguments[key] }))
     this.stream = params.stream
+    console.log("!!!ARGUMENTS!!!!", this._arguments)
   }
 
   writeContent(b: DataWriter) {
