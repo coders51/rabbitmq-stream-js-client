@@ -37,20 +37,19 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
-    const publisherId = this.publisherId
-    this.publisherId++
+    const publisherId = this.incPublisherId()
     const res = await this.SendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ ...params, publisherId })
     )
-    if (res.ok) {
-      const producer = new Producer(params.stream, publisherId, params.publisherRef)
-
-      this.logger.info(
-        `New producer created with steam name ${producer.stream}, publisher id ${producer.publisherId} and publisher reference ${producer.publisherRef}`
-      )
-      return producer
+    if (!res.ok) {
+      throw new Error(`Declare Publisher command returned error with code ${res.code}`)
     }
-    throw new Error(`Declare Publisher command returned error with code ${res.code}`)
+
+    const producer = new Producer(params.stream, publisherId, params.publisherRef)
+    this.logger.info(
+      `New producer created with steam name ${producer.stream}, publisher id ${producer.publisherId} and publisher reference ${producer.publisherRef}`
+    )
+    return producer
   }
 
   responseReceived<T extends Response>(response: T) {
@@ -182,6 +181,12 @@ export class Connection {
   incCorrelationId() {
     this.correlationId += 1
     return this.correlationId
+  }
+
+  incPublisherId() {
+    const publisherId = this.publisherId
+    this.publisherId++
+    return publisherId
   }
 
   close(): Promise<void> {

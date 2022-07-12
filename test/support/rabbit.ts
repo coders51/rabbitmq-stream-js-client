@@ -39,7 +39,6 @@ export class Rabbit {
       password: "rabbit",
       responseType: "json",
     })
-    return
   }
 
   async deleteStream(streamName: string): Promise<void> {
@@ -47,11 +46,10 @@ export class Rabbit {
       username: "rabbit",
       password: "rabbit",
     })
-    return
   }
 
   async returnPublishers(streamName: string): Promise<string[]> {
-    const publishers = await got
+    return got
       .get<RabbitPublishersResponse[]>(`http://localhost:15672/api/stream/publishers/%2F/${streamName}`, {
         username: "rabbit",
         password: "rabbit",
@@ -60,6 +58,5 @@ export class Rabbit {
       .then((resp) => {
         return resp.body.map((p) => p.reference)
       })
-    return publishers
   }
 }
