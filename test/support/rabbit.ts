@@ -124,4 +124,18 @@ export class Rabbit {
 
     return r.body
   }
+
+  async getQueues(): Promise<RabbitQueueResponse[]> {
+    const ret = await got.get<RabbitQueueResponse[]>(`http://localhost:15672/api/queues`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+    return ret.body
+  }
+
+  async deleteAllQueues(): Promise<void> {
+    const l = await this.getQueues()
+    await Promise.all(l.map((q) => this.deleteQueue("%2F", q.name)))
+  }
 }

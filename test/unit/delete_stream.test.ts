@@ -9,6 +9,7 @@ describe("Delete command", () => {
 
   afterEach(async () => {
     await rabbit.closeAllConnections()
+    await rabbit.deleteAllQueues()
   })
 
   beforeEach(async () => {
