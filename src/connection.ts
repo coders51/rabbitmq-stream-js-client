@@ -18,7 +18,7 @@ import { Producer } from "./producer"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { CreateStreamResponse } from "./responses/create_stream_response"
-import { CreateStreamRequest, validArguments } from "./requests/create_stream_request"
+import { CreateStreamRequest, ValidArguments } from "./requests/create_stream_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -142,7 +142,7 @@ export class Connection {
     return res
   }
 
-  async createStream(params: { stream: string; arguments: validArguments }) {
+  async createStream(params: { stream: string; arguments: ValidArguments }) {
     this.logger.debug(`Create Stream...`)
     const res = await this.SendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
     this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
