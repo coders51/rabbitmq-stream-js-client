@@ -46,6 +46,9 @@ export class Rabbit {
   async createStream(streamName: string): Promise<void> {
     await got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
       body: JSON.stringify({ auto_delete: false, durable: true, arguments: { "x-queue-type": "stream" } }),
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
     })
   }
 
