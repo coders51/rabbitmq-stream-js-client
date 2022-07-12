@@ -27,7 +27,6 @@ export class CreateStreamRequest extends AbstractRequest {
     })
 
     this.stream = params.stream
-    console.log("!!!ARGUMENTS!!!!", this._arguments)
   }
 
   writeContent(writer: DataWriter) {
