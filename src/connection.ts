@@ -43,7 +43,12 @@ export class Connection {
       new DeclarePublisherRequest({ ...params, publisherId })
     )
     if (res.ok) {
-      return new Producer(params.stream, publisherId, params.publisherRef)
+      const producer = new Producer(params.stream, publisherId, params.publisherRef)
+
+      this.logger.info(
+        `New producer created with steam name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      )
+      return producer
     }
     throw new Error(`Declare Publisher command returned error with code ${res.code}`)
   }
