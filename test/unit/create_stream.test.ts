@@ -1,26 +1,30 @@
 import { expect } from "chai"
-import { connect } from "../../src"
+import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
 
 describe("Stream", () => {
   const rabbit = new Rabbit()
   const streamName = "test-stream"
   const payload = { key: "x-dead-letter-exchange", value: "test" }
+  let connection: Connection
+
+  before(async () => {
+    connection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
+  })
 
   afterEach(async () => await rabbit.deleteQueue("%2F", streamName))
+  after(() => rabbit.closeAllConnections())
 
   describe("Create", () => {
     it("Should create a new Stream", async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-
       const resp = await connection.createStream({
         stream: streamName,
         arguments: payload,
@@ -32,16 +36,6 @@ describe("Stream", () => {
     })
 
     it("Should detect a duplicate Stream", async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-
       await connection.createStream({
         stream: streamName,
         arguments: payload,
@@ -55,16 +49,6 @@ describe("Stream", () => {
     })
 
     it("Should ignore invalid arguments", async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-
       await connection.createStream({
         stream: streamName,
         arguments: { key: "fake-argument", value: "test" },
