@@ -21,7 +21,6 @@ export class CreateStreamRequest extends AbstractRequest {
       .filter((key) => validArguments.includes(key))
       .map((key) => ({ key, value: params.arguments[key] }))
     this.stream = params.stream
-    console.log("!!!ARGUMENTS!!!!", this._arguments)
   }
 
   writeContent(b: DataWriter) {

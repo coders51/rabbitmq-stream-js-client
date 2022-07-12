@@ -211,7 +211,7 @@ export interface ConnectionParams {
   password: string
   vhost: string
   frameMax: number // not used
-  heartbeat: number // not user
+  heartbeat: number // not used
 }
 
 export interface DeclarePublisherParams {
