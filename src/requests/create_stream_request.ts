@@ -1,6 +1,5 @@
 import { CreateStreamResponse } from "../responses/create_stream_response"
 import { AbstractRequest } from "./abstract_request"
-
 import { DataWriter } from "./data_writer"
 
 export interface CreateStreamArguments {
@@ -10,7 +9,6 @@ export interface CreateStreamArguments {
   "x-initial-cluster-size"?: number
   "x-max-length-bytes"?: number
 }
-
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
