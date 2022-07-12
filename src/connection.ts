@@ -14,6 +14,9 @@ import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
+import { Producer } from "./producer"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -22,6 +25,7 @@ export class Connection {
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
   private waitingResponses: WaitingResponse<never>[] = []
+  private publisherId = 0
 
   constructor() {
     this.decoder = new ResponseDecoder(this)
@@ -30,6 +34,22 @@ export class Connection {
   static connect(params: ConnectionParams): Promise<Connection> {
     const c = new Connection()
     return c.start(params)
+  }
+
+  public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    const publisherId = this.incPublisherId()
+    const res = await this.SendAndWait<DeclarePublisherResponse>(
+      new DeclarePublisherRequest({ ...params, publisherId })
+    )
+    if (!res.ok) {
+      throw new Error(`Declare Publisher command returned error with code ${res.code}`)
+    }
+
+    const producer = new Producer(params.stream, publisherId, params.publisherRef)
+    this.logger.info(
+      `New producer created with steam name ${producer.stream}, publisher id ${producer.publisherId} and publisher reference ${producer.publisherRef}`
+    )
+    return producer
   }
 
   responseReceived<T extends Response>(response: T) {
@@ -163,6 +183,12 @@ export class Connection {
     return this.correlationId
   }
 
+  incPublisherId() {
+    const publisherId = this.publisherId
+    this.publisherId++
+    return publisherId
+  }
+
   close(): Promise<void> {
     this.logger.info(`Closing connection ...`)
     return new Promise((res, _rej) => this.socket.end(() => res()))
@@ -177,6 +203,11 @@ export interface ConnectionParams {
   vhost: string
   frameMax: number // not used
   heartbeat: number // not user
+}
+
+export interface DeclarePublisherParams {
+  stream: string
+  publisherRef?: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {

@@ -1,5 +1,6 @@
 import { DecoderListener } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { DataReader, RawResponse, RawTuneResponse } from "./responses/raw_response"
@@ -94,6 +95,7 @@ export class ResponseDecoder {
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
     this.addFactoryFor(OpenResponse)
+    this.addFactoryFor(DeclarePublisherResponse)
   }
 
   add(data: Buffer) {

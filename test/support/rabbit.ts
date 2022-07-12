@@ -4,6 +4,11 @@ interface RabbitConnectionResponse {
   name: string
 }
 
+interface RabbitPublishersResponse {
+  reference: string
+  publisher_id: number
+}
+
 export class Rabbit {
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
@@ -25,5 +30,33 @@ export class Rabbit {
       responseType: "json",
     })
     return ret.body
+  }
+
+  async createStream(streamName: string): Promise<void> {
+    await got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+      body: JSON.stringify({ auto_delete: false, durable: true, arguments: { "x-queue-type": "stream" } }),
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+  }
+
+  async deleteStream(streamName: string): Promise<void> {
+    await got.delete<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+      username: "rabbit",
+      password: "rabbit",
+    })
+  }
+
+  async returnPublishers(streamName: string): Promise<string[]> {
+    return got
+      .get<RabbitPublishersResponse[]>(`http://localhost:15672/api/stream/publishers/%2F/${streamName}`, {
+        username: "rabbit",
+        password: "rabbit",
+        responseType: "json",
+      })
+      .then((resp) => {
+        return resp.body.map((p) => p.reference)
+      })
   }
 }
