@@ -5,7 +5,7 @@ import { Rabbit } from "../support/rabbit"
 describe("Stream", () => {
   const rabbit = new Rabbit()
   const streamName = "test-stream"
-  const payload = { key: "x-dead-letter-exchange", value: "test" }
+  const payload = { "x-max-age": "test" }
   let connection: Connection
 
   before(async () => {
@@ -46,16 +46,6 @@ describe("Stream", () => {
         arguments: payload,
       })
       expect(errorResp.ok).to.be.false
-    })
-
-    it("Should ignore invalid arguments", async () => {
-      await connection.createStream({
-        stream: streamName,
-        arguments: { key: "fake-argument", value: "test" },
-      })
-
-      const result = await rabbit.getQueue("%2F", streamName)
-      expect(Object.keys(result.arguments).includes("fake-argument")).to.be.false
     })
   })
 })
