@@ -1,6 +1,7 @@
 import { CreateStreamResponse } from "../responses/create_stream_response"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
+
 export interface CreateStreamArguments {
   "x-queue-leader-locator"?: string
   "x-max-age"?: string
@@ -12,6 +13,7 @@ export interface CreateStreamArguments {
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
+
   private readonly _arguments: { key: keyof CreateStreamArguments; value: string | number }[] = []
   private readonly stream: string
 
