@@ -4,6 +4,11 @@ interface RabbitConnectionResponse {
   name: string
 }
 
+interface RabbitPublishersResponse {
+  reference: string
+  publisher_id: number
+}
+
 export class Rabbit {
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
@@ -43,5 +48,18 @@ export class Rabbit {
       password: "rabbit",
     })
     return
+  }
+
+  async returnPublishers(streamName: string): Promise<string[]> {
+    const publishers = await got
+      .get<RabbitPublishersResponse[]>(`http://localhost:15672/api/stream/publishers/%2F/${streamName}`, {
+        username: "rabbit",
+        password: "rabbit",
+        responseType: "json",
+      })
+      .then((resp) => {
+        return resp.body.map((p) => p.reference)
+      })
+    return publishers
   }
 }

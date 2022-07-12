@@ -15,6 +15,8 @@ import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
 import { Producer } from "./producer"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -23,6 +25,7 @@ export class Connection {
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
   private waitingResponses: WaitingResponse<never>[] = []
+  private publisherId = 0
 
   constructor() {
     this.decoder = new ResponseDecoder(this)
@@ -34,7 +37,15 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
-    return new Producer()
+    const publisherId = this.publisherId
+    this.publisherId++
+    const res = await this.SendAndWait<DeclarePublisherResponse>(
+      new DeclarePublisherRequest({ ...params, publisherId })
+    )
+    if (res.ok) {
+      return new Producer(params.stream, publisherId, params.publisherRef)
+    }
+    throw new Error(`Declare Publisher command returned error with code ${res.code}`)
   }
 
   responseReceived<T extends Response>(response: T) {
