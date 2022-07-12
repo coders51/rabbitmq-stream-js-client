@@ -16,9 +16,12 @@ export class BufferDataWriter implements DataWriter {
     this.buffer.writeUInt32BE(this._offset - 4, 0)
   }
 
-  writeData(data: string): void {
-    const written = this.buffer.write(data, this._offset)
-    this._offset += written
+  writeData(data: string | Buffer): void {
+    if (Buffer.isBuffer(data)) {
+      this._offset += data.copy(this.buffer, this._offset)
+      return
+    }
+    this._offset += this.buffer.write(data, this._offset)
   }
 
   writeUInt8(data: number): void {
@@ -35,6 +38,10 @@ export class BufferDataWriter implements DataWriter {
 
   writeInt32(data: number): void {
     this._offset = this.buffer.writeUInt32BE(data, this._offset)
+  }
+
+  writeUInt64(data: bigint): void {
+    this._offset = this.buffer.writeBigUInt64BE(data, this._offset)
   }
 
   writeString(data: string): void {

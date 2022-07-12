@@ -48,22 +48,17 @@ export class Connection {
       new DeclarePublisherRequest({ ...params, publisherId })
     )
     if (!res.ok) {
-      throw new Error(`Declare Publisher command returned error with code ${res.code}`)
+      throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const producer = new Producer(params.stream, publisherId, params.publisherRef)
+    const producer = new Producer(this, publisherId)
     this.logger.info(
-      `New producer created with steam name ${producer.stream}, publisher id ${producer.publisherId} and publisher reference ${producer.publisherRef}`
+      `New producer created with steam name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
     return producer
   }
 
-  responseReceived<T extends Response>(response: T) {
-    const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
-    return wr ? wr.resolve(response) : this.receivedResponses.push(response)
-  }
-
-  private start(params: ConnectionParams): Promise<Connection> {
+  public start(params: ConnectionParams): Promise<Connection> {
     this.heartbeatInterval = params.heartbeat || 0
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
@@ -93,6 +88,42 @@ export class Connection {
       })
       this.socket.connect(params.port, params.hostname)
     })
+  }
+
+  // public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+  //   const publisherId = this.publisherId
+  //   this.publisherId++
+  //   const res = await this.sendAndWait<DeclarePublisherResponse>(
+  //     new DeclarePublisherRequest({ ...params, publisherId })
+  //   )
+  //   if (res.ok) {
+  //     return new Producer(this, publisherId)
+  //   }
+  //   throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+  // }
+
+  public send(cmd: Request): Promise<void> {
+    return new Promise((res, rej) => {
+      // const correlationId = this.incCorrelationId()
+      const body = cmd.toBuffer()
+      this.logger.debug(
+        `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
+          body.byteLength
+        }`
+      )
+      this.socket.write(body, (err) => {
+        this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
+        if (err) {
+          return rej(err)
+        }
+        return res()
+      })
+    })
+  }
+
+  responseReceived<T extends Response>(response: T) {
+    const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
+    return wr ? wr.resolve(response) : this.receivedResponses.push(response)
   }
 
   private received(data: Buffer) {
@@ -168,20 +199,7 @@ export class Connection {
     return res.ok
   }
 
-  send(data: Buffer): Promise<void> {
-    return new Promise((res, rej) => {
-      this.logger.debug(`Write data: ${inspect(data.toJSON())} length: ${data.byteLength}`)
-      this.socket.write(data, (err) => {
-        this.logger.debug(`Write COMPLETED for data: ${inspect(data)} err: ${err}`)
-        if (err) {
-          return rej(err)
-        }
-        return res()
-      })
-    })
-  }
-
-  sendAndWait<T extends Response>(cmd: Request): Promise<T> {
+  private sendAndWait<T extends Response>(cmd: Request): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer(correlationId)
@@ -203,7 +221,7 @@ export class Connection {
     })
   }
 
-  waitResponse<T extends Response>({ correlationId, key }: { correlationId: number; key: number }): Promise<T> {
+  private waitResponse<T extends Response>({ correlationId, key }: { correlationId: number; key: number }): Promise<T> {
     const response = removeFrom(this.receivedResponses, (r) => r.correlationId === correlationId)
     if (response) {
       if (response.key !== key) {
@@ -231,7 +249,7 @@ export class Connection {
     return publisherId
   }
 
-  close(): Promise<void> {
+  public close(): Promise<void> {
     this.logger.info(`Closing connection ...`)
     return new Promise((res, _rej) => this.socket.end(() => res()))
   }
@@ -254,4 +272,14 @@ export interface DeclarePublisherParams {
 
 export function connect(params: ConnectionParams): Promise<Connection> {
   return Connection.connect(params)
+}
+
+function errorMessageOf(code: number): string {
+  switch (code) {
+    case 0x02:
+      return "Stream does not exist"
+
+    default:
+      return "Unknown error"
+  }
 }
