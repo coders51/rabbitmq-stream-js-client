@@ -9,6 +9,7 @@ export interface CreateStreamArguments {
   "x-initial-cluster-size"?: number
   "x-max-length-bytes"?: number
 }
+
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
@@ -24,7 +25,9 @@ export class CreateStreamRequest extends AbstractRequest {
         value: params.arguments[key] ?? "",
       }
     })
+
     this.stream = params.stream
+    console.log("!!!ARGUMENTS!!!!", this._arguments)
   }
 
   writeContent(writer: DataWriter) {

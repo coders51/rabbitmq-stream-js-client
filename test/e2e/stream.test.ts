@@ -53,5 +53,25 @@ describe("Stream", () => {
       })
       expect(errorResp.ok).to.be.false
     })
+
+    it("Should ignore invalid arguments", async () => {
+      const connection = await connect({
+        hostname: "localhost",
+        port: 5552,
+        username: "rabbit",
+        password: "rabbit",
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      })
+
+      await connection.createStream({
+        stream: streamName,
+        arguments: { key: "fake-argument", value: "test" },
+      })
+
+      const result = await rabbit.getQueue("%2F", streamName)
+      expect(result.arguments.keys.includes("fake-argument")).to.be.false
+    })
   })
 })
