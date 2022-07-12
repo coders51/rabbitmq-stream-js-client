@@ -9,6 +9,7 @@ export const validArguments = [
   "x-initial-cluster-size",
   "x-max-length-bytes",
 ]
+
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d

@@ -145,7 +145,7 @@ export class Connection {
   async createStream(params: { stream: string; arguments: { key: string; value: string } }) {
     this.logger.debug(`Create Stream...`)
     const res = await this.SendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
-    this.logger.debug(`Create Stream response: ${res.ok} - '${inspect(params.arguments)}'`)
+    this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
     return res
   }
 
