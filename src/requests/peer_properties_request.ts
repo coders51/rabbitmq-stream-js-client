@@ -2,7 +2,7 @@
 
 import { PeerPropertiesResponse } from "../responses/peer_properties_response"
 import { AbstractRequest } from "./abstract_request"
-import { DataWriter } from "./sasl_authenticate_request"
+import { DataWriter } from "./data_writer"
 
 export const PROPERTIES = {
   product: "RabbitMQ Stream",
@@ -23,11 +23,11 @@ export class PeerPropertiesRequest extends AbstractRequest {
     this._properties = Object.keys(properties).map((key) => ({ key, value: properties[key] }))
   }
 
-  protected writeContent(b: DataWriter) {
-    b.writeUInt32(this._properties.length)
+  protected writeContent(writer: DataWriter) {
+    writer.writeUInt32(this._properties.length)
     this._properties.forEach(({ key, value }) => {
-      b.writeString(key)
-      b.writeString(value)
+      writer.writeString(key)
+      writer.writeString(value)
     })
   }
 }

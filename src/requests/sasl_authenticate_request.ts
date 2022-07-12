@@ -1,12 +1,6 @@
 import { SaslAuthenticateResponse } from "../responses/sasl_authenticate_response"
 import { AbstractRequest } from "./abstract_request"
-
-export interface DataWriter {
-  writeData(data: string): void
-  writeUInt8(data: number): void
-  writeUInt32(data: number): void
-  writeString(data: string): void
-}
+import { DataWriter } from "./data_writer"
 
 export class SaslAuthenticateRequest extends AbstractRequest {
   readonly responseKey = SaslAuthenticateResponse.key
@@ -16,12 +10,12 @@ export class SaslAuthenticateRequest extends AbstractRequest {
     super()
   }
 
-  protected writeContent(b: DataWriter): void {
-    b.writeString(this.params.mechanism)
-    b.writeUInt32(this.params.password.length + this.params.username.length + 2)
-    b.writeUInt8(0)
-    b.writeData(this.params.username)
-    b.writeUInt8(0)
-    b.writeData(this.params.username)
+  protected writeContent(writer: DataWriter): void {
+    writer.writeString(this.params.mechanism)
+    writer.writeUInt32(this.params.password.length + this.params.username.length + 2)
+    writer.writeUInt8(0)
+    writer.writeData(this.params.username)
+    writer.writeUInt8(0)
+    writer.writeData(this.params.username)
   }
 }

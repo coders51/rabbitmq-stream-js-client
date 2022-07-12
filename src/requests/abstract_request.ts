@@ -1,5 +1,5 @@
+import { DataWriter } from "./data_writer"
 import { Request } from "./request"
-import { DataWriter } from "./sasl_authenticate_request"
 
 export class BufferDataWriter implements DataWriter {
   private _offset = 0
