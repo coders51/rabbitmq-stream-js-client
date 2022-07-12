@@ -71,7 +71,7 @@ describe("Stream", () => {
       })
 
       const result = await rabbit.getQueue("%2F", streamName)
-      expect(result.arguments.keys.includes("fake-argument")).to.be.false
+      expect(Object.keys(result.arguments).includes("fake-argument")).to.be.false
     })
   })
 })
