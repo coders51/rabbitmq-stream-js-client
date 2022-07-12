@@ -11,6 +11,7 @@ import { DataReader, RawHeartbeatResponse, RawResponse, RawTuneResponse } from "
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -46,7 +47,7 @@ function decodeResponse(dataResponse: DataReader, size: number): RawResponse | R
 class BufferDataReader implements DataReader {
   private offset = 0
 
-  constructor(private data: Buffer) {}
+  constructor(private data: Buffer) { }
 
   readTo(size: number): DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
@@ -110,6 +111,7 @@ export class ResponseDecoder {
     this.addFactoryFor(OpenResponse)
     this.addFactoryFor(DeclarePublisherResponse)
     this.addFactoryFor(CreateStreamResponse)
+    this.addFactoryFor(DeleteStreamResponse)
   }
 
   add(data: Buffer) {
