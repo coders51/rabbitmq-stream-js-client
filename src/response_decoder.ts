@@ -16,7 +16,7 @@ import { TuneResponse } from "./responses/tune_response"
 //   Size => uint32 (size without the 4 bytes of the size element)
 //
 // Response => Key Version CorrelationId ResponseCode
-//   Key => uint16
+//   Key => uint16createStream
 //   Version => uint16
 //   CorrelationId => uint32
 //   ResponseCode => uint16
