@@ -4,6 +4,7 @@ import { ResponseDecoder } from "../../src/response_decoder"
 import { PeerPropertiesResponse } from "../../src/responses/peer_properties_response"
 import { expect } from "chai"
 import { BufferDataWriter } from "../../src/requests/abstract_request"
+import { createConsoleLog } from "../../src/util"
 
 class MockDecoderListener implements DecoderListener {
   readonly responses: Response[] = []
@@ -23,7 +24,7 @@ describe("ResponseDecoder", () => {
 
   beforeEach(() => {
     listener.reset()
-    decoder = new ResponseDecoder(listener)
+    decoder = new ResponseDecoder(listener, createConsoleLog())
   })
 
   it("decode a buffer that contains a single response", () => {

@@ -55,7 +55,7 @@ export abstract class AbstractRequest implements Request {
     const dataWriter = new BufferDataWriter(Buffer.alloc(1024), 4)
     dataWriter.writeUInt16(this.key)
     dataWriter.writeUInt16(this.version)
-    dataWriter.writeUInt32(correlationId)
+    if (correlationId > 0) dataWriter.writeUInt32(correlationId)
 
     this.writeContent(dataWriter)
 

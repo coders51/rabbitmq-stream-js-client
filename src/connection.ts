@@ -19,6 +19,8 @@ import { DeclarePublisherResponse } from "./responses/declare_publisher_response
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
+import { Heartbeat } from "./heartbeat"
+import { TuneRequest } from "./requests/tune_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -29,18 +31,20 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
 
+  private heartbeat?: Heartbeat
+  private heartbeatInterval = 0
+
   constructor() {
-    this.decoder = new ResponseDecoder(this)
+    this.decoder = new ResponseDecoder(this, this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
-    const c = new Connection()
-    return c.start(params)
+    return new Connection().start(params)
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
     const publisherId = this.incPublisherId()
-    const res = await this.SendAndWait<DeclarePublisherResponse>(
+    const res = await this.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ ...params, publisherId })
     )
     if (!res.ok) {
@@ -60,6 +64,7 @@ export class Connection {
   }
 
   start(params: ConnectionParams): Promise<Connection> {
+    this.heartbeatInterval = params.heartbeat | 0
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -71,6 +76,9 @@ export class Connection {
         await this.auth({ username: params.username, password: params.password })
         await this.tune()
         await this.open({ virtualHost: params.vhost })
+        if (this.heartbeatInterval > 0) {
+          this.heartbeat = new Heartbeat(this.heartbeatInterval, this, this.logger)
+        }
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${params.hostname}:${params.port}`))
@@ -79,6 +87,7 @@ export class Connection {
         return rej()
       })
       this.socket.on("data", (data) => {
+        this.heartbeat && this.heartbeat.reportLastMessageReceived()
         this.received(data)
       })
       this.socket.on("close", (had_error) => {
@@ -87,26 +96,30 @@ export class Connection {
       this.socket.connect(params.port, params.hostname)
     })
   }
+
   private received(data: Buffer) {
     this.logger.debug(`Receiving ${data.length} (${data.readUInt32BE()}) bytes ... ${inspect(data)}`)
     this.decoder.add(data)
   }
 
-  async tune(): Promise<void> {
+  private async tune(): Promise<void> {
     const data = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
     this.logger.debug(`TUNE response -> ${inspect(data)}`)
+    this.heartbeatInterval =
+      this.heartbeatInterval === 0 ? data.heartbeat : Math.min(this.heartbeatInterval, data.heartbeat)
 
     return new Promise((res, rej) => {
-      this.socket.write(data.toBuffer(), (err) => {
+      const request = new TuneRequest({ frameMax: data.frameMax, heartbeat: this.heartbeatInterval })
+      this.socket.write(request.toBuffer(), (err) => {
         this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(data)} - err: ${err}`)
         return err ? rej(err) : res()
       })
     })
   }
 
-  async exchangeProperties(): Promise<PeerPropertiesResponse> {
+  private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
-    const res = await this.SendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
+    const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
     if (!res.ok) {
       throw new Error(`Unable to exchange peer properties ${res.code} `)
     }
@@ -114,17 +127,17 @@ export class Connection {
     return res
   }
 
-  async auth(params: { username: string; password: string }) {
+  private async auth(params: { username: string; password: string }) {
     this.logger.debug(`Start authentication process ...`)
     this.logger.debug(`Start SASL handshake ...`)
-    const handshakeResponse = await this.SendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
+    const handshakeResponse = await this.sendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
     this.logger.debug(`Mechanisms: ${handshakeResponse.mechanisms}`)
     if (!handshakeResponse.mechanisms.find((m) => m === "PLAIN")) {
       throw new Error(`Unable to find PLAIN mechanism in ${handshakeResponse.mechanisms}`)
     }
 
     this.logger.debug(`Start SASL PLAIN authentication ...`)
-    const authResponse = await this.SendAndWait<SaslAuthenticateResponse>(
+    const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
       new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
     )
     this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
@@ -135,16 +148,16 @@ export class Connection {
     return authResponse
   }
 
-  async open(params: { virtualHost: string }) {
+  private async open(params: { virtualHost: string }) {
     this.logger.debug(`Open ...`)
-    const res = await this.SendAndWait<OpenResponse>(new OpenRequest(params))
+    const res = await this.sendAndWait<OpenResponse>(new OpenRequest(params))
     this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
     return res
   }
 
   async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
-    const res = await this.SendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
     if (!res.ok) {
       throw new Error(`Create Stream command returned error with code ${res.code}`)
     }
@@ -152,7 +165,20 @@ export class Connection {
     return res.ok
   }
 
-  SendAndWait<T extends Response>(cmd: Request): Promise<T> {
+  send(data: Buffer): Promise<void> {
+    return new Promise((res, rej) => {
+      this.logger.debug(`Write data: ${inspect(data.toJSON())} length: ${data.byteLength}`)
+      this.socket.write(data, (err) => {
+        this.logger.debug(`Write COMPLETED for data: ${inspect(data)} err: ${err}`)
+        if (err) {
+          return rej(err)
+        }
+        return res()
+      })
+    })
+  }
+
+  sendAndWait<T extends Response>(cmd: Request): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer(correlationId)
@@ -168,6 +194,7 @@ export class Connection {
         if (err) {
           return rej(err)
         }
+        this.heartbeat && this.heartbeat.reportLastMessageSent()
         res(this.waitResponse<T>({ correlationId, key: cmd.responseKey }))
       })
     })
@@ -190,7 +217,7 @@ export class Connection {
     })
   }
 
-  incCorrelationId() {
+  private incCorrelationId() {
     this.correlationId += 1
     return this.correlationId
   }
@@ -214,7 +241,7 @@ export interface ConnectionParams {
   password: string
   vhost: string
   frameMax: number // not used
-  heartbeat: number // not used
+  heartbeat: number
 }
 
 export interface DeclarePublisherParams {
