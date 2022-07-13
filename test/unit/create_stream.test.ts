@@ -1,11 +1,12 @@
 import { expect } from "chai"
+import { randomUUID } from "crypto"
 import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync } from "../support/util"
 
 describe("Stream", () => {
   const rabbit = new Rabbit()
-  const streamName = "test-stream"
+  const streamName = `test-stream-${randomUUID()}`
   const payload = { "x-max-age": "test" }
   let connection: Connection
 
@@ -35,7 +36,7 @@ describe("Stream", () => {
         arguments: payload,
       })
 
-      expect(resp.ok).to.be.true
+      expect(resp).to.be.true
       const result = await rabbit.getQueue("%2F", streamName)
       expect(result.name).to.be.eql(streamName)
     })

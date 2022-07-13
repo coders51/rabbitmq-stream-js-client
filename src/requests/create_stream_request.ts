@@ -2,7 +2,7 @@ import { CreateStreamResponse } from "../responses/create_stream_response"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
-export interface ValidArguments {
+export interface CreateStreamArguments {
   "x-queue-leader-locator"?: string
   "x-max-age"?: string
   "x-stream-max-segment-size-bytes"?: string
@@ -13,12 +13,12 @@ export interface ValidArguments {
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
-  private readonly _arguments: { key: keyof ValidArguments; value?: string }[] = []
+  private readonly _arguments: { key: keyof CreateStreamArguments; value?: string }[] = []
   private readonly stream: string
 
-  constructor(params: { stream: string; arguments: ValidArguments }) {
+  constructor(params: { stream: string; arguments: CreateStreamArguments }) {
     super()
-    this._arguments = (Object.keys(params.arguments) as Array<keyof ValidArguments>).map((key) => {
+    this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
       return {
         key,
         value: params.arguments[key],
