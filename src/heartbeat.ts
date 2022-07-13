@@ -70,7 +70,7 @@ export class Heartbeat {
     if (noMessagesReceivedFor > this.interval && noMessagesSentFor > this.interval) {
       this.lastMessageReceived = new Date()
       this.lastMessageSent = new Date()
-      this.idleCounter
+      this.idleCounter++
       this.logger && this.logger.debug(`Heartbeat missed! counter: ${this.idleCounter}`)
     }
     if (this.idleCounter === this.MAX_HEARTBEATS_MISSED) {
