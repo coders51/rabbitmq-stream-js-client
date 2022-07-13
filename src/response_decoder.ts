@@ -47,7 +47,7 @@ function decodeResponse(dataResponse: DataReader, size: number): RawResponse | R
 class BufferDataReader implements DataReader {
   private offset = 0
 
-  constructor(private data: Buffer) { }
+  constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))

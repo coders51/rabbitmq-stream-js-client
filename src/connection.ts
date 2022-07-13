@@ -21,6 +21,8 @@ import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
 import { Heartbeat } from "./heartbeat"
 import { TuneRequest } from "./requests/tune_request"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeleteStreamRequest } from "./requests/delete_stream_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -189,6 +191,13 @@ export class Connection {
     }
     this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
     return res.ok
+  }
+
+  async deleteStream(params: { stream: string }) {
+    this.logger.debug(`Delete Stream...`)
+    const res = await this.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
+    this.logger.debug(`Delete Stream response: ${res.ok} - '${inspect(params.stream)}'`)
+    return res
   }
 
   private sendAndWait<T extends Response>(cmd: Request): Promise<T> {

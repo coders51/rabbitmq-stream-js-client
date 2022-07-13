@@ -114,4 +114,14 @@ export class Rabbit {
       responseType: "json",
     })
   }
+
+  async createQueue(vhost: string = "%2F", name: string): Promise<RabbitConnectionResponse> {
+    const r = await got.put<RabbitConnectionResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+      json: { arguments: { "x-queue-type": "stream" }, durable: true },
+      username: "rabbit",
+      password: "rabbit",
+    })
+
+    return r.body
+  }
 }
