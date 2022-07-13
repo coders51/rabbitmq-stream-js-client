@@ -1,6 +1,7 @@
 import { expect } from "chai"
 import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
+import { expectToThrowAsync } from "../support/util"
 
 describe("Stream", () => {
   const rabbit = new Rabbit()
@@ -20,7 +21,11 @@ describe("Stream", () => {
     })
   })
 
-  afterEach(async () => await rabbit.deleteQueue("%2F", streamName))
+  afterEach(async () => {
+    try {
+      await rabbit.deleteQueue("%2F", streamName)
+    } catch (error) {}
+  })
   after(() => rabbit.closeAllConnections())
 
   describe("Create", () => {
@@ -41,11 +46,23 @@ describe("Stream", () => {
         arguments: payload,
       })
 
-      const errorResp = await connection.createStream({
-        stream: streamName,
-        arguments: payload,
-      })
-      expect(errorResp.ok).to.be.false
+      await expectToThrowAsync(
+        () =>
+          connection.createStream({
+            stream: streamName,
+            arguments: payload,
+          }),
+        Error,
+        "Create Stream command returned error with code 5"
+      )
+    })
+
+    it("Should raise an error if creation goes wrong", async () => {
+      await expectToThrowAsync(
+        () => connection.createStream({ stream: "", arguments: payload }),
+        Error,
+        "Create Stream command returned error with code 17"
+      )
     })
   })
 })
