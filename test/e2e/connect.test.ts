@@ -1,5 +1,4 @@
 import { expect } from "chai"
-
 import { connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"

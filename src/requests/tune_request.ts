@@ -10,10 +10,6 @@ export class TuneRequest extends AbstractRequest {
     super()
   }
 
-  toBuffer(): Buffer {
-    return super.toBuffer(0)
-  }
-
   writeContent(b: DataWriter) {
     b.writeUInt32(this.params.frameMax)
     b.writeUInt32(this.params.heartbeat)

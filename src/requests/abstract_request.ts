@@ -51,11 +51,13 @@ export abstract class AbstractRequest implements Request {
   abstract get responseKey(): number
   readonly version = 1
 
-  toBuffer(correlationId: number): Buffer {
+  toBuffer(correlationId?: number): Buffer {
     const dataWriter = new BufferDataWriter(Buffer.alloc(1024), 4)
     dataWriter.writeUInt16(this.key)
     dataWriter.writeUInt16(this.version)
-    if (correlationId > 0) dataWriter.writeUInt32(correlationId)
+    if (typeof correlationId === "number") {
+      dataWriter.writeUInt32(correlationId)
+    }
 
     this.writeContent(dataWriter)
 

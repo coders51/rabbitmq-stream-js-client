@@ -11,6 +11,6 @@ export class HeartbeatRequest extends AbstractRequest {
   }
 
   toBuffer(): Buffer {
-    return super.toBuffer(0)
+    return super.toBuffer()
   }
 }

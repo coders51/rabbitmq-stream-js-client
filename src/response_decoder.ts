@@ -94,7 +94,9 @@ function isTuneResponse(params: RawResponse | RawTuneResponse | RawHeartbeatResp
   return params.key === TuneResponse.key
 }
 
-function isHeartbeatResponse(params: RawResponse | RawTuneResponse | RawHeartbeatResponse): params is RawTuneResponse {
+function isHeartbeatResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse
+): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
@@ -119,7 +121,7 @@ export class ResponseDecoder {
       } else if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else {
-        this.emitResponseReceived(response as RawResponse)
+        this.emitResponseReceived(response)
       }
     }
   }

@@ -30,7 +30,6 @@ export class Connection {
   private receivedResponses: Response[] = []
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
-
   private heartbeat?: Heartbeat
   private heartbeatInterval = 0
 
@@ -64,7 +63,7 @@ export class Connection {
   }
 
   start(params: ConnectionParams): Promise<Connection> {
-    this.heartbeatInterval = params.heartbeat | 0
+    this.heartbeatInterval = params.heartbeat || 0
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -87,7 +86,7 @@ export class Connection {
         return rej()
       })
       this.socket.on("data", (data) => {
-        this.heartbeat && this.heartbeat.reportLastMessageReceived()
+        this?.heartbeat?.reportLastMessageReceived()
         this.received(data)
       })
       this.socket.on("close", (had_error) => {
@@ -103,18 +102,23 @@ export class Connection {
   }
 
   private async tune(): Promise<void> {
-    const data = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
-    this.logger.debug(`TUNE response -> ${inspect(data)}`)
-    this.heartbeatInterval =
-      this.heartbeatInterval === 0 ? data.heartbeat : Math.min(this.heartbeatInterval, data.heartbeat)
+    const tuneResponse = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
+    this.logger.debug(`TUNE response -> ${inspect(tuneResponse)}`)
+    this.heartbeatInterval = this.extractHeartbeatInterval(tuneResponse)
 
     return new Promise((res, rej) => {
-      const request = new TuneRequest({ frameMax: data.frameMax, heartbeat: this.heartbeatInterval })
+      const request = new TuneRequest({ frameMax: tuneResponse.frameMax, heartbeat: this.heartbeatInterval })
       this.socket.write(request.toBuffer(), (err) => {
-        this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(data)} - err: ${err}`)
+        this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(tuneResponse)} - err: ${err}`)
         return err ? rej(err) : res()
       })
     })
+  }
+
+  private extractHeartbeatInterval(tuneResponse: TuneResponse) {
+    return this.heartbeatInterval === 0
+      ? tuneResponse.heartbeat
+      : Math.min(this.heartbeatInterval, tuneResponse.heartbeat)
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -194,7 +198,7 @@ export class Connection {
         if (err) {
           return rej(err)
         }
-        this.heartbeat && this.heartbeat.reportLastMessageSent()
+        this?.heartbeat?.reportLastMessageSent()
         res(this.waitResponse<T>({ correlationId, key: cmd.responseKey }))
       })
     })
@@ -240,8 +244,8 @@ export interface ConnectionParams {
   username: string
   password: string
   vhost: string
-  frameMax: number // not used
-  heartbeat: number
+  frameMax?: number // not used
+  heartbeat?: number
 }
 
 export interface DeclarePublisherParams {
