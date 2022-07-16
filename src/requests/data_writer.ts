@@ -3,5 +3,5 @@ export interface DataWriter {
   writeUInt8(data: number): void
   writeUInt32(data: number): void
   writeString(data: string): void
-  writeUInt64(publishingId: bigint): void
+  writeUInt64(data: bigint): void
 }

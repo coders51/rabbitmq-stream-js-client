@@ -1,12 +1,12 @@
-import { DecoderListener } from "../../src/decoder_listener"
 import { Response } from "../../src/responses/response"
 import { ResponseDecoder } from "../../src/response_decoder"
 import { PeerPropertiesResponse } from "../../src/responses/peer_properties_response"
 import { expect } from "chai"
 import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { createConsoleLog } from "../../src/util"
+import { DecoderListenerFunc } from "../../src/decoder_listener"
 
-class MockDecoderListener implements DecoderListener {
+class MockDecoderListener {
   readonly responses: Response[] = []
 
   reset() {
@@ -16,15 +16,19 @@ class MockDecoderListener implements DecoderListener {
   responseReceived(data: Response) {
     this.responses.push(data)
   }
+
+  buildListener(): DecoderListenerFunc {
+    this.reset()
+    return (...args) => this.responseReceived(...args)
+  }
 }
 
 describe("ResponseDecoder", () => {
   let decoder: ResponseDecoder
-  const listener = new MockDecoderListener()
+  const mockListener = new MockDecoderListener()
 
   beforeEach(() => {
-    listener.reset()
-    decoder = new ResponseDecoder(listener, createConsoleLog())
+    decoder = new ResponseDecoder(mockListener.buildListener(), createConsoleLog())
   })
 
   it("decode a buffer that contains a single response", () => {
@@ -32,7 +36,7 @@ describe("ResponseDecoder", () => {
 
     decoder.add(data)
 
-    expect(listener.responses).lengthOf(1)
+    expect(mockListener.responses).lengthOf(1)
   })
 
   it("decode a buffer that contains multiple responses", () => {
@@ -43,7 +47,7 @@ describe("ResponseDecoder", () => {
 
     decoder.add(Buffer.concat(data))
 
-    expect(listener.responses).lengthOf(2)
+    expect(mockListener.responses).lengthOf(2)
   })
 })
 

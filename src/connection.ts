@@ -35,27 +35,11 @@ export class Connection {
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder(this, this.logger)
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
     return new Connection().start(params)
-  }
-
-  public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
-    const publisherId = this.incPublisherId()
-    const res = await this.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ ...params, publisherId })
-    )
-    if (!res.ok) {
-      throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
-    }
-
-    const producer = new Producer(this, publisherId)
-    this.logger.info(
-      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
-    )
-    return producer
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -90,21 +74,29 @@ export class Connection {
     })
   }
 
-  // public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
-  //   const publisherId = this.publisherId
-  //   this.publisherId++
-  //   const res = await this.sendAndWait<DeclarePublisherResponse>(
-  //     new DeclarePublisherRequest({ ...params, publisherId })
-  //   )
-  //   if (res.ok) {
-  //     return new Producer(this, publisherId)
-  //   }
-  //   throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
-  // }
+  public close(): Promise<void> {
+    this.logger.info(`Closing connection ...`)
+    return new Promise((res, _rej) => this.socket.end(() => res()))
+  }
+
+  public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    const publisherId = this.incPublisherId()
+    const res = await this.sendAndWait<DeclarePublisherResponse>(
+      new DeclarePublisherRequest({ ...params, publisherId })
+    )
+    if (!res.ok) {
+      throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+
+    const producer = new Producer(this, publisherId)
+    this.logger.info(
+      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+    )
+    return producer
+  }
 
   public send(cmd: Request): Promise<void> {
     return new Promise((res, rej) => {
-      // const correlationId = this.incCorrelationId()
       const body = cmd.toBuffer()
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
@@ -121,7 +113,7 @@ export class Connection {
     })
   }
 
-  responseReceived<T extends Response>(response: T) {
+  private responseReceived<T extends Response>(response: T) {
     const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
     return wr ? wr.resolve(response) : this.receivedResponses.push(response)
   }
@@ -247,11 +239,6 @@ export class Connection {
     const publisherId = this.publisherId
     this.publisherId++
     return publisherId
-  }
-
-  public close(): Promise<void> {
-    this.logger.info(`Closing connection ...`)
-    return new Promise((res, _rej) => this.socket.end(() => res()))
   }
 }
 

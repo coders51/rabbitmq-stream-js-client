@@ -1,6 +1,6 @@
 import { inspect } from "util"
 import { Logger } from "winston"
-import { DecoderListener } from "./decoder_listener"
+import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
@@ -103,7 +103,7 @@ function isHeartbeatResponse(
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
 
-  constructor(private listener: DecoderListener, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -131,19 +131,19 @@ export class ResponseDecoder {
   }
 
   private emitTuneResponseReceived(response: RawTuneResponse) {
-    this.listener.responseReceived(new TuneResponse(response))
+    this.listener(new TuneResponse(response))
   }
 
   private emitResponseReceived(response: RawResponse) {
     const value = this.getFactoryFor(response.key)
     // TODO: this if should be removed when we have implemented the publish confirm
     if (!value) return
-    this.listener.responseReceived(new value(response))
+    this.listener(new value(response))
   }
 
-  // TODO: this undefined should be removed when we have implemented the publish confirm
   private getFactoryFor(key: number): AbstractTypeClass | undefined {
     const value = this.responseFactories.get(key)
+    // TODO: this undefined and verify of 3 should be removed when we have implemented the publish confirm command
     if (!value && key !== 3) {
       throw new Error(`Unknown response ${key.toString(16)}`)
     }

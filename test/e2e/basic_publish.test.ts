@@ -24,22 +24,20 @@ describe("publish a message", () => {
 
   it("is seen by rabbit", async () => {
     const stream = `my-stream-${randomUUID()}`
-    const ret = await rabbit.createStream(stream)
-    console.log(ret.statusCode, ret.body)
+    await rabbit.createStream(stream)
     const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
-    }, 5000)
+    }, 10000)
     await connection.close()
   }).timeout(10000)
 
   it("and a lot more are all seen by rabbit", async () => {
     const stream = `my-stream-${randomUUID()}`
-    const ret = await rabbit.createStream(stream)
-    console.log(ret.statusCode, ret.body)
+    await rabbit.createStream(stream)
     const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
 
     for (let index = 0; index < 100; index++) {
@@ -48,7 +46,7 @@ describe("publish a message", () => {
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(100)
-    }, 5000)
+    }, 10000)
     await connection.close()
-  }).timeout(10000)
+  }).timeout(30000)
 })
