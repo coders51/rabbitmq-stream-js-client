@@ -53,7 +53,7 @@ export class Connection {
 
     const producer = new Producer(this, publisherId)
     this.logger.info(
-      `New producer created with steam name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
     return producer
   }

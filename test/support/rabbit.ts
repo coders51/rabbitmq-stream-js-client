@@ -4,6 +4,14 @@ interface RabbitConnectionResponse {
   name: string
 }
 
+// not completed
+interface MessageInfoResponse {
+  messages: number
+  messages_ready: number
+  messages_unacknowledged: number
+  types: "stream" | "quorum" | "classic"
+}
+
 interface RabbitPublishersResponse {
   reference: string
   publisher_id: number
@@ -22,16 +30,35 @@ interface RabbitQueueResponse {
 export class Rabbit {
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
-    await Promise.all(l.map((c) => this.closeConnection(c)))
+    await Promise.all(l.map((c) => this.closeConnection(c.name)))
   }
 
-  async closeConnection(c: RabbitConnectionResponse): Promise<void> {
-    const x = await got.delete(`http://localhost:15672/api/connections/${c.name}`, {
+  async closeConnection(name: string) {
+    return got.delete(`http://localhost:15672/api/connections/${name}`, {
       username: "rabbit",
       password: "rabbit",
       responseType: "json",
     })
-    console.log(x.body)
+  }
+
+  async getQueueInfo(queue: string): Promise<MessageInfoResponse> {
+    const ret = await got.get<MessageInfoResponse>(`http://localhost:15672/api/queues/%2F/${queue}`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+    return ret.body
+  }
+
+  async getMessages(queue: string) {
+    // I think it's not possible to execute on stream queue
+    const ret = await got.post<unknown>(`http://localhost:15672/api/queues/%2F/${queue}/get`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+      body: JSON.stringify({ count: 100, ackmode: "ack_requeue_false", encoding: "auto", truncate: 50000 }),
+    })
+    return ret.body
   }
 
   async getConnections(): Promise<RabbitConnectionResponse[]> {
@@ -43,8 +70,8 @@ export class Rabbit {
     return ret.body
   }
 
-  async createStream(streamName: string): Promise<void> {
-    await got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+  createStream(streamName: string) {
+    return got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
       body: JSON.stringify({ auto_delete: false, durable: true, arguments: { "x-queue-type": "stream" } }),
       username: "rabbit",
       password: "rabbit",
@@ -52,23 +79,23 @@ export class Rabbit {
     })
   }
 
-  async deleteStream(streamName: string): Promise<void> {
-    await got.delete<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+  deleteStream(streamName: string) {
+    return got.delete<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
       username: "rabbit",
       password: "rabbit",
     })
   }
 
   async returnPublishers(streamName: string): Promise<string[]> {
-    return got
-      .get<RabbitPublishersResponse[]>(`http://localhost:15672/api/stream/publishers/%2F/${streamName}`, {
+    const resp = await got.get<RabbitPublishersResponse[]>(
+      `http://localhost:15672/api/stream/publishers/%2F/${streamName}`,
+      {
         username: "rabbit",
         password: "rabbit",
         responseType: "json",
-      })
-      .then((resp) => {
-        return resp.body.map((p) => p.reference)
-      })
+      }
+    )
+    return resp.body.map((p) => p.reference)
   }
 
   async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {

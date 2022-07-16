@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { eventually, wait } from "../support/util"
+import { eventually } from "../support/util"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit()
@@ -22,20 +22,33 @@ describe("publish a message", () => {
   afterEach(() => connection.close())
   afterEach(() => rabbit.closeAllConnections())
 
-  it("using parameters", async () => {
-    const stream = "my stream"
-    await rabbit.createStream(stream)
+  it("is seen by rabbit", async () => {
+    const stream = `my-stream-${randomUUID()}`
+    const ret = await rabbit.createStream(stream)
+    console.log(ret.statusCode, ret.body)
     const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
-    await wait(5000)
-    // await eventually(async () => {
-    //   expect(await rabbit.getMessages()).lengthOf(1)
-    // }, 5000)
-    // await connection.close()
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
+    }, 5000)
+    await connection.close()
   }).timeout(10000)
 
-  it("raise exception if goes in timeout")
-  it("raise exception if server refuse port")
+  it("and a lot more are all seen by rabbit", async () => {
+    const stream = `my-stream-${randomUUID()}`
+    const ret = await rabbit.createStream(stream)
+    console.log(ret.statusCode, ret.body)
+    const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
+
+    for (let index = 0; index < 100; index++) {
+      await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+    }
+
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(stream)).messages).eql(100)
+    }, 5000)
+    await connection.close()
+  }).timeout(10000)
 })

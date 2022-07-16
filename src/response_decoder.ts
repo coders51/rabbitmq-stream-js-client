@@ -136,12 +136,15 @@ export class ResponseDecoder {
 
   private emitResponseReceived(response: RawResponse) {
     const value = this.getFactoryFor(response.key)
+    // TODO: this if should be removed when we have implemented the publish confirm
+    if (!value) return
     this.listener.responseReceived(new value(response))
   }
 
-  private getFactoryFor(key: number): AbstractTypeClass {
+  // TODO: this undefined should be removed when we have implemented the publish confirm
+  private getFactoryFor(key: number): AbstractTypeClass | undefined {
     const value = this.responseFactories.get(key)
-    if (!value) {
+    if (!value && key !== 3) {
       throw new Error(`Unknown response ${key.toString(16)}`)
     }
     return value

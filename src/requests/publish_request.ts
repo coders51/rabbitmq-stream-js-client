@@ -19,6 +19,7 @@ export class PublishRequest extends AbstractRequest {
     writer.writeUInt32(this.params.messages.length)
     this.params.messages.forEach(({ publishingId, message }) => {
       writer.writeUInt64(publishingId)
+      writer.writeUInt32(message.length)
       writer.writeData(message)
     })
   }
