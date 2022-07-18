@@ -8,6 +8,16 @@ interface RabbitPublishersResponse {
   reference: string
   publisher_id: number
 }
+interface RabbitQueueResponse {
+  arguments: Record<string, string>
+  auto_delete: boolean
+  durable: boolean
+  exclusive: boolean
+  name: string
+  node: string
+  type: string
+  vhost: string
+}
 
 export class Rabbit {
   async closeAllConnections(): Promise<void> {
@@ -23,6 +33,7 @@ export class Rabbit {
     })
     console.log(x.body)
   }
+
   async getConnections(): Promise<RabbitConnectionResponse[]> {
     const ret = await got.get<RabbitConnectionResponse[]>(`http://localhost:15672/api/connections`, {
       username: "rabbit",
@@ -58,5 +69,22 @@ export class Rabbit {
       .then((resp) => {
         return resp.body.map((p) => p.reference)
       })
+  }
+
+  async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {
+    const ret = await got.get<RabbitQueueResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+    return ret.body
+  }
+
+  async deleteQueue(vhost: string = "%2F", name: string): Promise<void> {
+    await got.delete(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
   }
 }

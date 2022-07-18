@@ -17,6 +17,8 @@ import { TuneResponse } from "./responses/tune_response"
 import { Producer } from "./producer"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -140,6 +142,16 @@ export class Connection {
     return res
   }
 
+  async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
+    this.logger.debug(`Create Stream...`)
+    const res = await this.SendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    if (!res.ok) {
+      throw new Error(`Create Stream command returned error with code ${res.code}`)
+    }
+    this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
+    return res.ok
+  }
+
   SendAndWait<T extends Response>(cmd: Request): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
@@ -202,7 +214,7 @@ export interface ConnectionParams {
   password: string
   vhost: string
   frameMax: number // not used
-  heartbeat: number // not user
+  heartbeat: number // not used
 }
 
 export interface DeclarePublisherParams {
