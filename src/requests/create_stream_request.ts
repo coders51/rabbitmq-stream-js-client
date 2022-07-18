@@ -5,15 +5,15 @@ import { DataWriter } from "./data_writer"
 export interface CreateStreamArguments {
   "x-queue-leader-locator"?: string
   "x-max-age"?: string
-  "x-stream-max-segment-size-bytes"?: string
-  "x-initial-cluster-size"?: string
-  "x-max-length-bytes"?: string
+  "x-stream-max-segment-size-bytes"?: number
+  "x-initial-cluster-size"?: number
+  "x-max-length-bytes"?: number
 }
 
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
-  private readonly _arguments: { key: keyof CreateStreamArguments; value?: string }[] = []
+  private readonly _arguments: { key: keyof CreateStreamArguments; value?: string | number }[] = []
   private readonly stream: string
 
   constructor(params: { stream: string; arguments: CreateStreamArguments }) {
@@ -27,14 +27,12 @@ export class CreateStreamRequest extends AbstractRequest {
     this.stream = params.stream
   }
 
-  writeContent(b: DataWriter) {
-    b.writeString(this.stream)
-    b.writeUInt32(this._arguments.length)
+  writeContent(writer: DataWriter) {
+    writer.writeString(this.stream)
+    writer.writeUInt32(this._arguments.length)
     this._arguments.forEach(({ key, value }) => {
-      if (value) {
-        b.writeString(key)
-        b.writeString(value)
-      }
+      writer.writeString(key)
+      writer.writeString(value?.toString() || "")
     })
   }
 }

@@ -7,7 +7,13 @@ import { expectToThrowAsync } from "../support/util"
 describe("Stream", () => {
   const rabbit = new Rabbit()
   const streamName = `test-stream-${randomUUID()}`
-  const payload = { "x-max-age": "test" }
+  const payload = {
+    "x-queue-leader-locator": "test",
+    "x-max-age": "test",
+    "x-stream-max-segment-size-bytes": 42,
+    "x-initial-cluster-size": 42,
+    "x-max-length-bytes": 42,
+  }
   let connection: Connection
 
   before(async () => {
