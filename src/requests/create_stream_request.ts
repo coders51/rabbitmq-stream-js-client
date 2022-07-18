@@ -13,7 +13,7 @@ export interface CreateStreamArguments {
 export class CreateStreamRequest extends AbstractRequest {
   readonly responseKey = CreateStreamResponse.key
   readonly key = 0x000d
-  private readonly _arguments: { key: keyof CreateStreamArguments; value?: string | number }[] = []
+  private readonly _arguments: { key: keyof CreateStreamArguments; value: string | number }[] = []
   private readonly stream: string
 
   constructor(params: { stream: string; arguments: CreateStreamArguments }) {
@@ -21,7 +21,7 @@ export class CreateStreamRequest extends AbstractRequest {
     this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
       return {
         key,
-        value: params.arguments[key],
+        value: params.arguments[key] ?? "",
       }
     })
     this.stream = params.stream
@@ -32,7 +32,7 @@ export class CreateStreamRequest extends AbstractRequest {
     writer.writeUInt32(this._arguments.length)
     this._arguments.forEach(({ key, value }) => {
       writer.writeString(key)
-      writer.writeString(value?.toString() || "")
+      writer.writeString(value.toString())
     })
   }
 }
