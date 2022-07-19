@@ -31,7 +31,6 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
-  private heartbeatInterval = 0
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
@@ -43,7 +42,6 @@ export class Connection {
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
-    this.heartbeatInterval = params.heartbeat || 0
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -53,9 +51,9 @@ export class Connection {
         this.logger.info(`Connected to RabbitMQ ${params.hostname}:${params.port}`)
         await this.exchangeProperties()
         await this.auth({ username: params.username, password: params.password })
-        await this.tune()
+        const { heartbeat } = await this.tune(params.heartbeat ?? 0)
         await this.open({ virtualHost: params.vhost })
-        this.heartbeat.start(this.heartbeatInterval)
+        this.heartbeat.start(heartbeat)
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${params.hostname}:${params.port}`))
@@ -76,6 +74,7 @@ export class Connection {
 
   public close(): Promise<void> {
     this.logger.info(`Closing connection ...`)
+    this.heartbeat.stop()
     return new Promise((res, _rej) => this.socket.end(() => res()))
   }
 
@@ -123,24 +122,18 @@ export class Connection {
     this.decoder.add(data)
   }
 
-  private async tune(): Promise<void> {
+  private async tune(heartbeatInterval: number): Promise<{ heartbeat: number }> {
     const tuneResponse = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
     this.logger.debug(`TUNE response -> ${inspect(tuneResponse)}`)
-    this.heartbeatInterval = this.extractHeartbeatInterval(tuneResponse)
+    const heartbeat = extractHeartbeatInterval(heartbeatInterval, tuneResponse)
 
     return new Promise((res, rej) => {
-      const request = new TuneRequest({ frameMax: tuneResponse.frameMax, heartbeat: this.heartbeatInterval })
+      const request = new TuneRequest({ frameMax: tuneResponse.frameMax, heartbeat })
       this.socket.write(request.toBuffer(), (err) => {
         this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(tuneResponse)} - err: ${err}`)
-        return err ? rej(err) : res()
+        return err ? rej(err) : res({ heartbeat })
       })
     })
-  }
-
-  private extractHeartbeatInterval(tuneResponse: TuneResponse) {
-    return this.heartbeatInterval === 0
-      ? tuneResponse.heartbeat
-      : Math.min(this.heartbeatInterval, tuneResponse.heartbeat)
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -269,4 +262,8 @@ function errorMessageOf(code: number): string {
     default:
       return "Unknown error"
   }
+}
+
+function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
+  return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
 }
