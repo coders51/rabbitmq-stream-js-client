@@ -35,4 +35,12 @@ export class TuneResponse implements Response {
   get ok(): boolean {
     return true
   }
+
+  get frameMax(): number {
+    return this.response.frameMax
+  }
+
+  get heartbeat(): number {
+    return this.response.heartbeat
+  }
 }

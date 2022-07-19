@@ -24,3 +24,8 @@ export interface RawTuneResponse {
   frameMax: number
   heartbeat: number
 }
+
+export interface RawHeartbeatResponse {
+  key: 0x0014
+  version: number
+}

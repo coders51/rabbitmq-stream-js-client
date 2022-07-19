@@ -1,10 +1,13 @@
+import { inspect } from "util"
+import { Logger } from "winston"
 import { DecoderListener } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
+import { HeartbeatResponse } from "./responses/heartbeat_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { DataReader, RawResponse, RawTuneResponse } from "./responses/raw_response"
+import { DataReader, RawHeartbeatResponse, RawResponse, RawTuneResponse } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -18,18 +21,21 @@ import { TuneResponse } from "./responses/tune_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse {
+function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size)
 }
 
-function decodeResponse(dataResponse: DataReader, size: number): RawResponse | RawTuneResponse {
+function decodeResponse(dataResponse: DataReader, size: number): RawResponse | RawTuneResponse | RawHeartbeatResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
     return { size, key, version, frameMax, heartbeat } as RawTuneResponse
+  }
+  if (key === HeartbeatResponse.key) {
+    return { key, version } as RawHeartbeatResponse
   }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
@@ -84,14 +90,20 @@ class BufferDataReader implements DataReader {
   }
 }
 
-function isTuneResponse(params: RawResponse | RawTuneResponse): params is RawTuneResponse {
+function isTuneResponse(params: RawResponse | RawTuneResponse | RawHeartbeatResponse): params is RawTuneResponse {
   return params.key === TuneResponse.key
+}
+
+function isHeartbeatResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse
+): params is RawHeartbeatResponse {
+  return params.key === HeartbeatResponse.key
 }
 
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
 
-  constructor(private listener: DecoderListener) {
+  constructor(private listener: DecoderListener, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -106,6 +118,8 @@ export class ResponseDecoder {
       const response = decode(dataReader)
       if (isTuneResponse(response)) {
         this.emitTuneResponseReceived(response)
+      } else if (isHeartbeatResponse(response)) {
+        this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
