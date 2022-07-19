@@ -1,18 +1,19 @@
 import { expect } from "chai"
 import { Heartbeat, HeartbeatConnection } from "../../src/heartbeat"
+import { Request } from "../../src/requests/request"
 import { createConsoleLog } from "../../src/util"
 import { eventually } from "../support/util"
 
 class ConnectionMock implements HeartbeatConnection {
   private sendCount = 0
+
   close(): Promise<void> {
     throw new Error("Method not implemented.")
   }
-  send(_data: Buffer): Promise<void> {
+
+  send(_cmd: Request): Promise<void> {
     this.sendCount++
-    return new Promise((res, _rej) => {
-      return res()
-    })
+    return Promise.resolve()
   }
 
   getSendCount() {

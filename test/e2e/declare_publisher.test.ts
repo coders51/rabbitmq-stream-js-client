@@ -53,7 +53,7 @@ describe("declare publisher", () => {
     await expectToThrowAsync(
       () => connection.declarePublisher({ stream: nonExistingStream, publisherRef }),
       Error,
-      "Declare Publisher command returned error with code 2"
+      "Declare Publisher command returned error with code 2 - Stream does not exist"
     )
 
     await connection.close()

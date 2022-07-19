@@ -1,5 +1,5 @@
 import { Response } from "./responses/response"
 
-export interface DecoderListener {
-  responseReceived: (data: Response) => void
+export interface DecoderListenerFunc {
+  (data: Response): void
 }

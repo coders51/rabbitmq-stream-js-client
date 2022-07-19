@@ -1,8 +1,9 @@
 import { Logger } from "winston"
 import { HeartbeatRequest } from "./requests/heartbeat_request"
+import { Request } from "./requests/request"
 
 export interface HeartbeatConnection {
-  send(data: Buffer): Promise<void>
+  send(cmd: Request): Promise<void>
   close(): Promise<void>
 }
 
@@ -52,8 +53,7 @@ export class Heartbeat {
   private async sendHeartbeat() {
     this.logger.debug("Sending heartbeat")
     const request = new HeartbeatRequest()
-    const body = request.toBuffer()
-    await this?.connection?.send(body)
+    await this.connection.send(request)
   }
 
   private async idleDetection() {
