@@ -42,4 +42,6 @@ describe("heartbeat", () => {
     await wait(4000)
     expect(connectionMock.getSendCount()).lessThanOrEqual(1)
   }).timeout(10000)
+
+  it("start two times same object raise exception")
 })
