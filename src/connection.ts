@@ -30,10 +30,11 @@ export class Connection {
   private receivedResponses: Response[] = []
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
-  private heartbeat?: Heartbeat
+  private heartbeat: Heartbeat
   private heartbeatInterval = 0
 
   constructor() {
+    this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder(this, this.logger)
   }
 
@@ -62,7 +63,7 @@ export class Connection {
     return wr ? wr.resolve(response) : this.receivedResponses.push(response)
   }
 
-  start(params: ConnectionParams): Promise<Connection> {
+  private start(params: ConnectionParams): Promise<Connection> {
     this.heartbeatInterval = params.heartbeat || 0
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
@@ -75,9 +76,7 @@ export class Connection {
         await this.auth({ username: params.username, password: params.password })
         await this.tune()
         await this.open({ virtualHost: params.vhost })
-        if (this.heartbeatInterval > 0) {
-          this.heartbeat = new Heartbeat(this.heartbeatInterval, this, this.logger)
-        }
+        this.heartbeat.start(this.heartbeatInterval)
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${params.hostname}:${params.port}`))
@@ -86,7 +85,7 @@ export class Connection {
         return rej()
       })
       this.socket.on("data", (data) => {
-        this?.heartbeat?.reportLastMessageReceived()
+        this.heartbeat.reportLastMessageReceived()
         this.received(data)
       })
       this.socket.on("close", (had_error) => {
@@ -226,7 +225,7 @@ export class Connection {
     return this.correlationId
   }
 
-  incPublisherId() {
+  private incPublisherId() {
     const publisherId = this.publisherId
     this.publisherId++
     return publisherId

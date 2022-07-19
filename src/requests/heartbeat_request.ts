@@ -9,8 +9,4 @@ export class HeartbeatRequest extends AbstractRequest {
   writeContent(_b: DataWriter) {
     return
   }
-
-  toBuffer(): Buffer {
-    return super.toBuffer()
-  }
 }

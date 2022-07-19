@@ -2,24 +2,22 @@ import { Logger } from "winston"
 import { HeartbeatRequest } from "./requests/heartbeat_request"
 
 export interface HeartbeatConnection {
-  close(): Promise<void>
   send(data: Buffer): Promise<void>
+  close(): Promise<void>
 }
 
 export class Heartbeat {
   private MAX_HEARTBEATS_MISSED = 2
   private interval: number = 0
-  private connection: HeartbeatConnection
-  private logger: Logger
   private lastMessageReceived = new Date()
   private lastMessageSent = new Date()
   private idleCounter: number = 0
 
-  constructor(interval: number, connection: HeartbeatConnection, logger: Logger) {
-    this.interval = interval * 1000
-    this.connection = connection
-    this.logger = logger
+  constructor(readonly connection: HeartbeatConnection, readonly logger: Logger) {}
 
+  start(interval: number) {
+    if (interval <= 0) return
+    this.interval = interval * 1000
     setTimeout(async () => {
       await this.heartbeat()
     }, this.interval)
@@ -55,7 +53,7 @@ export class Heartbeat {
     this.logger.debug("Sending heartbeat")
     const request = new HeartbeatRequest()
     const body = request.toBuffer()
-    await this.connection.send(body)
+    await this?.connection?.send(body)
   }
 
   private async idleDetection() {

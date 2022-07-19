@@ -23,7 +23,7 @@ class ConnectionMock implements HeartbeatConnection {
 describe("heartbeat", () => {
   it("sent heartbeat every seconds", async () => {
     const connectionMock = new ConnectionMock()
-    new Heartbeat(1, connectionMock, createConsoleLog())
+    new Heartbeat(connectionMock, createConsoleLog()).start(1)
 
     await eventually(async () => {
       expect(connectionMock.getSendCount()).eq(4)
