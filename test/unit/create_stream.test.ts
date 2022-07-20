@@ -47,21 +47,18 @@ describe("Stream", () => {
       expect(result.name).to.be.eql(streamName)
     })
 
-    it("Should detect a duplicate Stream", async () => {
+    it("Should be idempotent and ignore a duplicate Stream error", async () => {
       await connection.createStream({
         stream: streamName,
         arguments: payload,
       })
 
-      await expectToThrowAsync(
-        () =>
-          connection.createStream({
-            stream: streamName,
-            arguments: payload,
-          }),
-        Error,
-        "Create Stream command returned error with code 5"
-      )
+      const resp = await connection.createStream({
+        stream: streamName,
+        arguments: payload,
+      })
+
+      expect(resp).to.be.true
     })
 
     it("Should raise an error if creation goes wrong", async () => {
