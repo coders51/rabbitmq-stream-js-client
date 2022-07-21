@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Heartbeat, HeartbeatConnection } from "../../src/heartbeat"
 import { Request } from "../../src/requests/request"
 import { createConsoleLog } from "../../src/util"
-import { eventually } from "../support/util"
+import { eventually, wait } from "../support/util"
 
 class ConnectionMock implements HeartbeatConnection {
   private sendCount = 0
@@ -24,10 +24,24 @@ class ConnectionMock implements HeartbeatConnection {
 describe("heartbeat", () => {
   it("sent heartbeat every seconds", async () => {
     const connectionMock = new ConnectionMock()
-    new Heartbeat(connectionMock, createConsoleLog()).start(1)
+    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    hb.start(1)
 
     await eventually(async () => {
       expect(connectionMock.getSendCount()).eq(4)
-    }, 5000)
-  }).timeout(5000)
+    }, 6000)
+    hb.stop()
+  }).timeout(10000)
+
+  it("stop check", async () => {
+    const connectionMock = new ConnectionMock()
+    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    hb.start(1)
+    hb.stop()
+
+    await wait(4000)
+    expect(connectionMock.getSendCount()).lessThanOrEqual(1)
+  }).timeout(10000)
+
+  it("start two times same object raise exception")
 })

@@ -14,14 +14,17 @@ export class Heartbeat {
   private lastMessageSent = new Date()
   private idleCounter: number = 0
 
-  constructor(readonly connection: HeartbeatConnection, readonly logger: Logger) {}
+  constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
 
-  start(interval: number) {
-    if (interval <= 0) return
-    this.interval = interval * 1000
-    setTimeout(async () => {
-      await this.heartbeat()
-    }, this.interval)
+  start(secondsInterval: number) {
+    if (secondsInterval <= 0) return
+    this.interval = secondsInterval * 1000
+    setTimeout(() => this.heartbeat(), this.interval)
+  }
+
+  stop() {
+    // TODO -> Wait the cycle of heartbeat...
+    this.interval = 0
   }
 
   reportLastMessageReceived() {
@@ -44,16 +47,14 @@ export class Heartbeat {
       this.reportLastMessageSent()
     }
     await this.idleDetection()
-
-    setTimeout(async () => {
-      await this.heartbeat()
-    }, this.interval)
+    if (this.interval <= 0) return
+    setTimeout(() => this.heartbeat(), this.interval)
   }
 
-  private async sendHeartbeat() {
+  private sendHeartbeat() {
     this.logger.debug("Sending heartbeat")
-    const request = new HeartbeatRequest()
-    await this.connection.send(request)
+    // TODO -> raise and event instead of send data
+    return this.connection.send(new HeartbeatRequest())
   }
 
   private async idleDetection() {
@@ -72,7 +73,8 @@ export class Heartbeat {
       this.logger && this.logger.debug(`Heartbeat missed! counter: ${this.idleCounter}`)
     }
     if (this.idleCounter === this.MAX_HEARTBEATS_MISSED) {
-      this.connection && (await this.connection.close())
+      // TODO -> raise an event instead of make the action
+      await this.connection.close()
     }
   }
 }
