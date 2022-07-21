@@ -24,6 +24,7 @@ export class CreateStreamRequest extends AbstractRequest {
         value: params.arguments[key] ?? "",
       }
     })
+
     this.stream = params.stream
   }
 

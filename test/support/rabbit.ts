@@ -114,4 +114,28 @@ export class Rabbit {
       responseType: "json",
     })
   }
+
+  async createQueue(vhost: string = "%2F", name: string): Promise<RabbitConnectionResponse> {
+    const r = await got.put<RabbitConnectionResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+      json: { arguments: { "x-queue-type": "stream" }, durable: true },
+      username: "rabbit",
+      password: "rabbit",
+    })
+
+    return r.body
+  }
+
+  async getQueues(): Promise<RabbitQueueResponse[]> {
+    const ret = await got.get<RabbitQueueResponse[]>(`http://localhost:15672/api/queues`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+    return ret.body
+  }
+
+  async deleteAllQueues(): Promise<void> {
+    const l = await this.getQueues()
+    await Promise.all(l.map((q) => this.deleteQueue("%2F", q.name)))
+  }
 }
