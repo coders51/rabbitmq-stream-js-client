@@ -21,7 +21,7 @@ import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
 import { Heartbeat } from "./heartbeat"
 import { TuneRequest } from "./requests/tune_request"
-import { StreamAlreadyExistsErrorCode } from "./error_codes"
+import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -185,7 +185,7 @@ export class Connection {
   async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
     const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
-    if (res.code === StreamAlreadyExistsErrorCode) {
+    if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
       return true
     }
     if (!res.ok) {
