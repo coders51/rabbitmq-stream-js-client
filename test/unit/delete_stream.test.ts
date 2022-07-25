@@ -35,19 +35,17 @@ describe("Delete command", () => {
   })
 
   it("delete an existing stream", async () => {
-    const created = await rabbit.createQueue("%2F", queue_name)
-    const retrievedBeforeDeletion = await rabbit.getQueue("%2F", queue_name)
+    await rabbit.createQueue("%2F", queue_name)
+    await rabbit.getQueue("%2F", queue_name)
     let errorOnRetrieveAfterDeletion = null
 
     const result = await connection?.deleteStream({ stream: queue_name })
+
     try {
       await rabbit.getQueue("%2F", queue_name)
     } catch (e) {
       errorOnRetrieveAfterDeletion = e
     }
-
-    expect(created).is.not.null
-    expect(retrievedBeforeDeletion.name).equals(queue_name)
     expect(result).to.be.true
     expect(errorOnRetrieveAfterDeletion).is.not.null
   })
