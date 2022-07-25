@@ -191,11 +191,14 @@ export class Connection {
     return res.ok
   }
 
-  async deleteStream(params: { stream: string }) {
+  async deleteStream(params: { stream: string }): Promise<true> {
     this.logger.debug(`Delete Stream...`)
     const res = await this.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
+    if (!res.ok) {
+      throw new Error(`Delete Stream command returned error with code ${res.code}`)
+    }
     this.logger.debug(`Delete Stream response: ${res.ok} - '${inspect(params.stream)}'`)
-    return res
+    return res.ok
   }
 
   private sendAndWait<T extends Response>(cmd: Request): Promise<T> {

@@ -1,19 +1,14 @@
 import { connect, Connection } from "../../src"
 import { expect } from "chai"
 import { Rabbit } from "../support/rabbit"
+import { expectToThrowAsync } from "../support/util"
 
 describe("Delete command", () => {
-  let rabbit: Rabbit
+  const rabbit: Rabbit = new Rabbit()
   let connection: Connection
   const queue_name = `queue_${(Math.random() * 10) | 0}`
 
-  afterEach(async () => {
-    await rabbit.closeAllConnections()
-    await rabbit.deleteAllQueues()
-  })
-
-  beforeEach(async () => {
-    rabbit = new Rabbit()
+  before(async () => {
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -25,9 +20,18 @@ describe("Delete command", () => {
     })
   })
 
-  it("delete a nonexisting stream", async () => {
-    const result = await connection.deleteStream({ stream: "AAAAA" })
-    expect(result.ok).to.be.false
+  after(() => rabbit.closeAllConnections())
+
+  afterEach(async () => {
+    await rabbit.deleteAllQueues()
+  })
+
+  it("delete a nonexisting stream (raises error)", async () => {
+    await expectToThrowAsync(
+      () => connection?.deleteStream({ stream: "AAA" }),
+      Error,
+      "Delete Stream command returned error with code 2"
+    )
   })
 
   it("delete an existing stream", async () => {
@@ -44,7 +48,7 @@ describe("Delete command", () => {
 
     expect(created).is.not.null
     expect(retrievedBeforeDeletion.name).equals(queue_name)
-    expect(result.ok).to.be.true
+    expect(result).to.be.true
     expect(errorOnRetrieveAfterDeletion).is.not.null
   })
 })
