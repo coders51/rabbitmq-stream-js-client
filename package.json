@@ -1,6 +1,6 @@
 {
   "name": "rabbitmq-stream-js-client",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Rabbit stream client for JS/TS application",
   "main": "dist/index.js",
   "scripts": {
@@ -10,7 +10,8 @@
     "check-ts": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "check-lint": "tsc --noEmit && eslint 'src/**/*.ts' 'test/**/*.ts'",
     "check-format": "prettier -c 'src/**/*.ts' 'test/**/*.ts'",
-    "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'"
+    "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'",
+    "prepack": "npm run build"
   },
   "repository": {
     "type": "git",
