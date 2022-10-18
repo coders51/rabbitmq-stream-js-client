@@ -16,6 +16,6 @@ export class SaslAuthenticateRequest extends AbstractRequest {
     writer.writeUInt8(0)
     writer.writeData(this.params.username)
     writer.writeUInt8(0)
-    writer.writeData(this.params.username)
+    writer.writeData(this.params.password)
   }
 }
