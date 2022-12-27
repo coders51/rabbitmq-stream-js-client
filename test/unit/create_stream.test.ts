@@ -16,7 +16,7 @@ describe("Stream", () => {
   }
   let connection: Connection
 
-  before(async () => {
+  beforeEach(async () => {
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -33,6 +33,12 @@ describe("Stream", () => {
       await rabbit.deleteQueue("%2F", streamName)
     } catch (error) {}
   })
+  afterEach(async () => {
+    try {
+      await connection.close()
+    } catch (error) {}
+  })
+
   after(() => rabbit.closeAllConnections())
 
   describe("Create", () => {
