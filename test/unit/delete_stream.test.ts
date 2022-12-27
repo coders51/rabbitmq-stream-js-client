@@ -8,7 +8,7 @@ describe("Delete command", () => {
   let connection: Connection
   const queue_name = `queue_${(Math.random() * 10) | 0}`
 
-  before(async () => {
+  beforeEach(async () => {
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -19,12 +19,17 @@ describe("Delete command", () => {
       heartbeat: 0, // not user
     })
   })
-
-  after(() => rabbit.closeAllConnections())
-
   afterEach(async () => {
     await rabbit.deleteAllQueues()
   })
+
+  afterEach(async () => {
+    try {
+      await connection.close()
+    } catch (error) {}
+  })
+
+  after(() => rabbit.closeAllConnections())
 
   it("delete a nonexisting stream (raises error)", async () => {
     await expectToThrowAsync(

@@ -13,17 +13,21 @@ export class Heartbeat {
   private lastMessageReceived = new Date()
   private lastMessageSent = new Date()
   private idleCounter: number = 0
+  private timeout: NodeJS.Timeout | null = null
 
   constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
 
   start(secondsInterval: number) {
     if (secondsInterval <= 0) return
     this.interval = secondsInterval * 1000
-    setTimeout(() => this.heartbeat(), this.interval)
+    this.timeout = setTimeout(() => this.heartbeat(), this.interval)
   }
 
   stop() {
     // TODO -> Wait the cycle of heartbeat...
+    if (this.timeout) {
+      clearTimeout(this.timeout)
+    }
     this.interval = 0
   }
 
@@ -48,7 +52,7 @@ export class Heartbeat {
     }
     await this.idleDetection()
     if (this.interval <= 0) return
-    setTimeout(() => this.heartbeat(), this.interval)
+    this.timeout = setTimeout(() => this.heartbeat(), this.interval)
   }
 
   private sendHeartbeat() {

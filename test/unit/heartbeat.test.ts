@@ -25,11 +25,10 @@ describe("heartbeat", () => {
   it("sent heartbeat every seconds", async () => {
     const connectionMock = new ConnectionMock()
     const hb = new Heartbeat(connectionMock, createConsoleLog())
+
     hb.start(1)
 
-    await eventually(async () => {
-      expect(connectionMock.getSendCount()).eq(4)
-    }, 6000)
+    await eventually(async () => expect(connectionMock.getSendCount()).eq(4), 6000)
     hb.stop()
   }).timeout(10000)
 
@@ -42,6 +41,14 @@ describe("heartbeat", () => {
     await wait(4000)
     expect(connectionMock.getSendCount()).lessThanOrEqual(1)
   }).timeout(10000)
+
+  it("stop current timeout so we could exit immediately", () => {
+    const connectionMock = new ConnectionMock()
+    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    hb.start(200)
+
+    hb.stop()
+  })
 
   it("start two times same object raise exception")
 })
