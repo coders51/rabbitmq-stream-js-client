@@ -46,3 +46,5 @@ jobs:
     - run: npm run check
     - run: npm run build --if-present
     - run: npm test
+    - run: cd example && npm install
+    - run: npm start
