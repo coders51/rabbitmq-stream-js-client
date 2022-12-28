@@ -12,6 +12,7 @@ import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { CloseResponse } from "./responses/close_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -109,6 +110,7 @@ export class ResponseDecoder {
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
     this.addFactoryFor(OpenResponse)
+    this.addFactoryFor(CloseResponse)
     this.addFactoryFor(DeclarePublisherResponse)
     this.addFactoryFor(CreateStreamResponse)
     this.addFactoryFor(DeleteStreamResponse)

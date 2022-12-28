@@ -32,7 +32,6 @@ describe("publish a message", () => {
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
     }, 10000)
-    await connection.close()
   }).timeout(10000)
 
   it("and a lot more are all seen by rabbit", async () => {
@@ -47,6 +46,5 @@ describe("publish a message", () => {
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(100)
     }, 10000)
-    await connection.close()
   }).timeout(30000)
 })

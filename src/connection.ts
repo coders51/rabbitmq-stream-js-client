@@ -24,6 +24,8 @@ import { TuneRequest } from "./requests/tune_request"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
+import { CloseResponse } from "./responses/close_response"
+import { CloseRequest } from "./requests/close_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -75,9 +77,14 @@ export class Connection {
     })
   }
 
-  public close(): Promise<void> {
+  public async close(
+    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
+  ): Promise<void> {
     this.logger.info(`Closing connection ...`)
     this.heartbeat.stop()
+    this.logger.debug(`Close ...`)
+    const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
+    this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
     return new Promise((res, _rej) => this.socket.end(() => res()))
   }
 
