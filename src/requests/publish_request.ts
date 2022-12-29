@@ -19,8 +19,27 @@ export class PublishRequest extends AbstractRequest {
     writer.writeUInt32(this.params.messages.length)
     this.params.messages.forEach(({ publishingId, message }) => {
       writer.writeUInt64(publishingId)
-      writer.writeUInt32(message.length)
-      writer.writeData(message)
+      writer.writeUInt32(message.length + 3 + (message.length <= 255 ? 2 : 5))
+      amqpEncode(writer, message)
     })
   }
+}
+function amqpEncode(writer: DataWriter, message: Buffer): void {
+  const ApplicationData = 0x75
+  const FormatCode = { Described: 0x00, SmallUlong: 0x53, Vbin8: 0xa0, Vbin32: 0xb0 }
+
+  // write applicationData header
+  writer.writeByte(FormatCode.Described)
+  writer.writeByte(FormatCode.SmallUlong)
+  writer.writeByte(ApplicationData)
+  // write data
+
+  if (message.length <= 255) {
+    writer.writeByte(FormatCode.Vbin8)
+    writer.writeByte(message.length)
+  } else {
+    writer.writeByte(FormatCode.Vbin32)
+    writer.writeUInt32(message.length)
+  }
+  writer.writeData(message)
 }
