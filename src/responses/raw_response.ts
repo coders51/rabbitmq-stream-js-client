@@ -5,6 +5,7 @@ export interface DataReader {
   readUInt16(): number
   readUInt32(): number
   readInt32(): number
+  readUInt64(): bigint
   readString(): string
 }
 

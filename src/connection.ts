@@ -26,6 +26,8 @@ import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { CloseResponse } from "./responses/close_response"
 import { CloseRequest } from "./requests/close_request"
+import { QueryPublisherRequest } from "./requests/query_publisher_request"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -97,7 +99,12 @@ export class Connection {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const producer = new Producer(this, publisherId)
+    const producer = new Producer({
+      connection: this,
+      stream: params.stream,
+      publisherId: publisherId,
+      publisherRef: params.publisherRef,
+    })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
@@ -120,6 +127,44 @@ export class Connection {
         return res()
       })
     })
+  }
+
+  public async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
+    this.logger.debug(`Create Stream...`)
+    const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
+      return true
+    }
+    if (!res.ok) {
+      throw new Error(`Create Stream command returned error with code ${res.code}`)
+    }
+
+    this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
+    return res.ok
+  }
+
+  public async deleteStream(params: { stream: string }): Promise<true> {
+    this.logger.debug(`Delete Stream...`)
+    const res = await this.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
+    if (!res.ok) {
+      throw new Error(`Delete Stream command returned error with code ${res.code}`)
+    }
+    this.logger.debug(`Delete Stream response: ${res.ok} - '${inspect(params.stream)}'`)
+    return res.ok
+  }
+
+  public async queryPublisherSequence(params: { stream: string; publisherRef: string }): Promise<bigint> {
+    const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
+    if (!res.ok) {
+      throw new Error(
+        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`
+      )
+    }
+
+    this.logger.info(
+      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
+    )
+    return res.sequence
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -182,30 +227,6 @@ export class Connection {
     const res = await this.sendAndWait<OpenResponse>(new OpenRequest(params))
     this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
     return res
-  }
-
-  async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
-    this.logger.debug(`Create Stream...`)
-    const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
-    if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
-      return true
-    }
-    if (!res.ok) {
-      throw new Error(`Create Stream command returned error with code ${res.code}`)
-    }
-
-    this.logger.debug(`Create Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
-    return res.ok
-  }
-
-  async deleteStream(params: { stream: string }): Promise<true> {
-    this.logger.debug(`Delete Stream...`)
-    const res = await this.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
-    if (!res.ok) {
-      throw new Error(`Delete Stream command returned error with code ${res.code}`)
-    }
-    this.logger.debug(`Delete Stream response: ${res.ok} - '${inspect(params.stream)}'`)
-    return res.ok
   }
 
   private sendAndWait<T extends Response>(cmd: Request): Promise<T> {
@@ -271,7 +292,7 @@ export interface ConnectionParams {
 
 export interface DeclarePublisherParams {
   stream: string
-  publisherRef?: string
+  publisherRef: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
