@@ -41,7 +41,7 @@ export class BufferDataWriter implements DataWriter {
   }
 
   writeInt32(data: number): void {
-    this._offset = this.buffer.writeUInt32BE(data, this._offset)
+    this._offset = this.buffer.writeInt32BE(data, this._offset)
   }
 
   writeUInt64(data: bigint): void {

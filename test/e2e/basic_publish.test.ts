@@ -4,6 +4,7 @@ import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 import * as ampq from "amqplib"
+import { MessageProperties } from "../../src/producer"
 
 // TODO remove audit issue
 // TODO verify if amqplib is install "normally"
@@ -52,16 +53,46 @@ describe("publish a message", () => {
     }, 10000)
   }).timeout(30000)
 
-  it("can be read using classic client", async () => {
+  it.only("can be read using classic client", async () => {
     const { publisher, stream } = await createPublisher(rabbit, connection)
     const message = `test${randomUUID()}`
+
     await publisher.send(BigInt(1), Buffer.from(message))
 
-    const messageFromStream = await getMessageFrom(stream)
+    const { content } = await getMessageFrom(stream)
+    expect(message).eql(content)
+  })
 
-    expect(message).eql(messageFromStream)
+  it.only("with properties and they are read from classic client", async () => {
+    const { publisher, stream } = await createPublisher(rabbit, connection)
+    const message = `test${randomUUID()}`
+    const properties = createProperties()
+
+    await publisher.send(BigInt(1), Buffer.from(message), { properties })
+
+    const { content, properties: classicProperties } = await getMessageFrom(stream)
+    expect(message).eql(content)
+    expect(properties.replyTo).eql(classicProperties.replyTo)
   })
 })
+
+function createProperties(): MessageProperties {
+  return {
+    contentType: `contentType`,
+    contentEncoding: `contentEncoding`,
+    replyTo: `replyTo`,
+    to: `to`,
+    subject: `subject`,
+    correlationId: `correlationId`,
+    messageId: `messageId`,
+    userId: `userId`,
+    absoluteExpiryTime: new Date(),
+    creationTime: new Date(),
+    groupId: `groupId`,
+    groupSequence: 666,
+    replyToGroupId: `replyToGroupId`,
+  }
+}
 
 async function createPublisher(rabbit: Rabbit, connection: Connection) {
   const stream = `my-stream-${randomUUID()}`
@@ -70,7 +101,7 @@ async function createPublisher(rabbit: Rabbit, connection: Connection) {
   return { publisher, stream }
 }
 
-async function getMessageFrom(stream: string): Promise<string> {
+async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
   return new Promise(async (res, rej) => {
     const con = await ampq.connect("amqp://rabbit:rabbit@localhost")
     con.on("error", async (err) => rej(err))
@@ -80,11 +111,12 @@ async function getMessageFrom(stream: string): Promise<string> {
       stream,
       async (msg) => {
         if (!msg) return
+        msg.properties.userId
         ch.ack(msg)
         console.log(msg.content.toString())
         await ch.close()
         await con.close()
-        res(msg.content.toString())
+        res({ content: msg.content.toString(), properties: msg.properties })
       },
       { arguments: { "x-stream-offset": "first" } }
     )
