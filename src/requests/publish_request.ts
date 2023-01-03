@@ -1,3 +1,5 @@
+import { inspect } from "node:util"
+import { isDate } from "node:util/types"
 import { Message, MessageProperties } from "../producer"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
@@ -41,6 +43,7 @@ const FormatCode = {
   List32: 0xd0,
   Null: 0x40,
   SmallUlong: 0x53,
+  Uint: 0x70,
   Timestamp: 0x83,
 }
 
@@ -57,13 +60,13 @@ function writeProperties(writer: DataWriter, properties?: MessageProperties) {
   // write applicationData header
   writer.writeByte(FormatCode.Described)
   writer.writeByte(FormatCode.SmallUlong)
-  writer.writeByte(FormatCodeType.ApplicationData)
+  writer.writeByte(FormatCodeType.MessageProperties)
 
   writer.writeByte(FormatCode.List32)
-  writer.writeUInt32(getPropertySize()) // PropertySize
+  writer.writeUInt32(getPropertySize(properties)) // PropertySize
   writer.writeUInt32(13) // Always send everything
   amqpWriteString(writer, properties.messageId)
-  amqpWriteString(writer, properties.userId)
+  amqpWriteBuffer(writer, properties.userId)
   amqpWriteString(writer, properties.to)
   amqpWriteString(writer, properties.subject)
   amqpWriteString(writer, properties.replyTo)
@@ -73,7 +76,7 @@ function writeProperties(writer: DataWriter, properties?: MessageProperties) {
   amqpWriteDate(writer, properties.absoluteExpiryTime)
   amqpWriteDate(writer, properties.creationTime)
   amqpWriteString(writer, properties.groupId)
-  amqpWriteString(writer, properties.groupSequence)
+  amqpWriteNumber(writer, properties.groupSequence)
   amqpWriteString(writer, properties.replyToGroupId)
 }
 
@@ -96,11 +99,27 @@ function writeContent(writer: DataWriter, content: Buffer) {
 
 function lengthOfProperties(properties?: MessageProperties) {
   if (!properties) return 0
-  throw new Error("Function not implemented.")
-  return 0
+
+  // header + FormatCode.List32 + value of getPropertySize() + count + size of all properties
+  return 3 + 1 + 4 + 4 + getPropertySize(properties)
 }
-function getPropertySize(): number {
-  throw new Error("Function not implemented.")
+
+function getPropertySize(properties: MessageProperties): number {
+  return (
+    getSizeOf(properties.messageId) +
+    getSizeOf(properties.userId) +
+    getSizeOf(properties.to) +
+    getSizeOf(properties.subject) +
+    getSizeOf(properties.replyTo) +
+    getSizeOf(properties.correlationId) +
+    getSizeOf(properties.contentType) +
+    getSizeOf(properties.contentEncoding) +
+    getSizeOf(properties.absoluteExpiryTime) +
+    getSizeOf(properties.creationTime) +
+    getSizeOf(properties.groupId) +
+    getSizeOf(properties.groupSequence) +
+    getSizeOf(properties.replyToGroupId)
+  )
 }
 
 function amqpWriteString(writer: DataWriter, data?: string): void {
@@ -118,6 +137,31 @@ function amqpWriteString(writer: DataWriter, data?: string): void {
   }
   writer.writeData(data)
 }
+
+function amqpWriteNumber(writer: DataWriter, data?: number): void {
+  if (!data) {
+    return amqpWriteNull(writer)
+  }
+
+  writer.writeByte(FormatCode.Uint)
+  writer.writeUInt32(data)
+}
+
+function amqpWriteBuffer(writer: DataWriter, data?: Buffer): void {
+  if (!data || !data.length) {
+    return amqpWriteNull(writer)
+  }
+
+  if (data.length < 256) {
+    writer.writeByte(FormatCode.Vbin8)
+    writer.writeByte(data.length)
+  } else {
+    writer.writeByte(FormatCode.Vbin32)
+    writer.writeUInt32(data.length)
+  }
+  writer.writeData(data)
+}
+
 function amqpWriteNull(writer: DataWriter) {
   writer.writeByte(FormatCode.Null)
 }
@@ -128,4 +172,29 @@ function amqpWriteDate(writer: DataWriter, date?: Date): void {
 
   writer.writeByte(FormatCode.Timestamp)
   writer.writeUInt64(BigInt(date.getTime()))
+}
+
+function getSizeOf(value?: string | Date | number | Buffer): number {
+  if (!value) {
+    return 1
+  }
+
+  if (typeof value === "string") {
+    const count = Buffer.from(value).length
+    return count <= 255 ? 1 + 1 + count : 1 + 4 + count
+  }
+
+  if (isDate(value)) {
+    return 1 + 8
+  }
+
+  if (typeof value === "number") {
+    return 1 + 4
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return value.length <= 255 ? 1 + 1 + value.length : 1 + 4 + value.length
+  }
+
+  throw new Error(`Unsupported type: ${inspect(value)}`)
 }

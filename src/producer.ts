@@ -12,11 +12,9 @@ export interface MessageProperties {
   replyTo?: string
   to?: string
   subject?: string
-
-  correlationId?: unknown
-  messageId?: unknown
-  userId?: unknown
-
+  correlationId?: string
+  messageId?: string
+  userId?: Buffer
   absoluteExpiryTime?: Date
   creationTime?: Date
   groupId?: string

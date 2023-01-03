@@ -8,7 +8,7 @@ import { MessageProperties } from "../../src/producer"
 
 // TODO remove audit issue
 // TODO verify if amqplib is install "normally"
-// TODO Add ability to encode Properties, ApplicationProperties, Annotations in the message
+// TODO Add ability to encode ApplicationProperties, Annotations in the message
 
 describe("publish a message", () => {
   const rabbit = new Rabbit()
@@ -53,26 +53,31 @@ describe("publish a message", () => {
     }, 10000)
   }).timeout(30000)
 
-  it.only("can be read using classic client", async () => {
+  it("can be read using classic client", async () => {
     const { publisher, stream } = await createPublisher(rabbit, connection)
     const message = `test${randomUUID()}`
 
-    await publisher.send(BigInt(1), Buffer.from(message))
+    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message))
 
     const { content } = await getMessageFrom(stream)
     expect(message).eql(content)
   })
 
-  it.only("with properties and they are read from classic client", async () => {
+  it("with properties and they are read from classic client", async () => {
     const { publisher, stream } = await createPublisher(rabbit, connection)
     const message = `test${randomUUID()}`
     const properties = createProperties()
 
-    await publisher.send(BigInt(1), Buffer.from(message), { properties })
+    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { properties })
 
     const { content, properties: classicProperties } = await getMessageFrom(stream)
     expect(message).eql(content)
     expect(properties.replyTo).eql(classicProperties.replyTo)
+    expect(properties.correlationId).eql(classicProperties.correlationId)
+    expect(properties.contentEncoding).eql(classicProperties.contentType)
+    expect(properties.contentType).eql(classicProperties.contentEncoding)
+    expect(properties.messageId).eql(classicProperties.messageId)
+    expect(properties.userId).eql(classicProperties.userId)
   })
 })
 
@@ -83,9 +88,9 @@ function createProperties(): MessageProperties {
     replyTo: `replyTo`,
     to: `to`,
     subject: `subject`,
-    correlationId: `correlationId`,
+    correlationId: `correlationIdAAA`,
     messageId: `messageId`,
-    userId: `userId`,
+    userId: Buffer.from(`userId`),
     absoluteExpiryTime: new Date(),
     creationTime: new Date(),
     groupId: `groupId`,
