@@ -6,8 +6,6 @@ import { eventually } from "../support/util"
 import * as ampq from "amqplib"
 import { MessageProperties } from "../../src/producer"
 
-// TODO Add ability to encode ApplicationProperties, Annotations in the message
-
 describe("publish a message", () => {
   const rabbit = new Rabbit()
   let connection: Connection
@@ -20,7 +18,7 @@ describe("publish a message", () => {
       password: "rabbit",
       vhost: "/",
       frameMax: 0, // not used
-      heartbeat: 0, // not used
+      heartbeat: 0,
     })
   })
   afterEach(() => connection.close())
