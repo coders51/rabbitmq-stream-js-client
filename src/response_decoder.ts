@@ -13,6 +13,7 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { CloseResponse } from "./responses/close_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -78,6 +79,12 @@ class BufferDataReader implements DataReader {
     return ret
   }
 
+  readUInt64(): bigint {
+    const ret = this.data.readBigUInt64BE(this.offset)
+    this.offset += 8
+    return ret
+  }
+
   readInt32(): number {
     const ret = this.data.readInt32BE(this.offset)
     this.offset += 4
@@ -114,6 +121,7 @@ export class ResponseDecoder {
     this.addFactoryFor(DeclarePublisherResponse)
     this.addFactoryFor(CreateStreamResponse)
     this.addFactoryFor(DeleteStreamResponse)
+    this.addFactoryFor(QueryPublisherResponse)
   }
 
   add(data: Buffer) {

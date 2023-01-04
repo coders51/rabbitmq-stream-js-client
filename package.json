@@ -10,7 +10,8 @@
     "check-ts": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
     "check-lint": "tsc --noEmit && eslint 'src/**/*.ts' 'test/**/*.ts'",
     "check-format": "prettier -c 'src/**/*.ts' 'test/**/*.ts'",
-    "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'"
+    "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'",
+    "format": "prettier -w './**/*.ts'"
   },
   "repository": {
     "type": "git",
