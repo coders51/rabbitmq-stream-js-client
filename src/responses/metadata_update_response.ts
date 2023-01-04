@@ -1,0 +1,43 @@
+import { MetadataInfo, RawMetadataUpdateResponse } from "./raw_response"
+import { BufferDataWriter } from "../requests/abstract_request"
+import { Response } from "./response"
+
+export class MetadataUpdateResponse implements Response {
+  static key = 0x0010
+
+  constructor(private response: RawMetadataUpdateResponse) {
+    if (this.response.key !== MetadataUpdateResponse.key) {
+      throw new Error(`Unable to create ${MetadataUpdateResponse.name} from data of type ${this.response.key}`)
+    }
+  }
+
+  toBuffer(): Buffer {
+    const dw = new BufferDataWriter(Buffer.alloc(1024), 4)
+    dw.writeUInt16(MetadataUpdateResponse.key)
+    dw.writeUInt16(1)
+    dw.writeUInt16(this.response.metadataInfo.code)
+    dw.writeString(this.response.metadataInfo.stream)
+    dw.writePrefixSize()
+    return dw.toBuffer()
+  }
+
+  get key() {
+    return this.response.key
+  }
+
+  get correlationId(): number {
+    return -1
+  }
+
+  get code(): number {
+    return -1
+  }
+
+  get ok(): boolean {
+    return true
+  }
+
+  get metadataInfo(): MetadataInfo {
+    return this.response.metadataInfo
+  }
+}

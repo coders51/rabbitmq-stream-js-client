@@ -28,6 +28,8 @@ import { CloseResponse } from "./responses/close_response"
 import { CloseRequest } from "./requests/close_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import { Metadata } from "./metadata"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -38,9 +40,11 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
+  private metadata: Metadata
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
+    this.metadata = new Metadata(this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
@@ -192,6 +196,16 @@ export class Connection {
     })
   }
 
+  private async updateMetadata() {
+    const updateMetadataResponse = await this.waitResponse<MetadataUpdateResponse>({
+      correlationId: -1,
+      key: MetadataUpdateResponse.key,
+    })
+    this.logger.debug(`METADATAUPDATE request from server -> ${inspect(updateMetadataResponse)}`)
+    const metadataToUpdate = extractMetadataInfo(updateMetadataResponse)
+    return metadataToUpdate
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -313,4 +327,8 @@ function errorMessageOf(code: number): string {
 
 function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
+}
+
+function extractMetadataInfo(updateMetadataResponse: MetadataUpdateResponse) {
+  return updateMetadataResponse.metadataInfo
 }

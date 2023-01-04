@@ -26,6 +26,18 @@ export interface RawTuneResponse {
   heartbeat: number
 }
 
+export interface RawMetadataUpdateResponse {
+  size: number
+  key: 0x0010
+  version: number
+  metadataInfo: MetadataInfo
+}
+
+export interface MetadataInfo {
+  code: number
+  stream: string
+}
+
 export interface RawHeartbeatResponse {
   key: 0x0014
   version: number
