@@ -30,6 +30,8 @@ import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import EventEmitter from "events"
+import { SubscribeResponse } from "./responses/subscribe_response"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -200,6 +202,14 @@ export class Connection {
     })
   }
 
+  public async subscribe(params: SubscribeParams): Promise<SubscribeResponse> {
+    const res = await this.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
+    if (!res.ok) {
+      throw new Error(`Subscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    return res
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -312,6 +322,13 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef: string
   boot?: boolean
+}
+
+export interface SubscribeParams {
+  subscriptionId: number
+  stream: string
+  credit: number
+  offset: Offset
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {

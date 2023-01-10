@@ -48,6 +48,10 @@ export class BufferDataWriter implements DataWriter {
     this._offset = this.buffer.writeBigUInt64BE(data, this._offset)
   }
 
+  writeInt64(data: bigint): void {
+    this._offset = this.buffer.writeBigInt64BE(data, this._offset)
+  }
+
   writeString(data: string): void {
     this._offset = this.buffer.writeInt16BE(data.length, this._offset)
     this.writeData(data)
