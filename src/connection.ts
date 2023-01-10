@@ -28,11 +28,8 @@ import { CloseResponse } from "./responses/close_response"
 import { CloseRequest } from "./requests/close_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
-<<<<<<< HEAD
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import EventEmitter from "events"
-=======
->>>>>>> ac2dd96 (add subscribe command)
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 
@@ -325,6 +322,13 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef: string
   boot?: boolean
+}
+
+export interface SubscribeParams {
+  subscriptionId: number
+  stream: string
+  credit: number
+  offset: Offset
 }
 
 export interface SubscribeParams {

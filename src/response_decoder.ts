@@ -20,11 +20,8 @@ import { TuneResponse } from "./responses/tune_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { CloseResponse } from "./responses/close_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
-<<<<<<< HEAD
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
-=======
->>>>>>> ac2dd96 (add subscribe command)
 import { SubscribeResponse } from "./responses/subscribe_response"
 
 // Frame => Size (Request | Response | Command)
