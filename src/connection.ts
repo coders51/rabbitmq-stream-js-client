@@ -338,6 +338,13 @@ export interface SubscribeParams {
   offset: Offset
 }
 
+export interface SubscribeParams {
+  subscriptionId: number
+  stream: string
+  credit: number
+  offset: Offset
+}
+
 export function connect(params: ConnectionParams): Promise<Connection> {
   return Connection.connect(params)
 }
