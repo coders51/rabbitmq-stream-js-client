@@ -41,8 +41,9 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { DeliverResponse } from "./responses/deliver_response"
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+
 export class Connection {
   private readonly socket = new Socket()
   private readonly logger = createConsoleLog()
