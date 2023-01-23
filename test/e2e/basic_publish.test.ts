@@ -59,23 +59,22 @@ describe("publish a message", () => {
     expect(message).eql(content)
   })
 
-  it.skip("with properties and they are read from classic client", async () => {
-    // There is a bug in RabbitMQ and so it's not possible to read
-    // a message with properties using classic client
+  it("with properties and they are read from classic client", async () => {
     const { publisher, stream } = await createPublisher(rabbit, connection)
     const message = `test${randomUUID()}`
     const properties = createProperties()
 
     await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { properties })
 
-    const { content, properties: classicProperties } = await getMessageFrom(stream)
+    const msg = await getMessageFrom(stream)
+    const { content, properties: classicProperties } = msg
     expect(message).eql(content)
     expect(properties.replyTo).eql(classicProperties.replyTo)
     expect(properties.correlationId).eql(classicProperties.correlationId)
-    expect(properties.contentEncoding).eql(classicProperties.contentType)
-    expect(properties.contentType).eql(classicProperties.contentEncoding)
+    expect(properties.contentEncoding).eql(classicProperties.contentEncoding)
+    expect(properties.contentType).eql(classicProperties.contentType)
     expect(properties.messageId).eql(classicProperties.messageId)
-    expect(properties.userId).eql(classicProperties.userId)
+    expect(properties.userId?.toString()).eql(classicProperties.userId)
   })
 })
 
@@ -116,7 +115,6 @@ async function getMessageFrom(stream: string): Promise<{ content: string; proper
         if (!msg) return
         msg.properties.userId
         ch.ack(msg)
-        console.log(msg.content.toString())
         await ch.close()
         await con.close()
         res({ content: msg.content.toString(), properties: msg.properties })

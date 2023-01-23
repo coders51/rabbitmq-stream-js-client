@@ -34,12 +34,15 @@ const FormatCodeType = {
   MessageProperties: 0x73,
   ApplicationData: 0x75,
 }
+
 const FormatCode = {
   Described: 0x00,
   Vbin8: 0xa0,
   Str8: 0xa1,
+  Sym8: 0xa3,
   Vbin32: 0xb0,
   Str32: 0xb1,
+  Sym32: 0xb3,
   List32: 0xd0,
   Null: 0x40,
   SmallUlong: 0x53,
@@ -63,7 +66,7 @@ function writeProperties(writer: DataWriter, properties?: MessageProperties) {
   writer.writeByte(FormatCodeType.MessageProperties)
 
   writer.writeByte(FormatCode.List32)
-  writer.writeUInt32(getPropertySize(properties)) // PropertySize
+  writer.writeUInt32(getPropertySize(properties) + 3 + 1) // PropertySize
   writer.writeUInt32(13) // Always send everything
   amqpWriteString(writer, properties.messageId)
   amqpWriteBuffer(writer, properties.userId)
@@ -71,8 +74,8 @@ function writeProperties(writer: DataWriter, properties?: MessageProperties) {
   amqpWriteString(writer, properties.subject)
   amqpWriteString(writer, properties.replyTo)
   amqpWriteString(writer, properties.correlationId)
-  amqpWriteString(writer, properties.contentType)
-  amqpWriteString(writer, properties.contentEncoding)
+  amqpWriteSymbol(writer, properties.contentType)
+  amqpWriteSymbol(writer, properties.contentEncoding)
   amqpWriteDate(writer, properties.absoluteExpiryTime)
   amqpWriteDate(writer, properties.creationTime)
   amqpWriteString(writer, properties.groupId)
@@ -133,6 +136,22 @@ function amqpWriteString(writer: DataWriter, data?: string): void {
     writer.writeByte(content.length)
   } else {
     writer.writeByte(FormatCode.Str32)
+    writer.writeInt32(content.length)
+  }
+  writer.writeData(data)
+}
+
+function amqpWriteSymbol(writer: DataWriter, data?: string): void {
+  if (!data) {
+    return amqpWriteNull(writer)
+  }
+
+  const content = Buffer.from(data)
+  if (content.length <= 255) {
+    writer.writeByte(FormatCode.Sym8)
+    writer.writeByte(content.length)
+  } else {
+    writer.writeByte(FormatCode.Sym32)
     writer.writeInt32(content.length)
   }
   writer.writeData(data)
