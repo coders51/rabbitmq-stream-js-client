@@ -69,6 +69,7 @@ describe("publish a message", () => {
     const msg = await getMessageFrom(stream)
     const { content, properties: classicProperties } = msg
     expect(message).eql(content)
+    expect(Math.floor((properties.creationTime?.getTime() || 1) / 1000)).eql(classicProperties.timestamp)
     expect(properties.replyTo).eql(classicProperties.replyTo)
     expect(properties.correlationId).eql(classicProperties.correlationId)
     expect(properties.contentEncoding).eql(classicProperties.contentEncoding)
