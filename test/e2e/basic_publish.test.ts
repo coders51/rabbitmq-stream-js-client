@@ -49,33 +49,44 @@ describe("publish a message", () => {
     }, 10000)
   }).timeout(30000)
 
-  it("can be read using classic client", async () => {
-    const { publisher, stream } = await createPublisher(rabbit, connection)
-    const message = `test${randomUUID()}`
+  describe("deduplication", () => {
+    it("is active if create a publisher with publishRef", async () => {
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      const publisher = await connection.declarePublisher({ stream, publisherRef: "this-producer" })
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message))
+      const howMany = 100
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
 
-    const { content } = await getMessageFrom(stream)
-    expect(message).eql(content)
-  })
+      await eventually(async () => {
+        expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany)
+      }, 10000)
+      await connection.close()
+    }).timeout(30000)
 
-  it("with properties and they are read from classic client", async () => {
-    const { publisher, stream } = await createPublisher(rabbit, connection)
-    const message = `test${randomUUID()}`
-    const properties = createProperties()
+    it("is not active if create a publisher without publishRef", async () => {
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      const publisher = await connection.declarePublisher({ stream })
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { properties })
+      const howMany = 100
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
 
-    const msg = await getMessageFrom(stream)
-    const { content, properties: classicProperties } = msg
-    expect(message).eql(content)
-    expect(Math.floor((properties.creationTime?.getTime() || 1) / 1000)).eql(classicProperties.timestamp)
-    expect(properties.replyTo).eql(classicProperties.replyTo)
-    expect(properties.correlationId).eql(classicProperties.correlationId)
-    expect(properties.contentEncoding).eql(classicProperties.contentEncoding)
-    expect(properties.contentType).eql(classicProperties.contentType)
-    expect(properties.messageId).eql(classicProperties.messageId)
-    expect(properties.userId?.toString()).eql(classicProperties.userId)
+      await eventually(async () => {
+        expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany * 2)
+      }, 10000)
+      await connection.close()
+    }).timeout(30000)
   })
 })
 
