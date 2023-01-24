@@ -43,10 +43,7 @@ describe("Stream", () => {
 
   describe("Create", () => {
     it("Should create a new Stream", async () => {
-      const resp = await connection.createStream({
-        stream: streamName,
-        arguments: payload,
-      })
+      const resp = await connection.createStream({ stream: streamName, arguments: payload })
 
       expect(resp).to.be.true
       const result = await rabbit.getQueue("%2F", streamName)
@@ -54,15 +51,8 @@ describe("Stream", () => {
     })
 
     it("Should be idempotent and ignore a duplicate Stream error", async () => {
-      await connection.createStream({
-        stream: streamName,
-        arguments: payload,
-      })
-
-      const resp = await connection.createStream({
-        stream: streamName,
-        arguments: payload,
-      })
+      await connection.createStream({ stream: streamName, arguments: payload })
+      const resp = await connection.createStream({ stream: streamName, arguments: payload })
 
       expect(resp).to.be.true
     })

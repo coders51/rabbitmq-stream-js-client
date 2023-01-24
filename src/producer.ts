@@ -1,6 +1,27 @@
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 
+export interface Message {
+  content: Buffer
+  properties?: MessageProperties
+}
+
+export interface MessageProperties {
+  contentType?: string
+  contentEncoding?: string
+  replyTo?: string
+  to?: string
+  subject?: string
+  correlationId?: string
+  messageId?: string
+  userId?: Buffer
+  absoluteExpiryTime?: Date
+  creationTime?: Date
+  groupId?: string
+  groupSequence?: number
+  replyToGroupId?: string
+}
+
 export class Producer {
   private connection: Connection
   private stream: string
@@ -13,9 +34,12 @@ export class Producer {
     this.publisherRef = params.publisherRef
   }
 
-  send(publishingId: bigint, message: Buffer) {
+  send(publishingId: bigint, message: Buffer, opts: { properties?: MessageProperties } = {}) {
     return this.connection.send(
-      new PublishRequest({ publisherId: this.publisherId, messages: [{ publishingId, message }] })
+      new PublishRequest({
+        publisherId: this.publisherId,
+        messages: [{ publishingId, message: { content: message, properties: opts.properties } }],
+      })
     )
   }
 

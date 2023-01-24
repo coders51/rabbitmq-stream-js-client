@@ -1,9 +1,11 @@
+import { amqpEncode } from "../amqp10/encoder"
+import { Message } from "../producer"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 interface PublishRequestParams {
   publisherId: number
-  messages: Array<{ publishingId: bigint; message: Buffer }>
+  messages: Array<{ publishingId: bigint; message: Message }>
 }
 
 export class PublishRequest extends AbstractRequest {
@@ -19,8 +21,7 @@ export class PublishRequest extends AbstractRequest {
     writer.writeUInt32(this.params.messages.length)
     this.params.messages.forEach(({ publishingId, message }) => {
       writer.writeUInt64(publishingId)
-      writer.writeUInt32(message.length)
-      writer.writeData(message)
+      amqpEncode(writer, message)
     })
   }
 }

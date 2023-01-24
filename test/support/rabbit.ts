@@ -134,8 +134,8 @@ export class Rabbit {
     return ret.body
   }
 
-  async deleteAllQueues(): Promise<void> {
+  async deleteAllQueues({ match }: { match: RegExp } = { match: /.*/ }): Promise<void> {
     const l = await this.getQueues()
-    await Promise.all(l.map((q) => this.deleteQueue("%2F", q.name)))
+    await Promise.all(l.filter((q) => match && q.name.match(match)).map((q) => this.deleteQueue("%2F", q.name)))
   }
 }

@@ -24,6 +24,10 @@ export class BufferDataWriter implements DataWriter {
     this._offset += this.buffer.write(data, this._offset)
   }
 
+  writeByte(data: number): void {
+    this._offset = this.buffer.writeUInt8(data, this._offset)
+  }
+
   writeUInt8(data: number): void {
     this._offset = this.buffer.writeUInt8(data, this._offset)
   }
@@ -37,7 +41,7 @@ export class BufferDataWriter implements DataWriter {
   }
 
   writeInt32(data: number): void {
-    this._offset = this.buffer.writeUInt32BE(data, this._offset)
+    this._offset = this.buffer.writeInt32BE(data, this._offset)
   }
 
   writeUInt64(data: bigint): void {
