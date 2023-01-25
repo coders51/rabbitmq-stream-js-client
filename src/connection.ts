@@ -259,18 +259,6 @@ export class Connection {
     return res.sequence
   }
 
-  public async storeOffset(params: { reference: string; stream: string; offsetValue: bigint }): Promise<true> {
-    this.logger.debug(`Store Offset...`)
-    const res = await this.sendAndWait<StoreOffsetResponse>(new StoreOffsetRequest(params))
-
-    if (!res.ok) {
-      throw new Error(`Store Offset command returned error with code ${res.code}`)
-    }
-
-    this.logger.debug(`Store Offset response: ${res.ok} with params: '${inspect(params)}'`)
-    return res.ok
-  }
-
   private responseReceived<T extends Response>(response: T) {
     const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
     return wr ? wr.resolve(response) : this.receivedResponses.push(response)
