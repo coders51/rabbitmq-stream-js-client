@@ -38,6 +38,7 @@ import { ApplicationProperties } from "./amqp10/applicationProperties"
 import { TuneResponse } from "./responses/tune_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -474,6 +475,7 @@ export class ResponseDecoder {
     this.addFactoryFor(SubscribeResponse)
     this.addFactoryFor(UnsubscribeResponse)
     this.addFactoryFor(StoreOffsetResponse)
+    this.addFactoryFor(QueryOffsetResponse)
   }
 
   add(data: Buffer) {
