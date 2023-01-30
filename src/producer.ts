@@ -51,9 +51,9 @@ export class Producer {
   send(publishingId: bigint, message: Buffer): Promise<void>
   send(message: Buffer): Promise<void>
 
-  send(args0: bigint | Buffer, message?: Buffer) {
+  send(args0: bigint | Buffer, message?: Buffer, opts: { properties?: MessageProperties } = {}) {
     if (Buffer.isBuffer(args0)) {
-      return this.sendWithPublisherSequence(args0)
+      return this.sendWithPublisherSequence(args0, opts)
     }
 
     if (!Buffer.isBuffer(message)) {
@@ -63,12 +63,12 @@ export class Producer {
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: args0, message: { content: message } }],
+        messages: [{ publishingId: args0, message: { content: message, properties: opts.properties } }],
       })
     )
   }
 
-  private async sendWithPublisherSequence(message: Buffer) {
+  private async sendWithPublisherSequence(message: Buffer, opts: { properties?: MessageProperties } = {}) {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
@@ -77,7 +77,7 @@ export class Producer {
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: this.publishingId, message: { content: message } }],
+        messages: [{ publishingId: this.publishingId, message: { content: message, properties: opts.properties } }],
       })
     )
   }
