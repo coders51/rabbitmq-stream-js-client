@@ -27,18 +27,57 @@ export class Producer {
   private stream: string
   private publisherId: number
   private publisherRef: string
-  constructor(params: { connection: Connection; stream: string; publisherId: number; publisherRef: string }) {
+  private boot: boolean
+  private publishingId: bigint
+
+  constructor(params: {
+    connection: Connection
+    stream: string
+    publisherId: number
+    publisherRef: string
+    boot?: boolean
+  }) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef
+    this.boot = params.boot || false
+    this.publishingId = params.boot ? -1n : 0n
   }
 
-  send(publishingId: bigint, message: Buffer, opts: { properties?: MessageProperties } = {}) {
+  /*
+  @deprecate This method should not be used
+  */
+  send(publishingId: bigint, message: Buffer): Promise<void>
+  send(message: Buffer): Promise<void>
+
+  send(args0: bigint | Buffer, message?: Buffer) {
+    if (Buffer.isBuffer(args0)) {
+      return this.sendWithPublisherSequence(args0)
+    }
+
+    if (!Buffer.isBuffer(message)) {
+      throw new Error("Message should be a Buffer")
+    }
+
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId, message: { content: message, properties: opts.properties } }],
+        messages: [{ publishingId: args0, message: { content: message } }],
+      })
+    )
+  }
+
+  private async sendWithPublisherSequence(message: Buffer) {
+    if (this.boot && this.publishingId === -1n) {
+      this.publishingId = await this.getLastPublishingId()
+    }
+    this.publishingId = this.publishingId + 1n
+
+    return this.connection.send(
+      new PublishRequest({
+        publisherId: this.publisherId,
+        messages: [{ publishingId: this.publishingId, message: { content: message } }],
       })
     )
   }

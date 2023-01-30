@@ -104,6 +104,7 @@ export class Connection {
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
+      boot: params.boot,
     })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -293,6 +294,7 @@ export interface ConnectionParams {
 export interface DeclarePublisherParams {
   stream: string
   publisherRef: string
+  boot?: boolean
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
