@@ -46,29 +46,33 @@ export class Producer {
   }
 
   /*
-  @deprecate This method should not be used
+    @deprecate This method should not be used
   */
-  send(publishingId: bigint, message: Buffer): Promise<void>
-  send(message: Buffer): Promise<void>
+  send(publishingId: bigint, message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
+  send(message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
 
-  send(args0: bigint | Buffer, message?: Buffer, opts: { properties?: MessageProperties } = {}) {
-    if (Buffer.isBuffer(args0)) {
-      return this.sendWithPublisherSequence(args0, opts)
+  send(
+    args0: bigint | Buffer,
+    arg1: Buffer | { properties?: MessageProperties } = {},
+    opts: { properties?: MessageProperties } = {}
+  ) {
+    if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
+      return this.sendWithPublisherSequence(args0, arg1)
     }
 
-    if (!Buffer.isBuffer(message)) {
+    if (typeof args0 !== "bigint" || !Buffer.isBuffer(arg1)) {
       throw new Error("Message should be a Buffer")
     }
 
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: args0, message: { content: message, properties: opts.properties } }],
+        messages: [{ publishingId: args0, message: { content: arg1, properties: opts.properties } }],
       })
     )
   }
 
-  private async sendWithPublisherSequence(message: Buffer, opts: { properties?: MessageProperties } = {}) {
+  private async sendWithPublisherSequence(message: Buffer, opts: { properties?: MessageProperties }) {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
