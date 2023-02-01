@@ -17,7 +17,7 @@ describe("Producer", () => {
     await rabbit.deleteStream(testStreamName)
   })
 
-  it("retrieve publishing id from server when boot is true", async () => {
+  it("increase publishing id from server when boot is true", async () => {
     const oldConnection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -48,7 +48,7 @@ describe("Producer", () => {
     await newConnection.close()
   }).timeout(10000)
 
-  it("do not retrieve publishing id from server when boot is false", async () => {
+  it("do not increase publishing id from server when boot is false", async () => {
     const oldConnection = await connect({
       hostname: "localhost",
       port: 5552,
