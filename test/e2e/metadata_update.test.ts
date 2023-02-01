@@ -19,28 +19,27 @@ describe("update the metadata from the server", () => {
       frameMax: 0, // not used
       heartbeat: 0, // not used
     })
+    connection2 = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0, // not used
+      heartbeat: 0, // not used
+    })
   })
-  connection2 = await connect({
-    hostname: "localhost",
-    port: 5552,
-    username: "rabbit",
-    password: "rabbit",
-    vhost: "/",
-    frameMax: 0, // not used
-    heartbeat: 0, // not used
-  })
-})
   afterEach(() => connection.close())
   afterEach(() => rabbit.closeAllConnections())
 
   it("when a new publisher connects to the stream metadataupdate is called", async () => {
     const stream = `my-stream-${randomUUID()}`
     await rabbit.createStream(stream)
-    const called = 0
+    let called = 0
     const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
-    publisher.on("metadataupdate", (metadata) => called++)
+    connection.on("metadataupdate", (m) => called++)
     const publisher2 = await connection2.declarePublisher({ stream, publisherRef: "my publisher" })
-    publisher2.disconnetct()
+    await connection2.close()
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
