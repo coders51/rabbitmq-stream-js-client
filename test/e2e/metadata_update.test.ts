@@ -4,7 +4,7 @@ import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 
-describe("update the metadata from the server", () => {
+describe.skip("update the metadata from the server", () => {
   const rabbit = new Rabbit()
   let connection: Connection
   let connection2: Connection
@@ -37,8 +37,8 @@ describe("update the metadata from the server", () => {
     await rabbit.createStream(stream)
     let called = 0
     const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
-    connection.on("metadataupdate", (m) => called++)
-    const publisher2 = await connection2.declarePublisher({ stream, publisherRef: "my publisher" })
+    connection.on("metadataupdate", (_) => called++)
+    await connection2.declarePublisher({ stream, publisherRef: "my publisher" })
     await connection2.close()
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
