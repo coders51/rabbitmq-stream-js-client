@@ -6,9 +6,10 @@ import { Rabbit } from "../support/rabbit"
 describe("Producer", () => {
   const rabbit = new Rabbit()
   const testStreamName = "test-stream"
-  const publisherRef = randomUUID()
+  let publisherRef: string
 
   beforeEach(async () => {
+    publisherRef = randomUUID()
     await rabbit.createStream(testStreamName)
   })
 
@@ -16,43 +17,65 @@ describe("Producer", () => {
     await rabbit.deleteStream(testStreamName)
   })
 
-  describe("Send: ", () => {
-    it("boot is true", async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-      const publisher = await connection.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
+  it("retrieve publishing id from server when boot is true", async () => {
+    const oldConnection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
+    const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldMessages = [...Array(3).keys()]
+    await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
+    await oldConnection.close()
+    const newConnection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
 
-      await publisher.send(Buffer.from(`test${randomUUID()}`))
+    const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
+    await newPublisher.send(Buffer.from(`test${randomUUID()}`))
 
-      const lastPublishingId = await publisher.getLastPublishingId()
-      expect(lastPublishingId).to.be.equal(1n)
-      await connection.close()
-    }).timeout(10000)
+    expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length) + 1n)
+    await newConnection.close()
+  }).timeout(10000)
 
-    it("boot is false", async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-      const publisher = await connection.declarePublisher({ stream: testStreamName, publisherRef })
+  it("do not retrieve publishing id from server when boot is false", async () => {
+    const oldConnection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
+    const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldMessages = [...Array(3).keys()]
+    await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
+    await oldConnection.close()
+    const newConnection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
 
-      await publisher.send(Buffer.from(`test${randomUUID()}`))
+    const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
+    await newPublisher.send(Buffer.from(`test${randomUUID()}`))
 
-      const lastPublishingId = await publisher.getLastPublishingId()
-      expect(lastPublishingId).to.be.equal(1n)
-      await connection.close()
-    }).timeout(10000)
-  })
+    expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length))
+    await newConnection.close()
+  }).timeout(10000)
 })
