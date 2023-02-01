@@ -21,6 +21,7 @@ import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { CloseResponse } from "./responses/close_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import { EventEmitter } from "events"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -137,7 +138,7 @@ function isMetadataUpdateResponse(
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
 
-  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private emitter: EventEmitter, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -158,6 +159,7 @@ export class ResponseDecoder {
       } else if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
+        this.emitter.emit("metadataupdate", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)

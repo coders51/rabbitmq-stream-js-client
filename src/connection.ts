@@ -29,7 +29,7 @@ import { CloseRequest } from "./requests/close_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
-import { Metadata } from "./metadata"
+import EventEmitter from "events"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -40,12 +40,11 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
-  private metadata: Metadata
+  private emitter: EventEmitter = new EventEmitter()
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.metadata = new Metadata(this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.emitter, this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
@@ -53,6 +52,7 @@ export class Connection {
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
+    this.registerListeners(params.listeners)
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -81,6 +81,10 @@ export class Connection {
       })
       this.socket.connect(params.port, params.hostname)
     })
+  }
+
+  public on(_event: "metadataupdate", listener: (metadata: MetadataUpdateResponse) => void) {
+    this.emitter.addListener("metadataupdate", listener)
   }
 
   public async close(
@@ -196,16 +200,6 @@ export class Connection {
     })
   }
 
-  private async updateMetadata() {
-    const updateMetadataResponse = await this.waitResponse<MetadataUpdateResponse>({
-      correlationId: -1,
-      key: MetadataUpdateResponse.key,
-    })
-    this.logger.debug(`METADATAUPDATE request from server -> ${inspect(updateMetadataResponse)}`)
-    const metadataToUpdate = extractMetadataInfo(updateMetadataResponse)
-    return metadataToUpdate
-  }
-
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -293,6 +287,10 @@ export class Connection {
     this.publisherId++
     return publisherId
   }
+
+  private registerListeners(listeners?: Record<"metadataupdate", (metadata: MetadataUpdateResponse) => Promise<void>>) {
+    if (listeners) this.on("metadataupdate", listeners.metadataupdate)
+  }
 }
 
 export interface ConnectionParams {
@@ -303,6 +301,7 @@ export interface ConnectionParams {
   vhost: string
   frameMax?: number // not used
   heartbeat?: number
+  listeners?: Record<"metadataupdate", (metadata: MetadataUpdateResponse) => Promise<void>>
 }
 
 export interface DeclarePublisherParams {
@@ -327,8 +326,4 @@ function errorMessageOf(code: number): string {
 
 function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
-}
-
-function extractMetadataInfo(updateMetadataResponse: MetadataUpdateResponse) {
-  return updateMetadataResponse.metadataInfo
 }
