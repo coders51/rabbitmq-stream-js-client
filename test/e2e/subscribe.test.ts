@@ -6,7 +6,7 @@ import { eventually } from "../support/util"
 
 describe("subscribe", async () => {
   const rabbit = new Rabbit()
-  const streamName = "test-stream-pippo"
+  const streamName = "test-stream"
 
   beforeEach(async () => {
     await rabbit.createStream(streamName)
