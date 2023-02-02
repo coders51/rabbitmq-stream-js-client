@@ -13,9 +13,7 @@ describe("Producer", () => {
     await rabbit.createStream(testStreamName)
   })
 
-  afterEach(async () => {
-    await rabbit.deleteStream(testStreamName)
-  })
+  afterEach(() => rabbit.deleteStream(testStreamName))
 
   it("increase publishing id from server when boot is true", async () => {
     const oldConnection = await connect({
