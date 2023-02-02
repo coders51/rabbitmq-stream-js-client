@@ -27,18 +27,61 @@ export class Producer {
   private stream: string
   private publisherId: number
   private publisherRef: string
-  constructor(params: { connection: Connection; stream: string; publisherId: number; publisherRef: string }) {
+  private boot: boolean
+  private publishingId: bigint
+
+  constructor(params: {
+    connection: Connection
+    stream: string
+    publisherId: number
+    publisherRef: string
+    boot?: boolean
+  }) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef
+    this.boot = params.boot || false
+    this.publishingId = params.boot ? -1n : 0n
   }
 
-  send(publishingId: bigint, message: Buffer, opts: { properties?: MessageProperties } = {}) {
+  /*
+    @deprecate This method should not be used
+  */
+  send(publishingId: bigint, message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
+  send(message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
+
+  send(
+    args0: bigint | Buffer,
+    arg1: Buffer | { properties?: MessageProperties } = {},
+    opts: { properties?: MessageProperties } = {}
+  ) {
+    if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
+      return this.sendWithPublisherSequence(args0, arg1)
+    }
+
+    if (typeof args0 !== "bigint" || !Buffer.isBuffer(arg1)) {
+      throw new Error("Message should be a Buffer")
+    }
+
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId, message: { content: message, properties: opts.properties } }],
+        messages: [{ publishingId: args0, message: { content: arg1, properties: opts.properties } }],
+      })
+    )
+  }
+
+  private async sendWithPublisherSequence(message: Buffer, opts: { properties?: MessageProperties }) {
+    if (this.boot && this.publishingId === -1n) {
+      this.publishingId = await this.getLastPublishingId()
+    }
+    this.publishingId = this.publishingId + 1n
+
+    return this.connection.send(
+      new PublishRequest({
+        publisherId: this.publisherId,
+        messages: [{ publishingId: this.publishingId, message: { content: message, properties: opts.properties } }],
       })
     )
   }
