@@ -1,10 +1,4 @@
 {
- "language": "en",
- "words": [
-  "ackmode",
-  "ampq",
-  "Sasl",
-  "Vbin",
-  "prefetch"
- ]
+  "language": "en",
+  "words": ["ackmode", "ampq", "prefetch", "Sasl", "Vbin"]
 }

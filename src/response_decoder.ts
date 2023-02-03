@@ -159,7 +159,7 @@ export class ResponseDecoder {
       } else if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
-        this.emitter.emit("metadataupdate", new MetadataUpdateResponse(response))
+        this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)

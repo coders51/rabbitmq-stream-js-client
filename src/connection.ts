@@ -83,8 +83,8 @@ export class Connection {
     })
   }
 
-  public on(_event: "metadataupdate", listener: (metadata: MetadataUpdateResponse) => void) {
-    this.emitter.addListener("metadataupdate", listener)
+  public on(_event: "metadata_update", listener: MetadataUpdateListener) {
+    this.emitter.on("metadata_update", listener)
   }
 
   public async close(
@@ -288,11 +288,14 @@ export class Connection {
     return publisherId
   }
 
-  private registerListeners(listeners?: Record<"metadataupdate", (metadata: MetadataUpdateResponse) => Promise<void>>) {
-    if (listeners) this.on("metadataupdate", listeners.metadataupdate)
+  private registerListeners(listeners?: ListenersParams) {
+    if (listeners) this.on("metadata_update", listeners.metadata_update)
   }
 }
 
+type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+
+type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
 export interface ConnectionParams {
   hostname: string
   port: number
@@ -301,7 +304,7 @@ export interface ConnectionParams {
   vhost: string
   frameMax?: number // not used
   heartbeat?: number
-  listeners?: Record<"metadataupdate", (metadata: MetadataUpdateResponse) => Promise<void>>
+  listeners?: ListenersParams
 }
 
 export interface DeclarePublisherParams {
