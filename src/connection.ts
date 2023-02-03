@@ -28,6 +28,8 @@ import { CloseResponse } from "./responses/close_response"
 import { CloseRequest } from "./requests/close_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import EventEmitter from "events"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -38,10 +40,11 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
+  private emitter: EventEmitter = new EventEmitter()
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.emitter, this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
@@ -49,6 +52,7 @@ export class Connection {
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
+    this.registerListeners(params.listeners)
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -77,6 +81,10 @@ export class Connection {
       })
       this.socket.connect(params.port, params.hostname)
     })
+  }
+
+  public on(_event: "metadata_update", listener: MetadataUpdateListener) {
+    this.emitter.on("metadata_update", listener)
   }
 
   public async close(
@@ -279,7 +287,15 @@ export class Connection {
     this.publisherId++
     return publisherId
   }
+
+  private registerListeners(listeners?: ListenersParams) {
+    if (listeners) this.on("metadata_update", listeners.metadata_update)
+  }
 }
+
+type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+
+type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
 
 export interface ConnectionParams {
   hostname: string
@@ -289,6 +305,7 @@ export interface ConnectionParams {
   vhost: string
   frameMax?: number // not used
   heartbeat?: number
+  listeners?: ListenersParams
 }
 
 export interface DeclarePublisherParams {

@@ -7,13 +7,21 @@ import { CreateStreamResponse } from "./responses/create_stream_response"
 import { HeartbeatResponse } from "./responses/heartbeat_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { DataReader, RawHeartbeatResponse, RawResponse, RawTuneResponse } from "./responses/raw_response"
+import {
+  DataReader,
+  RawHeartbeatResponse,
+  RawMetadataUpdateResponse,
+  RawResponse,
+  RawTuneResponse,
+} from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { CloseResponse } from "./responses/close_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import { EventEmitter } from "events"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -24,12 +32,15 @@ import { QueryPublisherResponse } from "./responses/query_publisher_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse {
+function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size)
 }
 
-function decodeResponse(dataResponse: DataReader, size: number): RawResponse | RawTuneResponse | RawHeartbeatResponse {
+function decodeResponse(
+  dataResponse: DataReader,
+  size: number
+): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === TuneResponse.key) {
@@ -39,6 +50,13 @@ function decodeResponse(dataResponse: DataReader, size: number): RawResponse | R
   }
   if (key === HeartbeatResponse.key) {
     return { key, version } as RawHeartbeatResponse
+  }
+  if (key === MetadataUpdateResponse.key) {
+    const metadataInfo = {
+      code: dataResponse.readUInt16(),
+      stream: dataResponse.readString(),
+    }
+    return { size, key, version, metadataInfo } as RawMetadataUpdateResponse
   }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
@@ -99,20 +117,28 @@ class BufferDataReader implements DataReader {
   }
 }
 
-function isTuneResponse(params: RawResponse | RawTuneResponse | RawHeartbeatResponse): params is RawTuneResponse {
+function isTuneResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
 function isHeartbeatResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
 ): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
+}
+
+function isMetadataUpdateResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+): params is RawMetadataUpdateResponse {
+  return params.key === MetadataUpdateResponse.key
 }
 
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
 
-  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private emitter: EventEmitter, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -132,6 +158,9 @@ export class ResponseDecoder {
         this.emitTuneResponseReceived(response)
       } else if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
+      } else if (isMetadataUpdateResponse(response)) {
+        this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
+        this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }

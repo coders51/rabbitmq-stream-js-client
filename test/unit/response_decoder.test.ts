@@ -5,6 +5,7 @@ import { expect } from "chai"
 import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { createConsoleLog } from "../../src/util"
 import { DecoderListenerFunc } from "../../src/decoder_listener"
+import { EventEmitter } from "node:stream"
 
 class MockDecoderListener {
   readonly responses: Response[] = []
@@ -28,7 +29,7 @@ describe("ResponseDecoder", () => {
   const mockListener = new MockDecoderListener()
 
   beforeEach(() => {
-    decoder = new ResponseDecoder(mockListener.buildListener(), createConsoleLog())
+    decoder = new ResponseDecoder(mockListener.buildListener(), new EventEmitter(), createConsoleLog())
   })
 
   it("decode a buffer that contains a single response", () => {
