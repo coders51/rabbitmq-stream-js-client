@@ -296,6 +296,7 @@ export class Connection {
 type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 
 type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
+
 export interface ConnectionParams {
   hostname: string
   port: number
