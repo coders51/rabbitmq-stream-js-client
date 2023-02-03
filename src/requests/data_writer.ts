@@ -7,4 +7,5 @@ export interface DataWriter {
   writeInt32(length: number): void
   writeData(data: string | Buffer): void
   writeString(data: string): void
+  writeInt64(data: bigint): void
 }

@@ -22,6 +22,7 @@ import { CloseResponse } from "./responses/close_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
+import { SubscribeResponse } from "./responses/subscribe_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -148,6 +149,7 @@ export class ResponseDecoder {
     this.addFactoryFor(CreateStreamResponse)
     this.addFactoryFor(DeleteStreamResponse)
     this.addFactoryFor(QueryPublisherResponse)
+    this.addFactoryFor(SubscribeResponse)
   }
 
   add(data: Buffer) {
