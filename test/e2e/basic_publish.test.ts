@@ -78,6 +78,19 @@ describe("publish a message", () => {
     expect(properties.userId?.toString()).eql(classicProperties.userId)
   })
 
+  it("with application properties and they are read from classic client", async () => {
+    const { publisher, stream } = await createPublisher(rabbit, connection)
+    const message = `test${randomUUID()}`
+    const applicationProperties = { "my-key": "my-value", key: "value", k: 100000 }
+
+    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { applicationProperties })
+
+    const msg = await getMessageFrom(stream)
+    const { content, properties } = msg
+    expect(message).eql(content)
+    expect(properties.headers).eql({ ...applicationProperties, "x-stream-offset": 0 })
+  })
+
   describe("deduplication", () => {
     it("is active if create a publisher with publishRef", async () => {
       const stream = `my-stream-${randomUUID()}`
