@@ -77,6 +77,40 @@ describe("publish a message", () => {
     expect(properties.messageId).eql(classicProperties.messageId)
     expect(properties.userId?.toString()).eql(classicProperties.userId)
   })
+
+  describe("deduplication", () => {
+    it("is active if create a publisher with publishRef", async () => {
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      const publisher = await connection.declarePublisher({ stream, publisherRef: "this-producer" })
+
+      const howMany = 100
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+
+      await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany), 10000)
+    }).timeout(30000)
+
+    it("is not active if create a publisher without publishRef", async () => {
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      const publisher = await connection.declarePublisher({ stream, publisherRef: "" })
+
+      const howMany = 100
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+
+      await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany * 2), 10000)
+    }).timeout(30000)
+  })
 })
 
 function createProperties(): MessageProperties {
