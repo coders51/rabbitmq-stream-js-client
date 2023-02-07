@@ -9,6 +9,7 @@ describe("declare publisher", () => {
   const testStreamName = "test-stream"
   const nonExistingStream = "not-the-test-stream"
   const publisherRef = randomUUID()
+  const emptyPublisherRef = ""
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
@@ -35,6 +36,27 @@ describe("declare publisher", () => {
       expect(await rabbit.returnPublishers(testStreamName))
         .lengthOf(1)
         .and.to.include(publisherRef)
+    }, 5000)
+    await connection.close()
+  }).timeout(10000)
+
+  it("declaring a publisher on an existing stream with no publisherRef - the publisher should be created", async () => {
+    const connection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username: "rabbit",
+      password: "rabbit",
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
+
+    await connection.declarePublisher({ stream: testStreamName })
+
+    await eventually(async () => {
+      expect(await rabbit.returnPublishers(testStreamName))
+        .lengthOf(1)
+        .and.to.include(emptyPublisherRef)
     }, 5000)
     await connection.close()
   }).timeout(10000)

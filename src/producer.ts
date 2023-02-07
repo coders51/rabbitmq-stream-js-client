@@ -34,13 +34,13 @@ export class Producer {
     connection: Connection
     stream: string
     publisherId: number
-    publisherRef: string
+    publisherRef?: string
     boot?: boolean
   }) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
-    this.publisherRef = params.publisherRef
+    this.publisherRef = params.publisherRef || ""
     this.boot = params.boot || false
     this.publishingId = params.boot ? -1n : 0n
   }

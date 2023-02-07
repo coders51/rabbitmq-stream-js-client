@@ -320,7 +320,7 @@ export interface ConnectionParams {
 
 export interface DeclarePublisherParams {
   stream: string
-  publisherRef: string
+  publisherRef?: string
   boot?: boolean
 }
 
