@@ -111,7 +111,7 @@ describe("publish a message", () => {
       await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany * 2), 10000)
     }).timeout(30000)
 
-    it("is not active if create a publisher with null publisherRef", async () => {
+    it("is not active if create a publisher without publishRef", async () => {
       const stream = `my-stream-${randomUUID()}`
       await rabbit.createStream(stream)
       const publisher = await connection.declarePublisher({ stream })
