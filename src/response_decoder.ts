@@ -1,29 +1,30 @@
+import { EventEmitter } from "events"
 import { inspect } from "util"
 import { Logger } from "winston"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { HeartbeatResponse } from "./responses/heartbeat_response"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import {
   DataReader,
   RawDeliverResponse,
   RawCreditResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
+  RawPublishConfirmResponse,
   RawResponse,
   RawTuneResponse,
 } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { TuneResponse } from "./responses/tune_response"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { CloseResponse } from "./responses/close_response"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { MetadataUpdateResponse } from "./responses/metadata_update_response"
-import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
@@ -32,6 +33,7 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { Properties } from "./amqp10/properties"
 import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
+import { TuneResponse } from "./responses/tune_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -57,6 +59,7 @@ type PossibleRawResponses =
   | RawMetadataUpdateResponse
   | RawDeliverResponse
   | RawCreditResponse
+  | RawPublishConfirmResponse
 
 function decode(data: DataReader, logger: Logger): PossibleRawResponses {
   const size = data.readUInt32()
@@ -106,6 +109,15 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
     return response
   }
 
+  if (key === PublishConfirmResponse.key) {
+    const publisherId = dataResponse.readUInt8()
+    const publishingIds: bigint[] = []
+    while (!dataResponse.isOver()) {
+      const publishingId = dataResponse.readUInt64()
+      publishingIds.push(publishingId)
+    }
+    return { key, version, publisherId, publishingIds } as RawPublishConfirmResponse
+  }
   const correlationId = dataResponse.readUInt32()
   const code = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
@@ -398,6 +410,10 @@ export class BufferDataReader implements DataReader {
   isAtEnd(): boolean {
     return this.offset === this.data.length
   }
+
+  isOver(): boolean {
+    return this.data.length >= this.offset
+  }
 }
 
 function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
@@ -418,6 +434,10 @@ function isDeliverResponse(params: PossibleRawResponses): params is RawDeliverRe
 
 function isCreditResponse(params: PossibleRawResponses): params is RawCreditResponse {
   return params.key === CreditResponse.key
+}
+
+function isPublishConfirmResponse(params: PossibleRawResponses): params is RawPublishConfirmResponse {
+  return params.key === PublishConfirmResponse.key
 }
 
 export class ResponseDecoder {
@@ -456,6 +476,9 @@ export class ResponseDecoder {
       } else if (isCreditResponse(response)) {
         this.logger.debug(`credit received from the server: ${inspect(response)}`)
         this.emitter.emit("credit_response", new CreditResponse(response))
+      } else if (isPublishConfirmResponse(response)) {
+        this.logger.debug(`publish_confirm received from the server: ${inspect(response)}`)
+        this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
       } else {
         this.emitResponseReceived(response)
       }

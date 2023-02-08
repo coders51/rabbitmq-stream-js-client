@@ -106,9 +106,10 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
     const res = await this.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ ...params, publisherId })
+      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
@@ -120,6 +121,7 @@ export class Connection {
       publisherId: publisherId,
       publisherRef: params.publisherRef,
       boot: params.boot,
+      emitter: this.emitter,
     })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`

@@ -29,9 +29,12 @@ describe("publish a message and get confirmation", () => {
     const publisher = await connection.declarePublisher({
       stream,
       publisherRef: "my publisher",
-      confirmCb: () => {
+    })
+
+    publisher.on("publish_confirm", (err: Error, _pubIds: bigint[]) => {
+      if (!err) {
         confirmed = true
-      },
+      }
     })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
@@ -49,9 +52,9 @@ describe("publish a message and get confirmation", () => {
     const publisher = await connection.declarePublisher({
       stream,
       publisherRef: "my publisher",
-      confirmCb: (pubId: bigint[]) => {
-        publishingIds = pubId
-      },
+    })
+    publisher.on("publish_confirm", (_err: Error, pubIds: bigint[]) => {
+      publishingIds = pubIds
     })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
@@ -71,9 +74,11 @@ describe("publish a message and get confirmation", () => {
     const publisher = await connection.declarePublisher({
       stream,
       publisherRef: "my publisher",
-      errorCb: () => {
+    })
+    publisher.on("publish_confirm", (error, _publishingIds) => {
+      if (error) {
         errored = true
-      },
+      }
     })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
@@ -88,13 +93,15 @@ describe("publish a message and get confirmation", () => {
     // how to force an error from the server? --Luca
     const stream = `my-stream-${randomUUID()}`
     await rabbit.createStream(stream)
-    let error: string = ""
+    let error: Error | undefined = undefined
     const publisher = await connection.declarePublisher({
       stream,
       publisherRef: "my publisher",
-      errorCb: (e: string) => {
-        error = e
-      },
+    })
+    publisher.on("publish_confirm", (err, _publishingIds) => {
+      if (err) {
+        error = err
+      }
     })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
@@ -102,6 +109,6 @@ describe("publish a message and get confirmation", () => {
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
     }, 10000)
-    console.log(error)
+    console.error(error)
   }).timeout(10000)
 })

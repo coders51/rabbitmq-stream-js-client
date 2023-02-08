@@ -1,3 +1,4 @@
+import { EventEmitter } from "stream"
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 
@@ -29,6 +30,8 @@ interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
+type PublishConfirmCallback = (err: Error, publishingIds: bigint[]) => void
+type PublisherEvent = "publish_confirm"
 
 export class Producer {
   private connection: Connection
@@ -37,6 +40,7 @@ export class Producer {
   private publisherRef: string
   private boot: boolean
   private publishingId: bigint
+  private eventEmitter: EventEmitter
 
   constructor(params: {
     connection: Connection
@@ -44,6 +48,7 @@ export class Producer {
     publisherId: number
     publisherRef?: string
     boot?: boolean
+    emitter: EventEmitter
   }) {
     this.connection = params.connection
     this.stream = params.stream
@@ -51,6 +56,7 @@ export class Producer {
     this.publisherRef = params.publisherRef || ""
     this.boot = params.boot || false
     this.publishingId = params.boot ? -1n : 0n
+    this.eventEmitter = params.emitter
   }
 
   /*
@@ -76,6 +82,17 @@ export class Producer {
     )
   }
 
+  public on(eventName: PublisherEvent, cb: PublishConfirmCallback) {
+    switch (eventName) {
+      case "publish_confirm":
+        this.eventEmitter.removeAllListeners("publish_confirm")
+        this.eventEmitter.on("publish_confirm", cb)
+        break
+      default:
+        throw Error(`Event ${eventName} was not recognized`)
+    }
+  }
+
   private async sendWithPublisherSequence(message: Buffer, opts: MessageOptions) {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
@@ -99,7 +116,7 @@ export class Producer {
     )
   }
 
-  getLastPublishingId() {
+  getLastPublishingId(): Promise<bigint> {
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 
