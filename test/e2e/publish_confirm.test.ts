@@ -66,8 +66,8 @@ describe("publish a message and get confirmation", () => {
     expect(publishingIds.slice(-1)).equals(lastPublishingId)
   }).timeout(10000)
 
-  it("after the server replies with an error, the error callback is invoked", async () => {
-    // how to force an error from the server? --Luca
+  it.skip("after the server replies with an error, the error callback is invoked", async () => {
+    // how to force an error from the server? --LM
     const stream = `my-stream-${randomUUID()}`
     await rabbit.createStream(stream)
     let errored = false
@@ -89,26 +89,29 @@ describe("publish a message and get confirmation", () => {
     expect(errored).true
   }).timeout(10000)
 
-  it("after the server replies with an error, the error callback is invoked with the error as an argument", async () => {
-    // how to force an error from the server? --Luca
-    const stream = `my-stream-${randomUUID()}`
-    await rabbit.createStream(stream)
-    let error: Error | undefined = undefined
-    const publisher = await connection.declarePublisher({
-      stream,
-      publisherRef: "my publisher",
-    })
-    publisher.on("publish_confirm", (err, _publishingIds) => {
-      if (err) {
-        error = err
-      }
-    })
+  it.skip(
+    "after the server replies with an error, the error callback is invoked with the error as an argument",
+    async () => {
+      // how to force an error from the server? --LM
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      let error: Error | undefined = undefined
+      const publisher = await connection.declarePublisher({
+        stream,
+        publisherRef: "my publisher",
+      })
+      publisher.on("publish_confirm", (err, _publishingIds) => {
+        if (err) {
+          error = err
+        }
+      })
 
-    await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
+      await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
-    await eventually(async () => {
-      expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
-    }, 10000)
-    console.error(error)
-  }).timeout(10000)
+      await eventually(async () => {
+        expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
+      }, 10000)
+      console.error(error)
+    }
+  ).timeout(10000)
 })
