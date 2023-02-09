@@ -20,7 +20,10 @@ describe("update the metadata from the server", () => {
       vhost: "/",
       frameMax: 0, // not used
       heartbeat: 0, // not used
-      listeners: { metadata_update: (data) => metadataUpdateResponses.push(data) },
+      listeners: {
+        metadata_update: (data) => metadataUpdateResponses.push(data),
+        credit: (_data) => console.error("Subscribe server error"),
+      },
     })
   })
   afterEach(() => connection.close())
@@ -40,7 +43,7 @@ describe("update the metadata from the server", () => {
     let called = 0
     await rabbit.createStream(stream)
     await connection.declarePublisher({ stream, publisherRef: "my publisher" })
-    connection.on("metadata_update", (_) => called++)
+    connection.on("metadata_update", (_data: MetadataUpdateResponse) => called++)
 
     await rabbit.deleteStream(stream)
 

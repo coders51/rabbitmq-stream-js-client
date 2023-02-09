@@ -6,6 +6,7 @@ export interface DataReader {
   readInt8(): number
   readUInt8(): number
   readUInt16(): number
+  readUInt8(): number
   readUInt32(): number
   readInt32(): number
   readUInt64(): bigint
@@ -50,6 +51,14 @@ export interface RawMetadataUpdateResponse {
 export interface MetadataInfo {
   code: number
   stream: string
+}
+
+export interface RawCreditResponse {
+  size: number
+  key: 0x8009
+  version: number
+  responseCode: number
+  subscriptionId: number
 }
 
 export interface RawHeartbeatResponse {

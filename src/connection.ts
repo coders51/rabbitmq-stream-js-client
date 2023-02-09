@@ -10,7 +10,7 @@ import { OpenResponse } from "./responses/open_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Response } from "./responses/response"
-import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { DeliverListener, MetadataUpdateListener, CreditListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -32,6 +32,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { DeliverResponse } from "./responses/deliver_response"
+import { CreditResponse } from "./responses/credit_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -87,8 +88,21 @@ export class Connection {
     })
   }
 
-  public on(_event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on("metadata_update", listener)
+  public on(
+    _event: "metadata_update" | "credit_response" | "deliver",
+    listener: MetadataUpdateListener | CreditListener | DeliverListener
+  ) {
+    switch (_event) {
+      case "metadata_update":
+        this.decoder.on("metadata_update", listener)
+        break
+      case "credit_response":
+        this.decoder.on("credit_response", listener)
+        break
+      case "deliver":
+        this.decoder.on("deliver", listener)
+        break
+    }
   }
 
   public async close(
@@ -329,7 +343,10 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) this.decoder.on("metadata_update", listeners.metadata_update)
+    if (listeners) {
+      this.on("metadata_update", listeners.metadata_update)
+      this.on("credit_response", listeners.credit)
+    }
   }
 
   private registerDelivers() {
@@ -340,7 +357,10 @@ export class Connection {
   }
 }
 
-type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
+type ListenersParams = {
+  metadata_update: MetadataUpdateListener
+  credit: CreditListener
+}
 
 export interface ConnectionParams {
   hostname: string

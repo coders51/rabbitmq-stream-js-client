@@ -10,6 +10,7 @@ import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import {
   DataReader,
   RawDeliverResponse,
+  RawCreditResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawResponse,
@@ -26,6 +27,7 @@ import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
+import { CreditResponse } from "./responses/credit_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -37,6 +39,7 @@ import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 //   ResponseCode => uint16
 
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
@@ -46,7 +49,13 @@ type MessageAndSubId = {
 function decode(
   data: DataReader,
   logger: Logger
-): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
+):
+  | RawResponse
+  | RawTuneResponse
+  | RawHeartbeatResponse
+  | RawMetadataUpdateResponse
+  | RawDeliverResponse
+  | RawCreditResponse {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size, logger)
 }
@@ -55,7 +64,13 @@ function decodeResponse(
   dataResponse: DataReader,
   size: number,
   logger: Logger
-): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
+):
+  | RawResponse
+  | RawTuneResponse
+  | RawHeartbeatResponse
+  | RawMetadataUpdateResponse
+  | RawDeliverResponse
+  | RawCreditResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
@@ -83,6 +98,11 @@ function decodeResponse(
       stream: dataResponse.readString(),
     }
     return { size, key, version, metadataInfo } as RawMetadataUpdateResponse
+  }
+  if (key === CreditResponse.key) {
+    const responseCodeCredit = dataResponse.readUInt16()
+    const subscriptionId = dataResponse.readUInt8()
+    return { size, key, version, responseCode: responseCodeCredit, subscriptionId: subscriptionId } as RawCreditResponse
   }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
@@ -233,27 +253,63 @@ export class BufferDataReader implements DataReader {
 }
 
 function isTuneResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+  params:
+    | RawResponse
+    | RawTuneResponse
+    | RawHeartbeatResponse
+    | RawMetadataUpdateResponse
+    | RawDeliverResponse
+    | RawCreditResponse
 ): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
 function isHeartbeatResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+  params:
+    | RawResponse
+    | RawTuneResponse
+    | RawHeartbeatResponse
+    | RawMetadataUpdateResponse
+    | RawDeliverResponse
+    | RawCreditResponse
 ): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
 function isMetadataUpdateResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+  params:
+    | RawResponse
+    | RawTuneResponse
+    | RawHeartbeatResponse
+    | RawMetadataUpdateResponse
+    | RawDeliverResponse
+    | RawCreditResponse
 ): params is RawMetadataUpdateResponse {
   return params.key === MetadataUpdateResponse.key
 }
 
 function isDeliverResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+  params:
+    | RawResponse
+    | RawTuneResponse
+    | RawHeartbeatResponse
+    | RawMetadataUpdateResponse
+    | RawDeliverResponse
+    | RawCreditResponse
 ): params is RawDeliverResponse {
   return params.key === DeliverResponse.key
+}
+
+function isCreditResponse(
+  params:
+    | RawResponse
+    | RawTuneResponse
+    | RawHeartbeatResponse
+    | RawMetadataUpdateResponse
+    | RawCreditResponse
+    | RawCreditResponse
+): params is RawCreditResponse {
+  return params.key === CreditResponse.key
 }
 
 export class ResponseDecoder {
@@ -288,13 +344,19 @@ export class ResponseDecoder {
       } else if (isDeliverResponse(response)) {
         this.emitter.emit("deliver", new DeliverResponse(response))
         this.logger.debug(`deliver received from the server: ${inspect(response)}`)
+      } else if (isCreditResponse(response)) {
+        this.logger.debug(`credit received from the server: ${inspect(response)}`)
+        this.emitter.emit("credit_response", new CreditResponse(response))
       } else {
         this.emitResponseReceived(response)
       }
     }
   }
 
-  public on(event: "metadata_update" | "deliver", listener: MetadataUpdateListener | DeliverListener) {
+  public on(
+    event: "metadata_update" | "credit_response" | "deliver",
+    listener: MetadataUpdateListener | CreditListener | DeliverListener
+  ) {
     this.emitter.on(event, listener)
   }
 
