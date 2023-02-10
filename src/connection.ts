@@ -1,38 +1,38 @@
 import { Socket } from "net"
 import { inspect } from "util"
+import { Consumer, ConsumerFunc } from "./consumer"
+import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
+import { Heartbeat } from "./heartbeat"
+import { Producer } from "./producer"
+import { CloseRequest } from "./requests/close_request"
+import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { TuneRequest } from "./requests/tune_request"
+import { CreditListener, DeliverListener, MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { CloseResponse } from "./responses/close_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
 import { OpenResponse } from "./responses/open_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { Response } from "./responses/response"
-import { DeliverListener, MetadataUpdateListener, CreditListener, ResponseDecoder } from "./response_decoder"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { SubscribeResponse } from "./responses/subscribe_response"
+import { TuneResponse } from "./responses/tune_response"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
-import { TuneResponse } from "./responses/tune_response"
-import { Producer } from "./producer"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
-import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
-import { CreateStreamResponse } from "./responses/create_stream_response"
-import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
-import { Heartbeat } from "./heartbeat"
-import { TuneRequest } from "./requests/tune_request"
-import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeleteStreamRequest } from "./requests/delete_stream_request"
-import { CloseResponse } from "./responses/close_response"
-import { CloseRequest } from "./requests/close_request"
-import { QueryPublisherRequest } from "./requests/query_publisher_request"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { SubscribeResponse } from "./responses/subscribe_response"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { Consumer, ConsumerFunc } from "./consumer"
-import { DeliverResponse } from "./responses/deliver_response"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -248,8 +248,8 @@ export class Connection {
     return res
   }
 
-  private askForCredit(params: CreditRequestParams): Promise<void> {
-    return this.send(new CreditRequest({ ...params }))
+  public async askForCredit(params: CreditRequestParams): Promise<void> {
+    return await this.send(new CreditRequest({ ...params }))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {

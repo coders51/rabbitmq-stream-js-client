@@ -21,6 +21,7 @@ describe("credit management", () => {
       heartbeat: 0, // not used
       listeners: {
         metadata_update: (_data) => console.info("Subscribe server error"),
+        credit: (_data) => console.info("Subscribe server error"),
       },
     })
     await rabbit.createStream(streamName)
