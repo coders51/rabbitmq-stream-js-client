@@ -33,6 +33,7 @@ import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { DeliverResponse } from "./responses/deliver_response"
 import { CreditResponse } from "./responses/credit_response"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -246,6 +247,10 @@ export class Connection {
       throw new Error(`Subscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     return res
+  }
+
+  public async askForCredit(params: CreditRequestParams): Promise<void> {
+    return await this.send(new CreditRequest({ ...params }))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {

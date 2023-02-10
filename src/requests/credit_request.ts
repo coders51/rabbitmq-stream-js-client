@@ -1,7 +1,7 @@
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
-type CreditRequestParams = {
+export type CreditRequestParams = {
   subscriptionId: number
   credit: number
 }
