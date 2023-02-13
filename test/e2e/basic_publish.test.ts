@@ -95,10 +95,26 @@ describe("publish a message", () => {
       await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany), 10000)
     }).timeout(30000)
 
-    it("is not active if create a publisher without publishRef", async () => {
+    it("is not active if create a publisher with empty publisherRef", async () => {
       const stream = `my-stream-${randomUUID()}`
       await rabbit.createStream(stream)
       const publisher = await connection.declarePublisher({ stream, publisherRef: "" })
+
+      const howMany = 100
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+      for (let index = 0; index < howMany; index++) {
+        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      }
+
+      await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(howMany * 2), 10000)
+    }).timeout(30000)
+
+    it("is not active if create a publisher without publishRef", async () => {
+      const stream = `my-stream-${randomUUID()}`
+      await rabbit.createStream(stream)
+      const publisher = await connection.declarePublisher({ stream })
 
       const howMany = 100
       for (let index = 0; index < howMany; index++) {
