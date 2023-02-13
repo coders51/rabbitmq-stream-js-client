@@ -26,6 +26,12 @@ const FormatCode = {
   Timestamp: 0x83,
 } as const
 
+const PropertySizeDescription =
+  3 + // sizeOf DescribedFormatCode.Size (3 byte)
+  1 + // sizeOf FormatCode.List32 (byte)
+  4 + // sizeOf field numbers (uint)
+  4 // sizeof propertySize (uint)
+
 type MessageApplicationPropertiesList = [string, string | number][]
 
 export function amqpEncode(writer: DataWriter, { content, properties, applicationProperties }: Message): void {
@@ -46,8 +52,7 @@ function lengthOfContent(content: Buffer) {
 function lengthOfProperties(properties?: MessageProperties) {
   if (!properties) return 0
 
-  // header + FormatCode.List32 + value of getPropertySize() + count + size of all properties
-  return 3 + 1 + 4 + 4 + getPropertySize(properties)
+  return PropertySizeDescription + getPropertySize(properties)
 }
 
 function lengthOfApplicationProperties(applicationProperties: MessageApplicationPropertiesList) {
@@ -55,13 +60,7 @@ function lengthOfApplicationProperties(applicationProperties: MessageApplication
     return 0
   }
 
-  // var size = DescribedFormatCode.Size
-  // size += sizeof(byte) //FormatCode.List32
-  // size += sizeof(uint) // field numbers
-  // size += sizeof(uint) // PropertySize
-  // size += MapSize()
-  // return size
-  return 3 + 1 + 4 + 4 + getApplicationPropertySize(applicationProperties)
+  return PropertySizeDescription + getApplicationPropertySize(applicationProperties)
 }
 
 function writeApplicationProperties(writer: DataWriter, applicationPropertiesList: MessageApplicationPropertiesList) {
