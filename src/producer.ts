@@ -1,6 +1,7 @@
 import { EventEmitter } from "stream"
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
+import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -30,7 +31,7 @@ interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
-type PublishConfirmCallback = (err: Error, publishingIds: bigint[]) => void
+type PublishConfirmCallback = (err: Error | null, publishingIds: bigint[]) => void
 type PublisherEvent = "publish_confirm"
 
 export class Producer {
@@ -86,7 +87,7 @@ export class Producer {
     switch (eventName) {
       case "publish_confirm":
         this.eventEmitter.removeAllListeners("publish_confirm")
-        this.eventEmitter.on("publish_confirm", cb)
+        this.eventEmitter.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
         break
       default:
         throw Error(`Event ${eventName} was not recognized`)

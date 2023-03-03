@@ -31,7 +31,7 @@ describe("publish a message and get confirmation", () => {
       publisherRef: "my publisher",
     })
 
-    publisher.on("publish_confirm", (err: Error, _pubIds: bigint[]) => {
+    publisher.on("publish_confirm", (err: Error | null, _pubIds: bigint[]) => {
       if (!err) {
         confirmed = true
       }
@@ -53,17 +53,17 @@ describe("publish a message and get confirmation", () => {
       stream,
       publisherRef: "my publisher",
     })
-    publisher.on("publish_confirm", (_err: Error, pubIds: bigint[]) => {
+    publisher.on("publish_confirm", (_err: Error | null, pubIds: bigint[]) => {
       publishingIds = pubIds
     })
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
-    const lastPublishingId = publisher.getLastPublishingId()
+    const lastPublishingId = await publisher.getLastPublishingId()
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
     }, 10000)
-    expect(publishingIds.slice(-1)).equals(lastPublishingId)
+    expect(publishingIds.slice(-1).pop()).equals(lastPublishingId)
   }).timeout(10000)
 
   it.skip("after the server replies with an error, the error callback is invoked", async () => {

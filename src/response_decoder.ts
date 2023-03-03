@@ -112,7 +112,8 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
   if (key === PublishConfirmResponse.key) {
     const publisherId = dataResponse.readUInt8()
     const publishingIds: bigint[] = []
-    while (!dataResponse.isOver()) {
+    const howManyPublishingIds = dataResponse.readUInt32()
+    for (let i = 0; i < howManyPublishingIds; i++) {
       const publishingId = dataResponse.readUInt64()
       publishingIds.push(publishingId)
     }

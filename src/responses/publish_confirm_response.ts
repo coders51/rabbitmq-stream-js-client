@@ -4,10 +4,14 @@ import { Response } from "./response"
 
 export class PublishConfirmResponse implements Response {
   static key = 0x0003
+  publishingIds: bigint[]
+  publisherId: number
   constructor(private response: RawPublishConfirmResponse) {
     if (this.response.key !== PublishConfirmResponse.key) {
       throw new Error(`Unable to create ${PublishConfirmResponse.name} from data of type ${this.response.key}`)
     }
+    this.publishingIds = response.publishingIds
+    this.publisherId = response.publisherId
   }
 
   toBuffer(): Buffer {
@@ -15,6 +19,7 @@ export class PublishConfirmResponse implements Response {
     dw.writeUInt16(PublishConfirmResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt8(this.response.publisherId)
+    dw.writeUInt32(this.response.publishingIds.length)
     for (const pubId of this.response.publishingIds) {
       dw.writeUInt64(pubId)
     }
