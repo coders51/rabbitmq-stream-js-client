@@ -35,7 +35,9 @@ import { DeliverResponse } from "./responses/deliver_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
+function decode(
+  data: DataReader
+): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size)
 }
@@ -49,8 +51,8 @@ function decodeResponse(
   if (key === DeliverResponse.key) {
     // TODO: Check with @gpad if change to RawDeliverResponse.from(dataResponse)
     const subscriptionId = dataResponse.readUInt8()
-
-    return { size, key, version, subscriptionId } as RawDeliverResponse
+    const magicVersion = dataResponse.readInt8()
+    return { size, key, version, subscriptionId, magicVersion } as RawDeliverResponse
   }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
@@ -92,6 +94,12 @@ class BufferDataReader implements DataReader {
 
   atEnd(): boolean {
     return this.offset === this.data.length
+  }
+
+  readInt8(): number {
+    const ret = this.data.readInt8(this.offset)
+    this.offset += 1
+    return ret
   }
 
   readUInt8(): number {

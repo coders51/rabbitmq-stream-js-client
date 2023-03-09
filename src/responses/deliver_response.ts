@@ -16,6 +16,7 @@ export class DeliverResponse implements Response {
     dw.writeUInt16(DeliverResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt8(this.response.subscriptionId)
+    dw.writeInt8(this.response.magicVersion)
     dw.writePrefixSize()
     return dw.toBuffer()
   }
@@ -38,5 +39,9 @@ export class DeliverResponse implements Response {
 
   get subscriptionId(): number {
     return this.response.subscriptionId
+  }
+
+  get magicVersion(): number {
+    return this.response.magicVersion
   }
 }

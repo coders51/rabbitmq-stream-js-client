@@ -33,6 +33,7 @@ import EventEmitter from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer } from "./consumer"
+import { DeliverResponse } from "./responses/deliver_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -45,6 +46,7 @@ export class Connection {
   private heartbeat: Heartbeat
   private emitter: EventEmitter = new EventEmitter()
   private consumerId = 0
+  private consumers: Consumer[] = []
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
@@ -57,6 +59,7 @@ export class Connection {
 
   public start(params: ConnectionParams): Promise<Connection> {
     this.registerListeners(params.listeners)
+    this.registerDelivers()
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -124,7 +127,7 @@ export class Connection {
     return producer
   }
 
-  public async declareConsumer(params: DeclareConsumerParams): Promise<Consumer> {
+  public async declareConsumer(params: DeclareConsumerParams, handle: (message: any) => void): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const res = await this.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
@@ -133,14 +136,16 @@ export class Connection {
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const consumer = new Consumer({
-      connection: this,
-      stream: params.stream,
-      offset: params.offset,
-      consumerId: consumerId,
-    })
-
-    // TODO 
+    const consumer = new Consumer(
+      {
+        connection: this,
+        stream: params.stream,
+        offset: params.offset,
+        consumerId: consumerId,
+      },
+      handle
+    )
+    this.consumers.push(consumer)
 
     this.logger.info(
       `New producer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset}`
@@ -332,6 +337,12 @@ export class Connection {
 
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) this.on("metadata_update", listeners.metadata_update)
+  }
+
+  private registerDelivers() {
+    this.emitter.on("deliver", (args: DeliverResponse) => {
+      this.consumers[args.subscriptionId].handle(args)
+    })
   }
 }
 

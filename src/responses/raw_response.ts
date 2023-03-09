@@ -2,6 +2,7 @@ export interface DataReader {
   readTo(size: number): DataReader
   readToEnd(): DataReader
 
+  readInt8(): number
   readUInt8(): number
   readUInt16(): number
   readUInt32(): number
@@ -32,6 +33,7 @@ export interface RawDeliverResponse {
   key: 0x0008
   version: number
   subscriptionId: number
+  magicVersion: number
 }
 
 export interface RawMetadataUpdateResponse {
