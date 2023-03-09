@@ -9,6 +9,7 @@ import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import {
   DataReader,
+  RawDeliverResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawResponse,
@@ -23,6 +24,7 @@ import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
+import { DeliverResponse } from "./responses/deliver_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -33,7 +35,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
+function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size)
 }
@@ -41,9 +43,15 @@ function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatR
 function decodeResponse(
   dataResponse: DataReader,
   size: number
-): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
+): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
+  if (key === DeliverResponse.key) {
+    // TODO: Check with @gpad if change to RawDeliverResponse.from(dataResponse)
+    const subscriptionId = dataResponse.readUInt8()
+
+    return { size, key, version, subscriptionId } as RawDeliverResponse
+  }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
@@ -86,6 +94,12 @@ class BufferDataReader implements DataReader {
     return this.offset === this.data.length
   }
 
+  readUInt8(): number {
+    const ret = this.data.readUInt8(this.offset)
+    this.offset += 1
+    return ret
+  }
+
   readUInt16(): number {
     const ret = this.data.readUInt16BE(this.offset)
     this.offset += 2
@@ -119,21 +133,27 @@ class BufferDataReader implements DataReader {
 }
 
 function isTuneResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
 function isHeartbeatResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
 function isMetadataUpdateResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawMetadataUpdateResponse {
   return params.key === MetadataUpdateResponse.key
+}
+
+function isDeliverResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+): params is RawDeliverResponse {
+  return params.key === DeliverResponse.key
 }
 
 export class ResponseDecoder {
@@ -156,13 +176,18 @@ export class ResponseDecoder {
     const dataReader = new BufferDataReader(data)
     while (!dataReader.atEnd()) {
       const response = decode(dataReader)
-      if (isTuneResponse(response)) {
-        this.emitTuneResponseReceived(response)
-      } else if (isHeartbeatResponse(response)) {
+      if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
+      } else if (isTuneResponse(response)) {
+        this.emitTuneResponseReceived(response)
+        this.logger.debug(`tune received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
+      } else if (isDeliverResponse(response)) {
+        // TODO lista dei consumer e chiamare il corrispettivo messageHandler a seconda del subscriptionId
+        this.emitter.emit("deliver", new DeliverResponse(response))
+        this.logger.debug(`deliver received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }

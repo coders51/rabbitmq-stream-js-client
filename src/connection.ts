@@ -32,6 +32,7 @@ import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import EventEmitter from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { Consumer } from "./consumer"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -43,6 +44,7 @@ export class Connection {
   private publisherId = 0
   private heartbeat: Heartbeat
   private emitter: EventEmitter = new EventEmitter()
+  private consumerId = 0
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
@@ -120,6 +122,30 @@ export class Connection {
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
     return producer
+  }
+
+  public async declareConsumer(params: DeclareConsumerParams): Promise<Consumer> {
+    const consumerId = this.incConsumerId()
+    const res = await this.sendAndWait<SubscribeResponse>(
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+    )
+    if (!res.ok) {
+      throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+
+    const consumer = new Consumer({
+      connection: this,
+      stream: params.stream,
+      offset: params.offset,
+      consumerId: consumerId,
+    })
+
+    // TODO 
+
+    this.logger.info(
+      `New producer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset}`
+    )
+    return consumer
   }
 
   public send(cmd: Request): Promise<void> {
@@ -298,6 +324,12 @@ export class Connection {
     return publisherId
   }
 
+  private incConsumerId() {
+    const consumerId = this.consumerId
+    this.consumerId++
+    return consumerId
+  }
+
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) this.on("metadata_update", listeners.metadata_update)
   }
@@ -322,6 +354,11 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
   boot?: boolean
+}
+
+export interface DeclareConsumerParams {
+  stream: string
+  offset: Offset
 }
 
 export interface SubscribeParams {

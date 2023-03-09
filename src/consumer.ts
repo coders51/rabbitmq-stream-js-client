@@ -2,24 +2,21 @@ import { Connection } from "./connection"
 import { Offset } from "./requests/subscribe_request"
 
 export class Consumer {
-  private constructor(
-    private readonly connection: Connection,
-    private readonly streamName: string,
-    private readonly offset: Offset,
-    private readonly messageHandler: (message: any) => Promise<void>
-  ) {}
+  private connection: Connection
+  private stream: string
+  private offset: Offset
+  private consumerId: number
 
-  static create(params: {
+  constructor(params: {
     connection: Connection
-    streamName: string
+    stream: string
     offset: Offset
-    messageHandler: (message: any) => Promise<void>
-  }): Consumer {
-    return new Consumer(params.connection, params.streamName, params.offset, params.messageHandler)
-
-    // subscribe su connection per inizializzare la connessione
-
-    // ricevere i messaggi sempre via connection e chimare l'handler sull messaggio
+    consumerId: number
+  }){
+    this.connection = params.connection
+    this.stream = params.stream
+    this.offset = params.offset
+    this.consumerId = params.consumerId
   }
 
   async close(): Promise<void> {

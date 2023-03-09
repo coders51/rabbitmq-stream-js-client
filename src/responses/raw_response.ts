@@ -2,6 +2,7 @@ export interface DataReader {
   readTo(size: number): DataReader
   readToEnd(): DataReader
 
+  readUInt8(): number
   readUInt16(): number
   readUInt32(): number
   readInt32(): number
@@ -24,6 +25,13 @@ export interface RawTuneResponse {
   version: number
   frameMax: number
   heartbeat: number
+}
+
+export interface RawDeliverResponse {
+  size: number
+  key: 0x0008
+  version: number
+  subscriptionId: number
 }
 
 export interface RawMetadataUpdateResponse {

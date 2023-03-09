@@ -1,4 +1,5 @@
 import got from "got"
+import { inspect } from "util"
 
 interface RabbitConnectionResponse {
   name: string
@@ -95,6 +96,19 @@ export class Rabbit {
         responseType: "json",
       }
     )
+    return resp.body.map((p) => p.reference)
+  }
+
+  async returnConsumers(): Promise<string[]> {
+    const resp = await got.get<RabbitPublishersResponse[]>(
+      `http://localhost:15672/api/consumers/%2F/`,
+      {
+        username: "rabbit",
+        password: "rabbit",
+        responseType: "json",
+      }
+    )
+    console.log(`resp: ${inspect(resp.body)}`)
     return resp.body.map((p) => p.reference)
   }
 
