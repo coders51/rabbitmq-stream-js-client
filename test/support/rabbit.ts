@@ -100,15 +100,11 @@ export class Rabbit {
   }
 
   async returnConsumers(): Promise<string[]> {
-    const resp = await got.get<RabbitPublishersResponse[]>(
-      `http://localhost:15672/api/consumers/%2F/`,
-      {
-        username: "rabbit",
-        password: "rabbit",
-        responseType: "json",
-      }
-    )
-    console.log(`resp: ${inspect(resp.body)}`)
+    const resp = await got.get<RabbitPublishersResponse[]>(`http://localhost:15672/api/consumers/%2F/`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
     return resp.body.map((p) => p.reference)
   }
 

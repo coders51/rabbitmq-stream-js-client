@@ -40,15 +40,17 @@ export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 
 function decode(
-  data: DataReader
+  data: DataReader,
+  logger: Logger
 ): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const size = data.readUInt32()
-  return decodeResponse(data.readTo(size), size)
+  return decodeResponse(data.readTo(size), size, logger)
 }
 
 function decodeResponse(
   dataResponse: DataReader,
-  size: number
+  size: number,
+  logger: Logger
 ): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
@@ -70,9 +72,26 @@ function decodeResponse(
     const messageLength = dataResponse.readUInt32()
     const formatCode = readFormatCodeType(dataResponse)
 
+    const data = {
+      magicVersion,
+      chunkType,
+      numEntries,
+      numRecords,
+      timestamp,
+      epoch,
+      chunkFirstOffset,
+      chunkCrc,
+      dataLength,
+      trailerLength,
+      reserved,
+      messageType,
+      messageLength,
+    }
+    logger.debug(data)
+
     const messages: Buffer[] = []
 
-    for (let i = 1; i <= numEntries; i++) {
+    for (let i = 0; i < numEntries; i++) {
       switch (formatCode) {
         case FormatCodeType.ApplicationData:
           const type = dataResponse.readUInt8()
@@ -248,7 +267,7 @@ export class ResponseDecoder {
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
     while (!dataReader.atEnd()) {
-      const response = decode(dataReader)
+      const response = decode(dataReader, this.logger)
       if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else if (isTuneResponse(response)) {
@@ -258,7 +277,6 @@ export class ResponseDecoder {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
       } else if (isDeliverResponse(response)) {
-        // TODO lista dei consumer e chiamare il corrispettivo messageHandler a seconda del subscriptionId
         this.emitter.emit("deliver", new DeliverResponse(response))
         this.logger.debug(`deliver received from the server: ${inspect(response)}`)
       } else {

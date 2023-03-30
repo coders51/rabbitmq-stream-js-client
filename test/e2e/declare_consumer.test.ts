@@ -9,7 +9,6 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit()
   const testStreamName = "test-stream"
   const nonExistingStream = "not-the-test-stream"
-  const emptyPublisherRef = ""
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
@@ -30,8 +29,8 @@ describe("declare consumer", () => {
       heartbeat: 0,
     })
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: any) =>
-      console.log(message)
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+      console.log(message.content)
     )
 
     await eventually(async () => {
@@ -40,7 +39,7 @@ describe("declare consumer", () => {
     await connection.close()
   }).timeout(10000)
 
-  it.only("declaring a consumer on an existing stream - the consumer should be handle the message", async () => {
+  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
     const connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -62,33 +61,7 @@ describe("declare consumer", () => {
     await connection.close()
   }).timeout(10000)
 
-  it.only(
-    "declaring a consumer on an existing stream - the consumer should be handle more then one message",
-    async () => {
-      const connection = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username: "rabbit",
-        password: "rabbit",
-        vhost: "/",
-        frameMax: 0,
-        heartbeat: 0,
-      })
-      const messages: Buffer[] = []
-      const publisher = await connection.declarePublisher({ stream: testStreamName })
-      await publisher.send(Buffer.from("hello"))
-      await publisher.send(Buffer.from("world"))
-
-      await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
-        messages.push(message.content)
-      )
-
-      await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
-      await connection.close()
-    }
-  ).timeout(10000)
-
-  it("declaring a publisher on an existing stream with no publisherRef - the publisher should be created", async () => {
+  it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {
     const connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -98,18 +71,21 @@ describe("declare consumer", () => {
       frameMax: 0,
       heartbeat: 0,
     })
+    const messages: Buffer[] = []
+    const publisher = await connection.declarePublisher({ stream: testStreamName })
+    await publisher.send(Buffer.from("hello"))
+    await publisher.send(Buffer.from("world"))
 
-    // await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() })
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
+    )
 
-    await eventually(async () => {
-      expect(await rabbit.returnPublishers(testStreamName))
-        .lengthOf(1)
-        .and.to.include(emptyPublisherRef)
-    }, 5000)
+    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
+    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
     await connection.close()
   }).timeout(10000)
 
-  it("declaring a publisher on a non-existing stream should raise an error", async () => {
+  it("declaring a consumer on a non-existing stream should raise an error", async () => {
     const connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -121,9 +97,12 @@ describe("declare consumer", () => {
     })
 
     await expectToThrowAsync(
-      () => connection.declareConsumer({ stream: nonExistingStream, offset: Offset.first() }),
+      () =>
+        connection.declareConsumer({ stream: nonExistingStream, offset: Offset.first() }, (message: Message) =>
+          console.log(message.content)
+        ),
       Error,
-      "Declare Publisher command returned error with code 2 - Stream does not exist"
+      "Declare Consumer command returned error with code 2 - Stream does not exist"
     )
 
     await connection.close()

@@ -134,12 +134,12 @@ export class Connection {
     }
 
     const consumer = new Consumer(
-      {
-        connection: this,
-        stream: params.stream,
-        offset: params.offset,
-        consumerId: consumerId,
-      },
+      // {
+      //   connection: this,
+      //   stream: params.stream,
+      //   offset: params.offset,
+      //   consumerId: consumerId,
+      // },
       handle
     )
     this.consumers.push(consumer)
