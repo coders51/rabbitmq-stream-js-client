@@ -1,3 +1,4 @@
+import { Message } from "../producer"
 import { BufferDataWriter } from "../requests/abstract_request"
 import { RawDeliverResponse } from "./raw_response"
 import { Response } from "./response"
@@ -16,7 +17,6 @@ export class DeliverResponse implements Response {
     dw.writeUInt16(DeliverResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt8(this.response.subscriptionId)
-    dw.writeInt8(this.response.magicVersion)
     dw.writePrefixSize()
     return dw.toBuffer()
   }
@@ -41,7 +41,11 @@ export class DeliverResponse implements Response {
     return this.response.subscriptionId
   }
 
-  get magicVersion(): number {
-    return this.response.magicVersion
+  get messages(): Message[] {
+    return this.response.messages.map((x) => {
+      return {
+        content: x,
+      }
+    })
   }
 }

@@ -1,5 +1,6 @@
 import { expect } from "chai"
 import { connect } from "../../src"
+import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync } from "../support/util"
@@ -49,17 +50,43 @@ describe("declare consumer", () => {
       frameMax: 0,
       heartbeat: 0,
     })
-    const messages: string[] = []
+    const messages: Buffer[] = []
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: any) =>
-      messages.push(message)
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
     )
 
-    await eventually(() => expect(messages).eql(["hello"]))
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
     await connection.close()
   }).timeout(10000)
+
+  it.only(
+    "declaring a consumer on an existing stream - the consumer should be handle more then one message",
+    async () => {
+      const connection = await connect({
+        hostname: "localhost",
+        port: 5552,
+        username: "rabbit",
+        password: "rabbit",
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      })
+      const messages: Buffer[] = []
+      const publisher = await connection.declarePublisher({ stream: testStreamName })
+      await publisher.send(Buffer.from("hello"))
+      await publisher.send(Buffer.from("world"))
+
+      await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+        messages.push(message.content)
+      )
+
+      await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
+      await connection.close()
+    }
+  ).timeout(10000)
 
   it("declaring a publisher on an existing stream with no publisherRef - the publisher should be created", async () => {
     const connection = await connect({
@@ -72,7 +99,7 @@ describe("declare consumer", () => {
       heartbeat: 0,
     })
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() })
+    // await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() })
 
     await eventually(async () => {
       expect(await rabbit.returnPublishers(testStreamName))

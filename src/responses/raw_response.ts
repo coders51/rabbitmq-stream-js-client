@@ -1,4 +1,5 @@
 export interface DataReader {
+  readToBuffer(length: number): Buffer
   readTo(size: number): DataReader
   readToEnd(): DataReader
 
@@ -8,7 +9,10 @@ export interface DataReader {
   readUInt32(): number
   readInt32(): number
   readUInt64(): bigint
+  readInt64(): bigint
   readString(): string
+
+  rewind(count: number): void
 }
 
 export interface RawResponse {
@@ -33,7 +37,7 @@ export interface RawDeliverResponse {
   key: 0x0008
   version: number
   subscriptionId: number
-  magicVersion: number
+  messages: Buffer[]
 }
 
 export interface RawMetadataUpdateResponse {

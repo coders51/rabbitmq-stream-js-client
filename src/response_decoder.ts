@@ -25,6 +25,7 @@ import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
+import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -34,6 +35,9 @@ import { DeliverResponse } from "./responses/deliver_response"
 //   Version => uint16
 //   CorrelationId => uint32
 //   ResponseCode => uint16
+
+export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+export type DeliverListener = (response: DeliverResponse) => void
 
 function decode(
   data: DataReader
@@ -49,10 +53,47 @@ function decodeResponse(
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
-    // TODO: Check with @gpad if change to RawDeliverResponse.from(dataResponse)
     const subscriptionId = dataResponse.readUInt8()
     const magicVersion = dataResponse.readInt8()
-    return { size, key, version, subscriptionId, magicVersion } as RawDeliverResponse
+    const chunkType = dataResponse.readInt8()
+    const numEntries = dataResponse.readUInt16()
+    const numRecords = dataResponse.readUInt32()
+    const timestamp = dataResponse.readInt64()
+    const epoch = dataResponse.readUInt64()
+    const chunkFirstOffset = dataResponse.readUInt64()
+    const chunkCrc = dataResponse.readInt32()
+    const dataLength = dataResponse.readUInt32()
+    const trailerLength = dataResponse.readUInt32()
+    const reserved = dataResponse.readUInt32()
+    const messageType = dataResponse.readUInt8()
+    dataResponse.rewind(1)
+    const messageLength = dataResponse.readUInt32()
+    const formatCode = readFormatCodeType(dataResponse)
+
+    const messages: Buffer[] = []
+
+    for (let i = 1; i <= numEntries; i++) {
+      switch (formatCode) {
+        case FormatCodeType.ApplicationData:
+          const type = dataResponse.readUInt8()
+          switch (type) {
+            case FormatCode.Vbin8:
+              const length = dataResponse.readUInt8()
+              messages.push(dataResponse.readToBuffer(length))
+          }
+          break
+        default:
+          break
+      }
+    }
+
+    return {
+      size,
+      key,
+      version,
+      subscriptionId,
+      messages,
+    } as RawDeliverResponse
   }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
@@ -75,13 +116,26 @@ function decodeResponse(
   return { size, key, version, correlationId, code: responseCode, payload }
 }
 
-class BufferDataReader implements DataReader {
+function readFormatCodeType(dataResponse: DataReader) {
+  dataResponse.readInt8()
+  dataResponse.readInt8()
+  const formatCode = dataResponse.readInt8()
+  return formatCode
+}
+
+export class BufferDataReader implements DataReader {
   private offset = 0
 
   constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    this.offset += size
+    return ret
+  }
+
+  readToBuffer(size: number): Buffer {
+    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
@@ -99,6 +153,12 @@ class BufferDataReader implements DataReader {
   readInt8(): number {
     const ret = this.data.readInt8(this.offset)
     this.offset += 1
+    return ret
+  }
+
+  readInt64(): bigint {
+    const ret = this.data.readBigInt64BE(this.offset)
+    this.offset += 8
     return ret
   }
 
@@ -138,6 +198,10 @@ class BufferDataReader implements DataReader {
     this.offset += size
     return value
   }
+
+  rewind(count: number): void {
+    this.offset -= count
+  }
 }
 
 function isTuneResponse(
@@ -166,8 +230,9 @@ function isDeliverResponse(
 
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
+  private emitter = new EventEmitter()
 
-  constructor(private listener: DecoderListenerFunc, private emitter: EventEmitter, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -200,6 +265,10 @@ export class ResponseDecoder {
         this.emitResponseReceived(response)
       }
     }
+  }
+
+  public on(event: "metadata_update" | "deliver", listener: MetadataUpdateListener | DeliverListener) {
+    this.emitter.on(event, listener)
   }
 
   private addFactoryFor(type: AbstractTypeClass) {

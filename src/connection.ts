@@ -10,11 +10,11 @@ import { OpenResponse } from "./responses/open_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Response } from "./responses/response"
-import { ResponseDecoder } from "./response_decoder"
+import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
-import { Producer } from "./producer"
+import { Message, Producer } from "./producer"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { CreateStreamResponse } from "./responses/create_stream_response"
@@ -28,8 +28,6 @@ import { CloseResponse } from "./responses/close_response"
 import { CloseRequest } from "./requests/close_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { MetadataUpdateResponse } from "./responses/metadata_update_response"
-import EventEmitter from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer } from "./consumer"
@@ -44,13 +42,12 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
-  private emitter: EventEmitter = new EventEmitter()
   private consumerId = 0
   private consumers: Consumer[] = []
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.emitter, this.logger)
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
@@ -91,7 +88,7 @@ export class Connection {
   }
 
   public on(_event: "metadata_update", listener: MetadataUpdateListener) {
-    this.emitter.on("metadata_update", listener)
+    this.decoder.on("metadata_update", listener)
   }
 
   public async close(
@@ -127,7 +124,7 @@ export class Connection {
     return producer
   }
 
-  public async declareConsumer(params: DeclareConsumerParams, handle: (message: any) => void): Promise<Consumer> {
+  public async declareConsumer(params: DeclareConsumerParams, handle: (message: Message) => void): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const res = await this.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
@@ -336,17 +333,15 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) this.on("metadata_update", listeners.metadata_update)
+    if (listeners) this.decoder.on("metadata_update", listeners.metadata_update)
   }
 
   private registerDelivers() {
-    this.emitter.on("deliver", (args: DeliverResponse) => {
-      this.consumers[args.subscriptionId].handle(args)
+    this.decoder.on("deliver", (response: DeliverResponse) => {
+      response.messages.map((x) => this.consumers[response.subscriptionId].handle(x))
     })
   }
 }
-
-type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 
 type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
 
