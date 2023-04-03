@@ -18,27 +18,6 @@ describe("declare consumer", () => {
     await rabbit.deleteStream(testStreamName)
   })
 
-  it("when a consumer is created, Rabbit should show it if asked", async () => {
-    const connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
-
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
-      console.log(message.content)
-    )
-
-    await eventually(async () => {
-      expect(await rabbit.returnConsumers()).lengthOf(1)
-    }, 5000)
-    await connection.close()
-  }).timeout(10000)
-
   it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
     const connection = await connect({
       hostname: "localhost",

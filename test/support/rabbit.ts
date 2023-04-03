@@ -16,6 +16,16 @@ interface RabbitPublishersResponse {
   reference: string
   publisher_id: number
 }
+
+interface RabbitConsumersResponseQueue {
+  name: string
+  vhost: string
+}
+
+interface RabbitConsumersResponse {
+  queue: RabbitConsumersResponseQueue
+  consumer_tag: string
+}
 interface RabbitQueueResponse {
   arguments: Record<string, string>
   auto_delete: boolean
@@ -99,12 +109,12 @@ export class Rabbit {
   }
 
   async returnConsumers(): Promise<string[]> {
-    const resp = await got.get<RabbitPublishersResponse[]>(`http://localhost:15672/api/consumers/%2F/`, {
+    const resp = await got.get<RabbitConsumersResponse[]>(`http://localhost:15672/api/consumers/%2F/`, {
       username: "rabbit",
       password: "rabbit",
       responseType: "json",
     })
-    return resp.body.map((p) => p.reference)
+    return resp.body.map((p) => p.consumer_tag)
   }
 
   async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {

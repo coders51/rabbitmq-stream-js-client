@@ -133,19 +133,11 @@ export class Connection {
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const consumer = new Consumer(
-      // {
-      //   connection: this,
-      //   stream: params.stream,
-      //   offset: params.offset,
-      //   consumerId: consumerId,
-      // },
-      handle
-    )
+    const consumer = new Consumer(handle)
     this.consumers.push(consumer)
 
     this.logger.info(
-      `New producer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset}`
+      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset}`
     )
     return consumer
   }
