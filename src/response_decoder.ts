@@ -87,7 +87,7 @@ function decodeResponse(
       messageType,
       messageLength,
     }
-    logger.debug(data)
+    logger.debug(inspect(data))
 
     const messages: Buffer[] = []
 

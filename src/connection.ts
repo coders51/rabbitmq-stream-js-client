@@ -14,7 +14,7 @@ import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
-import { Message, Producer } from "./producer"
+import { Producer } from "./producer"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { CreateStreamResponse } from "./responses/create_stream_response"
@@ -30,7 +30,7 @@ import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { Consumer } from "./consumer"
+import { Consumer, ConsumerFunc } from "./consumer"
 import { DeliverResponse } from "./responses/deliver_response"
 
 export class Connection {
@@ -124,20 +124,24 @@ export class Connection {
     return producer
   }
 
-  public async declareConsumer(params: DeclareConsumerParams, handle: (message: Message) => void): Promise<Consumer> {
+  public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
+    const consumer = new Consumer(handle)
+    this.consumers.push(consumer)
+
     const res = await this.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
     )
     if (!res.ok) {
+      const index = this.consumers.indexOf(consumer)
+      this.consumers.splice(index, 1)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const consumer = new Consumer(handle)
-    this.consumers.push(consumer)
-
     this.logger.info(
-      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset}`
+      `New consumer created with stream name ${
+        params.stream
+      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
     )
     return consumer
   }
@@ -330,6 +334,7 @@ export class Connection {
 
   private registerDelivers() {
     this.decoder.on("deliver", (response: DeliverResponse) => {
+      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers}`)
       response.messages.map((x) => this.consumers[response.subscriptionId].handle(x))
     })
   }
