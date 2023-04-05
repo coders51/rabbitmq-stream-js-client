@@ -42,10 +42,6 @@ export class DeliverResponse implements Response {
   }
 
   get messages(): Message[] {
-    return this.response.messages.map((x) => {
-      return {
-        content: x,
-      }
-    })
+    return this.response.messages.map((x) => ({ content: x }))
   }
 }

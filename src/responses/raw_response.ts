@@ -1,5 +1,5 @@
 export interface DataReader {
-  readToBuffer(length: number): Buffer
+  readBufferOf(length: number): Buffer
   readTo(size: number): DataReader
   readToEnd(): DataReader
 

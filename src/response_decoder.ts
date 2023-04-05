@@ -38,6 +38,10 @@ import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
+type MessageAndSubId = {
+  subscriptionId: number
+  messages: Buffer[]
+}
 
 function decode(
   data: DataReader,
@@ -55,18 +59,15 @@ function decodeResponse(
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
-    const { subscriptionId, messages }: { subscriptionId: number; messages: Buffer[] } = decodeDeliverResponse(
-      dataResponse,
-      logger
-    )
-
-    return {
+    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, logger)
+    const response: RawDeliverResponse = {
       size,
-      key,
+      key: key as DeliverResponse["key"],
       version,
       subscriptionId,
       messages,
-    } as RawDeliverResponse
+    }
+    return response
   }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
@@ -89,7 +90,7 @@ function decodeResponse(
   return { size, key, version, correlationId, code: responseCode, payload }
 }
 
-function decodeDeliverResponse(dataResponse: DataReader, logger: Logger) {
+function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): MessageAndSubId {
   const subscriptionId = dataResponse.readUInt8()
   const magicVersion = dataResponse.readInt8()
   const chunkType = dataResponse.readInt8()
@@ -133,7 +134,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger) {
         switch (type) {
           case FormatCode.Vbin8:
             const length = dataResponse.readUInt8()
-            messages.push(dataResponse.readToBuffer(length))
+            messages.push(dataResponse.readBufferOf(length))
         }
         break
       default:
@@ -161,7 +162,7 @@ export class BufferDataReader implements DataReader {
     return ret
   }
 
-  readToBuffer(size: number): Buffer {
+  readBufferOf(size: number): Buffer {
     const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
     this.offset += size
     return ret
