@@ -55,56 +55,10 @@ function decodeResponse(
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
-    const subscriptionId = dataResponse.readUInt8()
-    const magicVersion = dataResponse.readInt8()
-    const chunkType = dataResponse.readInt8()
-    const numEntries = dataResponse.readUInt16()
-    const numRecords = dataResponse.readUInt32()
-    const timestamp = dataResponse.readInt64()
-    const epoch = dataResponse.readUInt64()
-    const chunkFirstOffset = dataResponse.readUInt64()
-    const chunkCrc = dataResponse.readInt32()
-    const dataLength = dataResponse.readUInt32()
-    const trailerLength = dataResponse.readUInt32()
-    const reserved = dataResponse.readUInt32()
-    const messageType = dataResponse.readUInt8()
-    dataResponse.rewind(1)
-    const messageLength = dataResponse.readUInt32()
-    const formatCode = readFormatCodeType(dataResponse)
-
-    const data = {
-      magicVersion,
-      chunkType,
-      numEntries,
-      numRecords,
-      timestamp,
-      epoch,
-      chunkFirstOffset,
-      chunkCrc,
-      dataLength,
-      trailerLength,
-      reserved,
-      messageType,
-      messageLength,
-    }
-    logger.debug(inspect(data))
-
-    const messages: Buffer[] = []
-
-    for (let i = 0; i < numEntries; i++) {
-      switch (formatCode) {
-        case FormatCodeType.ApplicationData:
-          const type = dataResponse.readUInt8()
-          switch (type) {
-            case FormatCode.Vbin8:
-              const length = dataResponse.readUInt8()
-              messages.push(dataResponse.readToBuffer(length))
-          }
-          break
-        default:
-          break
-      }
-    }
+    const { subscriptionId, messages }: { subscriptionId: number; messages: Buffer[] } = decodeDeliverResponse(
+      dataResponse,
+      logger
+    )
 
     return {
       size,
@@ -133,6 +87,60 @@ function decodeResponse(
   const responseCode = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
   return { size, key, version, correlationId, code: responseCode, payload }
+}
+
+function decodeDeliverResponse(dataResponse: DataReader, logger: Logger) {
+  const subscriptionId = dataResponse.readUInt8()
+  const magicVersion = dataResponse.readInt8()
+  const chunkType = dataResponse.readInt8()
+  const numEntries = dataResponse.readUInt16()
+  const numRecords = dataResponse.readUInt32()
+  const timestamp = dataResponse.readInt64()
+  const epoch = dataResponse.readUInt64()
+  const chunkFirstOffset = dataResponse.readUInt64()
+  const chunkCrc = dataResponse.readInt32()
+  const dataLength = dataResponse.readUInt32()
+  const trailerLength = dataResponse.readUInt32()
+  const reserved = dataResponse.readUInt32()
+  const messageType = dataResponse.readUInt8()
+  dataResponse.rewind(1)
+  const messageLength = dataResponse.readUInt32()
+  const formatCode = readFormatCodeType(dataResponse)
+
+  const data = {
+    magicVersion,
+    chunkType,
+    numEntries,
+    numRecords,
+    timestamp,
+    epoch,
+    chunkFirstOffset,
+    chunkCrc,
+    dataLength,
+    trailerLength,
+    reserved,
+    messageType,
+    messageLength,
+  }
+  logger.debug(inspect(data))
+
+  const messages: Buffer[] = []
+
+  for (let i = 0; i < numEntries; i++) {
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        const type = dataResponse.readUInt8()
+        switch (type) {
+          case FormatCode.Vbin8:
+            const length = dataResponse.readUInt8()
+            messages.push(dataResponse.readToBuffer(length))
+        }
+        break
+      default:
+        break
+    }
+  }
+  return { subscriptionId, messages }
 }
 
 function readFormatCodeType(dataResponse: DataReader) {

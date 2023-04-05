@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { connect } from "../../src"
+import { Connection, connect } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
@@ -9,17 +9,12 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit()
   const testStreamName = "test-stream"
   const nonExistingStream = "not-the-test-stream"
+  let connection: Connection
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
-  })
 
-  afterEach(async () => {
-    await rabbit.deleteStream(testStreamName)
-  })
-
-  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
-    const connection = await connect({
+    connection = await connect({
       hostname: "localhost",
       port: 5552,
       username: "rabbit",
@@ -28,6 +23,14 @@ describe("declare consumer", () => {
       frameMax: 0,
       heartbeat: 0,
     })
+  })
+
+  afterEach(async () => {
+    await connection.close()
+    await rabbit.deleteStream(testStreamName)
+  })
+
+  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
     const messages: Buffer[] = []
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
@@ -37,19 +40,9 @@ describe("declare consumer", () => {
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
-    await connection.close()
   }).timeout(10000)
 
   it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {
-    const connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
     const messages: Buffer[] = []
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
@@ -61,20 +54,9 @@ describe("declare consumer", () => {
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
-    await connection.close()
   }).timeout(10000)
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
-    const connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
-
     await expectToThrowAsync(
       () =>
         connection.declareConsumer({ stream: nonExistingStream, offset: Offset.first() }, (message: Message) =>
@@ -83,7 +65,5 @@ describe("declare consumer", () => {
       Error,
       "Declare Consumer command returned error with code 2 - Stream does not exist"
     )
-
-    await connection.close()
   })
 })
