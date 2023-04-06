@@ -32,7 +32,6 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { DeliverResponse } from "./responses/deliver_response"
-import { CreditResponse } from "./responses/credit_response"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
