@@ -28,6 +28,10 @@ export class BufferDataWriter implements DataWriter {
     this._offset = this.buffer.writeUInt8(data, this._offset)
   }
 
+  writeInt8(data: number) {
+    this._offset = this.buffer.writeInt8(data, this._offset)
+  }
+
   writeUInt8(data: number): void {
     this._offset = this.buffer.writeUInt8(data, this._offset)
   }

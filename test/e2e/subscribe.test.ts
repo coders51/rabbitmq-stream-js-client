@@ -4,7 +4,7 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 
-describe("subscribe", async () => {
+describe("subscribe", () => {
   const rabbit = new Rabbit()
   const streamName = "test-stream"
 

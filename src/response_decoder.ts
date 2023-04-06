@@ -9,6 +9,7 @@ import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import {
   DataReader,
+  RawDeliverResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawResponse,
@@ -23,6 +24,8 @@ import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -33,17 +36,39 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
+export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+export type DeliverListener = (response: DeliverResponse) => void
+type MessageAndSubId = {
+  subscriptionId: number
+  messages: Buffer[]
+}
+
+function decode(
+  data: DataReader,
+  logger: Logger
+): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const size = data.readUInt32()
-  return decodeResponse(data.readTo(size), size)
+  return decodeResponse(data.readTo(size), size, logger)
 }
 
 function decodeResponse(
   dataResponse: DataReader,
-  size: number
-): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
+  size: number,
+  logger: Logger
+): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
+  if (key === DeliverResponse.key) {
+    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, logger)
+    const response: RawDeliverResponse = {
+      size,
+      key: key as DeliverResponse["key"],
+      version,
+      subscriptionId,
+      messages,
+    }
+    return response
+  }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
@@ -65,13 +90,80 @@ function decodeResponse(
   return { size, key, version, correlationId, code: responseCode, payload }
 }
 
-class BufferDataReader implements DataReader {
+function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): MessageAndSubId {
+  const subscriptionId = dataResponse.readUInt8()
+  const magicVersion = dataResponse.readInt8()
+  const chunkType = dataResponse.readInt8()
+  const numEntries = dataResponse.readUInt16()
+  const numRecords = dataResponse.readUInt32()
+  const timestamp = dataResponse.readInt64()
+  const epoch = dataResponse.readUInt64()
+  const chunkFirstOffset = dataResponse.readUInt64()
+  const chunkCrc = dataResponse.readInt32()
+  const dataLength = dataResponse.readUInt32()
+  const trailerLength = dataResponse.readUInt32()
+  const reserved = dataResponse.readUInt32()
+  const messageType = dataResponse.readUInt8()
+  dataResponse.rewind(1)
+  const messageLength = dataResponse.readUInt32()
+  const formatCode = readFormatCodeType(dataResponse)
+
+  const data = {
+    magicVersion,
+    chunkType,
+    numEntries,
+    numRecords,
+    timestamp,
+    epoch,
+    chunkFirstOffset,
+    chunkCrc,
+    dataLength,
+    trailerLength,
+    reserved,
+    messageType,
+    messageLength,
+  }
+  logger.debug(inspect(data))
+
+  const messages: Buffer[] = []
+
+  for (let i = 0; i < numEntries; i++) {
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        const type = dataResponse.readUInt8()
+        switch (type) {
+          case FormatCode.Vbin8:
+            const length = dataResponse.readUInt8()
+            messages.push(dataResponse.readBufferOf(length))
+        }
+        break
+      default:
+        break
+    }
+  }
+  return { subscriptionId, messages }
+}
+
+function readFormatCodeType(dataResponse: DataReader) {
+  dataResponse.readInt8()
+  dataResponse.readInt8()
+  const formatCode = dataResponse.readInt8()
+  return formatCode
+}
+
+export class BufferDataReader implements DataReader {
   private offset = 0
 
   constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    this.offset += size
+    return ret
+  }
+
+  readBufferOf(size: number): Buffer {
+    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
@@ -84,6 +176,24 @@ class BufferDataReader implements DataReader {
 
   atEnd(): boolean {
     return this.offset === this.data.length
+  }
+
+  readInt8(): number {
+    const ret = this.data.readInt8(this.offset)
+    this.offset += 1
+    return ret
+  }
+
+  readInt64(): bigint {
+    const ret = this.data.readBigInt64BE(this.offset)
+    this.offset += 8
+    return ret
+  }
+
+  readUInt8(): number {
+    const ret = this.data.readUInt8(this.offset)
+    this.offset += 1
+    return ret
   }
 
   readUInt16(): number {
@@ -116,30 +226,41 @@ class BufferDataReader implements DataReader {
     this.offset += size
     return value
   }
+
+  rewind(count: number): void {
+    this.offset -= count
+  }
 }
 
 function isTuneResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
 function isHeartbeatResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
 function isMetadataUpdateResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
 ): params is RawMetadataUpdateResponse {
   return params.key === MetadataUpdateResponse.key
 }
 
+function isDeliverResponse(
+  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse | RawDeliverResponse
+): params is RawDeliverResponse {
+  return params.key === DeliverResponse.key
+}
+
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
+  private emitter = new EventEmitter()
 
-  constructor(private listener: DecoderListenerFunc, private emitter: EventEmitter, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -155,18 +276,26 @@ export class ResponseDecoder {
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
     while (!dataReader.atEnd()) {
-      const response = decode(dataReader)
-      if (isTuneResponse(response)) {
-        this.emitTuneResponseReceived(response)
-      } else if (isHeartbeatResponse(response)) {
+      const response = decode(dataReader, this.logger)
+      if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
+      } else if (isTuneResponse(response)) {
+        this.emitTuneResponseReceived(response)
+        this.logger.debug(`tune received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
+      } else if (isDeliverResponse(response)) {
+        this.emitter.emit("deliver", new DeliverResponse(response))
+        this.logger.debug(`deliver received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
     }
+  }
+
+  public on(event: "metadata_update" | "deliver", listener: MetadataUpdateListener | DeliverListener) {
+    this.emitter.on(event, listener)
   }
 
   private addFactoryFor(type: AbstractTypeClass) {
