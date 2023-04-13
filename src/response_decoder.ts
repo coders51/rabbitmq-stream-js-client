@@ -46,31 +46,20 @@ type MessageAndSubId = {
   messages: Buffer[]
 }
 
-function decode(
-  data: DataReader,
-  logger: Logger
-):
+type PossibleRawResponses =
   | RawResponse
   | RawTuneResponse
   | RawHeartbeatResponse
   | RawMetadataUpdateResponse
   | RawDeliverResponse
-  | RawCreditResponse {
+  | RawCreditResponse
+
+function decode(data: DataReader, logger: Logger): PossibleRawResponses {
   const size = data.readUInt32()
   return decodeResponse(data.readTo(size), size, logger)
 }
 
-function decodeResponse(
-  dataResponse: DataReader,
-  size: number,
-  logger: Logger
-):
-  | RawResponse
-  | RawTuneResponse
-  | RawHeartbeatResponse
-  | RawMetadataUpdateResponse
-  | RawDeliverResponse
-  | RawCreditResponse {
+function decodeResponse(dataResponse: DataReader, size: number, logger: Logger): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
@@ -102,7 +91,14 @@ function decodeResponse(
   if (key === CreditResponse.key) {
     const responseCodeCredit = dataResponse.readUInt16()
     const subscriptionId = dataResponse.readUInt8()
-    return { size, key, version, responseCode: responseCodeCredit, subscriptionId: subscriptionId } as RawCreditResponse
+    const response: RawCreditResponse = {
+      size,
+      key: key as CreditResponse["key"],
+      version,
+      responseCode: responseCodeCredit,
+      subscriptionId,
+    }
+    return response
   }
   const correlationId = dataResponse.readUInt32()
   const responseCode = dataResponse.readUInt16()
@@ -252,63 +248,23 @@ export class BufferDataReader implements DataReader {
   }
 }
 
-function isTuneResponse(
-  params:
-    | RawResponse
-    | RawTuneResponse
-    | RawHeartbeatResponse
-    | RawMetadataUpdateResponse
-    | RawDeliverResponse
-    | RawCreditResponse
-): params is RawTuneResponse {
+function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
-function isHeartbeatResponse(
-  params:
-    | RawResponse
-    | RawTuneResponse
-    | RawHeartbeatResponse
-    | RawMetadataUpdateResponse
-    | RawDeliverResponse
-    | RawCreditResponse
-): params is RawHeartbeatResponse {
+function isHeartbeatResponse(params: PossibleRawResponses): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
-function isMetadataUpdateResponse(
-  params:
-    | RawResponse
-    | RawTuneResponse
-    | RawHeartbeatResponse
-    | RawMetadataUpdateResponse
-    | RawDeliverResponse
-    | RawCreditResponse
-): params is RawMetadataUpdateResponse {
+function isMetadataUpdateResponse(params: PossibleRawResponses): params is RawMetadataUpdateResponse {
   return params.key === MetadataUpdateResponse.key
 }
 
-function isDeliverResponse(
-  params:
-    | RawResponse
-    | RawTuneResponse
-    | RawHeartbeatResponse
-    | RawMetadataUpdateResponse
-    | RawDeliverResponse
-    | RawCreditResponse
-): params is RawDeliverResponse {
+function isDeliverResponse(params: PossibleRawResponses): params is RawDeliverResponse {
   return params.key === DeliverResponse.key
 }
 
-function isCreditResponse(
-  params:
-    | RawResponse
-    | RawTuneResponse
-    | RawHeartbeatResponse
-    | RawMetadataUpdateResponse
-    | RawCreditResponse
-    | RawCreditResponse
-): params is RawCreditResponse {
+function isCreditResponse(params: PossibleRawResponses): params is RawCreditResponse {
   return params.key === CreditResponse.key
 }
 

@@ -10,7 +10,7 @@ import { OpenResponse } from "./responses/open_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Response } from "./responses/response"
-import { DeliverListener, MetadataUpdateListener, CreditListener, ResponseDecoder } from "./response_decoder"
+import { MetadataUpdateListener, CreditListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -88,21 +88,8 @@ export class Connection {
     })
   }
 
-  public on(
-    _event: "metadata_update" | "credit_response" | "deliver",
-    listener: MetadataUpdateListener | CreditListener | DeliverListener
-  ) {
-    switch (_event) {
-      case "metadata_update":
-        this.decoder.on("metadata_update", listener)
-        break
-      case "credit_response":
-        this.decoder.on("credit_response", listener)
-        break
-      case "deliver":
-        this.decoder.on("deliver", listener)
-        break
-    }
+  public on(event: "metadata_update" | "credit_response", listener: MetadataUpdateListener | CreditListener) {
+    this.decoder.on(event, listener)
   }
 
   public async close(
@@ -248,8 +235,8 @@ export class Connection {
     return res
   }
 
-  public async askForCredit(params: CreditRequestParams): Promise<void> {
-    return await this.send(new CreditRequest({ ...params }))
+  public askForCredit(params: CreditRequestParams): Promise<void> {
+    return this.send(new CreditRequest({ ...params }))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -354,8 +341,9 @@ export class Connection {
   }
 
   private registerDelivers() {
-    this.decoder.on("deliver", (response: DeliverResponse) => {
+    this.decoder.on("deliver", async (response: DeliverResponse) => {
       this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => this.consumers[response.subscriptionId].handle(x))
     })
   }
