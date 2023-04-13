@@ -17,7 +17,7 @@ import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
-import { CreditListener, DeliverListener, MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { CreditListener, MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
@@ -27,12 +27,12 @@ import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { Response } from "./responses/response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SubscribeResponse } from "./responses/subscribe_response"
-import { TuneResponse } from "./responses/tune_response"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
+import { SubscribeResponse } from "./responses/subscribe_response"
+import { TuneResponse } from "./responses/tune_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -88,21 +88,8 @@ export class Connection {
     })
   }
 
-  public on(
-    _event: "metadata_update" | "credit_response" | "deliver",
-    listener: MetadataUpdateListener | CreditListener | DeliverListener
-  ) {
-    switch (_event) {
-      case "metadata_update":
-        this.decoder.on("metadata_update", listener)
-        break
-      case "credit_response":
-        this.decoder.on("credit_response", listener)
-        break
-      case "deliver":
-        this.decoder.on("deliver", listener)
-        break
-    }
+  public on(event: "metadata_update" | "credit_response", listener: MetadataUpdateListener | CreditListener) {
+    this.decoder.on(event, listener)
   }
 
   public async close(
@@ -248,8 +235,8 @@ export class Connection {
     return res
   }
 
-  public async askForCredit(params: CreditRequestParams): Promise<void> {
-    return await this.send(new CreditRequest({ ...params }))
+  public askForCredit(params: CreditRequestParams): Promise<void> {
+    return this.send(new CreditRequest({ ...params }))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
