@@ -5,8 +5,8 @@ import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 
 describe("connect", () => {
-  const rabbit = new Rabbit()
   let connection: Connection
+  const rabbit = new Rabbit("rabbit", "rabbit")
 
   beforeEach(async () => {
     connection = await createConnection()

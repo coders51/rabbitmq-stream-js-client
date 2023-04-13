@@ -5,9 +5,9 @@ import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync } from "../support/util"
 
 describe("declare publisher", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let nonExistingStreamName: string
+  const rabbit = new Rabbit("rabbit", "rabbit")
   let connection: Connection
 
   beforeEach(async () => {

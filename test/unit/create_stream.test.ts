@@ -5,7 +5,7 @@ import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync } from "../support/util"
 
 describe("Stream", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit("rabbit", "rabbit")
   const streamName = `test-stream-${randomUUID()}`
   const payload = {
     "x-queue-leader-locator": "test",

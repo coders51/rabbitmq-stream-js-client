@@ -6,7 +6,7 @@ import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 
 describe("update the metadata from the server", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit("rabbit", "rabbit")
   let connection: Connection
   let streamName: string
   const metadataUpdateResponses: MetadataUpdateResponse[] = []

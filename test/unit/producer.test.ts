@@ -4,7 +4,7 @@ import { connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 
 describe("Producer", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit("rabbit", "rabbit")
   const testStreamName = "test-stream"
   let publisherRef: string
 

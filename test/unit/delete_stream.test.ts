@@ -4,7 +4,7 @@ import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync } from "../support/util"
 
 describe("Delete command", () => {
-  const rabbit: Rabbit = new Rabbit()
+  const rabbit: Rabbit = new Rabbit("rabbit", "rabbit")
   let connection: Connection
   const queue_name = `queue_${(Math.random() * 10) | 0}`
 

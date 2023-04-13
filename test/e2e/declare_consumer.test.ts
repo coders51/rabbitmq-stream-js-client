@@ -8,9 +8,9 @@ import { eventually, expectToThrowAsync } from "../support/util"
 import { range } from "../../src/util"
 
 describe("declare consumer", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let nonExistingStreamName: string
+  const rabbit = new Rabbit("rabbit", "rabbit")
   let connection: Connection
   let publisher: Producer
 

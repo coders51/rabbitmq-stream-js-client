@@ -7,7 +7,7 @@ import { Rabbit } from "../support/rabbit"
 import { eventually, getMessageFrom } from "../support/util"
 
 describe("publish a message", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit("rabbit", "rabbit")
   let connection: Connection
   let streamName: string
   let publisher: Producer

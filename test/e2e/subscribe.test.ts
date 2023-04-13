@@ -6,9 +6,9 @@ import { eventually } from "../support/util"
 import { Connection } from "../../src/connection"
 
 describe("subscribe", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let connection: Connection
+  const rabbit = new Rabbit("rabbit", "rabbit")
 
   beforeEach(async () => {
     connection = await createConnection()

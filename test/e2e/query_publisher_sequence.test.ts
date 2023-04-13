@@ -5,9 +5,9 @@ import { createConnection, createPublisher, createStreamName } from "../support/
 import { Rabbit } from "../support/rabbit"
 
 describe("query publisher sequence", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let connection: Connection
+  const rabbit = new Rabbit("rabbit", "rabbit")
 
   beforeEach(async () => {
     connection = await createConnection()
