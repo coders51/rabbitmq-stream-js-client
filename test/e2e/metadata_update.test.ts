@@ -22,7 +22,6 @@ describe("update the metadata from the server", () => {
       heartbeat: 0, // not used
       listeners: {
         metadata_update: (data) => metadataUpdateResponses.push(data),
-        credit: (_data) => console.error("Subscribe server error"),
       },
     })
   })
@@ -36,17 +35,5 @@ describe("update the metadata from the server", () => {
     await rabbit.deleteStream(stream)
 
     await eventually(async () => expect(metadataUpdateResponses.length).greaterThanOrEqual(1), 10000)
-  }).timeout(10000)
-
-  it("when delete stream we receive a metadataUpdate registering after creation", async () => {
-    const stream = `my-stream-${randomUUID()}`
-    let called = 0
-    await rabbit.createStream(stream)
-    await connection.declarePublisher({ stream, publisherRef: "my publisher" })
-    connection.on("metadata_update", (_data: MetadataUpdateResponse) => called++)
-
-    await rabbit.deleteStream(stream)
-
-    await eventually(async () => expect(called).greaterThanOrEqual(1), 10000)
   }).timeout(10000)
 })

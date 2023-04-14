@@ -10,7 +10,7 @@ import { OpenResponse } from "./responses/open_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Response } from "./responses/response"
-import { MetadataUpdateListener, CreditListener, ResponseDecoder } from "./response_decoder"
+import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -88,7 +88,7 @@ export class Connection {
     })
   }
 
-  public on(event: "metadata_update" | "credit_response", listener: MetadataUpdateListener | CreditListener) {
+  public on(event: "metadata_update", listener: MetadataUpdateListener) {
     this.decoder.on(event, listener)
   }
 
@@ -235,7 +235,7 @@ export class Connection {
     return res
   }
 
-  public askForCredit(params: CreditRequestParams): Promise<void> {
+  private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
   }
 
@@ -336,7 +336,6 @@ export class Connection {
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) {
       this.on("metadata_update", listeners.metadata_update)
-      this.on("credit_response", listeners.credit)
     }
   }
 
@@ -351,7 +350,6 @@ export class Connection {
 
 type ListenersParams = {
   metadata_update: MetadataUpdateListener
-  credit: CreditListener
 }
 
 export interface ConnectionParams {
