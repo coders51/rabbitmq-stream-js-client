@@ -21,7 +21,7 @@ describe("Delete command", () => {
   })
 
   afterEach(async () => {
-    await rabbit.deleteAllQueues()
+    await rabbit.deleteAllQueues({ match: /queue/ })
   })
 
   afterEach(async () => {
