@@ -3,8 +3,8 @@ import { randomUUID } from "crypto"
 import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
-import * as ampq from "amqplib"
 import { MessageProperties } from "../../src/producer"
+import { getMessageFrom } from "../../src/util"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit()
@@ -165,25 +165,4 @@ async function createPublisher(rabbit: Rabbit, connection: Connection) {
   await rabbit.createStream(stream)
   const publisher = await connection.declarePublisher({ stream, publisherRef: "my publisher" })
   return { publisher, stream }
-}
-
-async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
-  return new Promise(async (res, rej) => {
-    const con = await ampq.connect("amqp://rabbit:rabbit@localhost")
-    con.on("error", async (err) => rej(err))
-    const ch = await con.createChannel()
-    await ch.prefetch(1)
-    await ch.consume(
-      stream,
-      async (msg) => {
-        if (!msg) return
-        msg.properties.userId
-        ch.ack(msg)
-        await ch.close()
-        await con.close()
-        res({ content: msg.content.toString(), properties: msg.properties })
-      },
-      { arguments: { "x-stream-offset": "first" } }
-    )
-  })
 }
