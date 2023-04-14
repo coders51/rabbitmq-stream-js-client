@@ -4,16 +4,16 @@ import { Connection } from "../../src"
 import { Producer } from "../../src/producer"
 import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, getMessageFrom } from "../support/util"
+import { eventually, username, password, getMessageFrom } from "../support/util"
 
 describe("publish a message", () => {
-  const rabbit = new Rabbit("rabbit", "rabbit")
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
   let streamName: string
   let publisher: Producer
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
     publisher = await createPublisher(streamName, connection)

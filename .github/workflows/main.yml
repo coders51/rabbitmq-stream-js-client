@@ -5,13 +5,12 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     strategy:
@@ -26,6 +25,8 @@ jobs:
           RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
           RABBITMQ_DEFAULT_USER: "rabbit"
           RABBITMQ_DEFAULT_PASS: "rabbit"
+          RABBITMQ_USER: "test-user"
+          RABBITMQ_PASSWORD: "test-password"
         ports:
           - 5552:5552
           - 5672:5672
@@ -34,16 +35,16 @@ jobs:
           - 61613:61613
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - name: Enable RabbitMQ Plugins
-      run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
-    - run: npm ci
-    - run: npm run check
-    - run: npm run build --if-present
-    - run: npm test
-    - run: cd example && npm install && npm start
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - name: Enable RabbitMQ Plugins
+        run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build --if-present
+      - run: npm test
+      - run: cd example && npm install && npm start

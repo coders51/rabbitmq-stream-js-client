@@ -9,9 +9,11 @@ services:
     ports:
       - "15672:15672"
       - "5672:5672"
-      - "5552:5552"     
+      - "5552:5552"
     environment:
       RABBITMQ_DEFAULT_USER: "rabbit"
       RABBITMQ_DEFAULT_PASS: "rabbit"
+      RABBITMQ_USER: "test-user"
+      RABBITMQ_PASSWORD: "test-password"
     volumes:
       - ./conf/enabled_plugins:/etc/rabbitmq/enabled_plugins

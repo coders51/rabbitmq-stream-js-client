@@ -2,16 +2,16 @@ import { expect } from "chai"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
-import { Connection } from "../../src/connection"
+import { eventually, username, password } from "../support/util"
+import { Connection } from "../../src"
 
 describe("subscribe", () => {
+  const rabbit = new Rabbit(username, password)
   let streamName: string
   let connection: Connection
-  const rabbit = new Rabbit("rabbit", "rabbit")
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
   })

@@ -1,5 +1,4 @@
 import got from "got"
-
 interface RabbitConnectionResponse {
   name: string
 }
@@ -76,8 +75,8 @@ export class Rabbit {
 
   async getQueueInfo(queue: string): Promise<MessageInfoResponse> {
     const ret = await got.get<MessageInfoResponse>(`http://localhost:15672/api/queues/%2F/${queue}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return ret.body

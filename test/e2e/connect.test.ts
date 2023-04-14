@@ -2,14 +2,14 @@ import { expect } from "chai"
 import { Connection } from "../../src"
 import { createConnection } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, username, password } from "../support/util"
 
 describe("connect", () => {
   let connection: Connection
-  const rabbit = new Rabbit("rabbit", "rabbit")
+  const rabbit = new Rabbit(username, password)
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
   })
 
   afterEach(async () => {

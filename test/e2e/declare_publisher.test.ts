@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Connection } from "../../src"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync } from "../support/util"
+import { eventually, expectToThrowAsync, username, password } from "../support/util"
 
 describe("declare publisher", () => {
   let streamName: string
@@ -11,7 +11,7 @@ describe("declare publisher", () => {
   let connection: Connection
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
     nonExistingStreamName = createStreamName()
     await rabbit.createStream(streamName)

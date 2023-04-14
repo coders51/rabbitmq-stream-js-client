@@ -1,10 +1,10 @@
 import { connect, Connection } from "../../src"
 import { expect } from "chai"
 import { Rabbit } from "../support/rabbit"
-import { expectToThrowAsync } from "../support/util"
+import { expectToThrowAsync, username, password } from "../support/util"
 
 describe("Delete command", () => {
-  const rabbit: Rabbit = new Rabbit("rabbit", "rabbit")
+  const rabbit: Rabbit = new Rabbit(username, password)
   let connection: Connection
   const queue_name = `queue_${(Math.random() * 10) | 0}`
 
@@ -12,8 +12,8 @@ describe("Delete command", () => {
     connection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0, // not used
       heartbeat: 0, // not user
