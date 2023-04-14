@@ -85,5 +85,5 @@ export async function createClassicConsumer(
 
   return { conn, ch }
 }
-export const username = process.env.RABBIT_USER || ""
-export const password = process.env.RABBIT_PASSWORD || ""
+export const username = process.env.RABBIT_USER || "rabbit"
+export const password = process.env.RABBIT_PASSWORD || "rabbit"

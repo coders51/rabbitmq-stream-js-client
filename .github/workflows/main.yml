@@ -23,10 +23,8 @@ jobs:
         image: rabbitmq:3-management
         env:
           RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
-          RABBITMQ_DEFAULT_USER: "rabbit"
-          RABBITMQ_DEFAULT_PASS: "rabbit"
-          RABBITMQ_USER: "test-user"
-          RABBITMQ_PASSWORD: "test-password"
+          RABBITMQ_DEFAULT_USER: "test-user"
+          RABBITMQ_DEFAULT_PASS: "test-password"
         ports:
           - 5552:5552
           - 5672:5672
@@ -43,8 +41,11 @@ jobs:
           cache: "npm"
       - name: Enable RabbitMQ Plugins
         run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
+        env:
+          RABBITMQ_USER: "test-user"
+          RABBITMQ_PASSWORD: "test-password"
       - run: npm ci
       - run: npm run check
       - run: npm run build --if-present
-      - run: npm test
+      - run: RABBITMQ_USER npm test
       - run: cd example && npm install && npm start
