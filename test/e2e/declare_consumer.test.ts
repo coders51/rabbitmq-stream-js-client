@@ -12,6 +12,9 @@ describe("declare consumer", () => {
   let connection: Connection
 
   beforeEach(async () => {
+    try {
+      await rabbit.deleteStream(testStreamName)
+    } catch (error) {}
     await rabbit.createStream(testStreamName)
 
     connection = await connect({
