@@ -11,6 +11,9 @@ describe("credit management", () => {
   let connection: Connection
 
   beforeEach(async () => {
+    try {
+      await rabbit.deleteStream(streamName)
+    } catch (error) {}
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -45,6 +48,7 @@ describe("credit management", () => {
       receivedMessages.push(message.content)
     )
 
+    await eventually(() => expect(receivedMessages).eql(messages))
     await eventually(async () => {
       expect(receivedMessages).eql(messages)
       const allConsumerCredits = await rabbit.returnConsumersCredits()
