@@ -44,7 +44,7 @@ export class Connection {
   private publisherId = 0
   private heartbeat: Heartbeat
   private consumerId = 0
-  private consumers: Consumer[] = []
+  private consumers = new Map<number, Consumer>()
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
@@ -128,14 +128,13 @@ export class Connection {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const consumer = new Consumer(handle)
-    this.consumers.push(consumer)
+    this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
     )
     if (!res.ok) {
-      const index = this.consumers.indexOf(consumer)
-      this.consumers.splice(index, 1)
+      this.consumers.delete(consumerId)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
@@ -342,9 +341,9 @@ export class Connection {
 
   private registerDelivers() {
     this.decoder.on("deliver", async (response: DeliverResponse) => {
-      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers}`)
+      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers.size}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
-      response.messages.map((x) => this.consumers[response.subscriptionId].handle(x))
+      response.messages.map((x) => this.consumers.get(response.subscriptionId)?.handle(x))
     })
   }
 }
