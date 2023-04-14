@@ -17,7 +17,6 @@ describe("declare consumer", () => {
       await rabbit.deleteStream(testStreamName)
     } catch (error) {}
     await rabbit.createStream(testStreamName)
-
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -31,7 +30,7 @@ describe("declare consumer", () => {
 
   afterEach(async () => {
     await connection.close()
-    // await rabbit.deleteStream(testStreamName)
+    await rabbit.deleteStream(testStreamName)
   })
 
   it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
@@ -60,18 +59,19 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
   }).timeout(10000)
 
-  it("declaring a consumer on an existing stream - the consumer should be handle a lot more messages", async () => {
+  it(`consume a lot of messages`, async () => {
     const receivedMessages: string[] = []
     const receivedMessages1: string[] = []
     const publisher = await connection.declarePublisher({ stream: testStreamName })
-    const messages = range(500).map((n) => "hello" + n)
+    const messages = range(1000).map((n) => "hello" + n)
     for (const m of messages) {
       await publisher.send(Buffer.from(m))
     }
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
-      receivedMessages.push(message.content.toString())
-    )
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) => {
+      const m = message.content.toString()
+      receivedMessages.push(m)
+    })
 
     const { conn, ch } = await createClassicConsumer(testStreamName, (m) =>
       receivedMessages1.push(m.content.toString())
@@ -94,9 +94,9 @@ describe("declare consumer", () => {
   })
 })
 
-function range(arg0: number): number[] {
-  const ret = Array(arg0)
-  for (let index = 0; index < arg0; index++) {
+function range(count: number): number[] {
+  const ret = Array(count)
+  for (let index = 0; index < count; index++) {
     ret[index] = index
   }
   return ret

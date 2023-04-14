@@ -123,8 +123,6 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const reserved = dataResponse.readUInt32()
   const messageType = dataResponse.readUInt8()
   dataResponse.rewind(1)
-  const messageLength = dataResponse.readUInt32()
-  const formatCode = readFormatCodeType(dataResponse)
 
   const data = {
     magicVersion,
@@ -138,35 +136,61 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     dataLength,
     trailerLength,
     reserved,
-    messageType,
-    messageLength,
+    messageType, // indicate if it contains subentries
   }
   logger.debug(inspect(data))
-
   const messages: Buffer[] = []
-
   for (let i = 0; i < numEntries; i++) {
+    messages.push(decodeMessage(dataResponse))
+  }
+
+  return { subscriptionId, messages }
+}
+
+function decodeMessage(dataResponse: DataReader): Buffer {
+  const messageLength = dataResponse.readUInt32()
+  const startFrom = dataResponse.position()
+
+  let content
+  while (dataResponse.position() - startFrom !== messageLength) {
+    const formatCode = readFormatCodeType(dataResponse)
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
-        const type = dataResponse.readUInt8()
-        switch (type) {
-          case FormatCode.Vbin8:
-            const length = dataResponse.readUInt8()
-            messages.push(dataResponse.readBufferOf(length))
-        }
+        content = decodeApplicationData(dataResponse)
+        break
+      case FormatCodeType.MessageAnnotations:
+      case FormatCodeType.MessageProperties:
+      case FormatCodeType.ApplicationProperties:
+      case FormatCodeType.MessageHeader:
+      case FormatCodeType.AmqpValue:
+        throw new Error("Not implemented")
         break
       default:
-        break
+        throw new Error(`Not supported format code ${formatCode}`)
     }
   }
-  return { subscriptionId, messages }
+
+  return content
+}
+
+function decodeApplicationData(dataResponse: DataReader) {
+  const type = dataResponse.readUInt8()
+  switch (type) {
+    case FormatCode.Vbin8:
+      const l8 = dataResponse.readUInt8()
+      return dataResponse.readBufferOf(l8)
+    case FormatCode.Vbin32:
+      const l32 = dataResponse.readUInt32()
+      return dataResponse.readBufferOf(l32)
+    default:
+      throw new Error(`Unknown data type ${type}`)
+  }
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
   dataResponse.readInt8()
   dataResponse.readInt8()
-  const formatCode = dataResponse.readInt8()
-  return formatCode
+  return dataResponse.readInt8()
 }
 
 export class BufferDataReader implements DataReader {
@@ -247,6 +271,10 @@ export class BufferDataReader implements DataReader {
 
   rewind(count: number): void {
     this.offset -= count
+  }
+
+  position(): number {
+    return this.offset
   }
 }
 
