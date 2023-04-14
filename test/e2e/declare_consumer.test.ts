@@ -33,16 +33,16 @@ describe("declare consumer", () => {
     await rabbit.deleteStream(testStreamName)
   })
 
-  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
-    const messages: Buffer[] = []
+  it("should handle the message", async () => {
+    const messages: string[] = []
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
 
     await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content.toString())
     )
 
-    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+    await eventually(() => expect(messages).eql(["hello"]))
   }).timeout(10000)
 
   it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {

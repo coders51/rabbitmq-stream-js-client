@@ -147,11 +147,13 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   return { subscriptionId, messages }
 }
 
+const EmptyBuffer = Buffer.from("")
+
 function decodeMessage(dataResponse: DataReader): Buffer {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 
-  let content
+  let content = EmptyBuffer
   while (dataResponse.position() - startFrom !== messageLength) {
     const formatCode = readFormatCodeType(dataResponse)
     switch (formatCode) {
