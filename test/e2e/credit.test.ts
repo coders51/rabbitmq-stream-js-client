@@ -27,10 +27,14 @@ describe("update the metadata from the server", () => {
       },
     })
   })
+  beforeEach(async () => {
+    try {
+      await rabbit.deleteStream(streamName)
+    } catch (error) {}
+  })
   beforeEach(() => rabbit.createStream(streamName))
 
   afterEach(() => connection.close())
-  afterEach(() => rabbit.deleteStream(streamName))
 
   it("ask for credit after subscribing to the next message", async () => {
     creditResponses.length = 0
@@ -60,40 +64,21 @@ describe("update the metadata from the server", () => {
     await eventually(async () => expect(creditResponses.length).greaterThanOrEqual(1), 10000)
   }).timeout(10000)
 
-  it(`after declaring a consumer with initialCredit 10, and consuming 10 messages 
-    the consumer should still be able to consume another message`, async () => {
-    const messages: Buffer[] = []
+  it(`after declaring a consumer with initialCredit 10, and consuming 2 messages 
+    the consumer should still have 10 credits`, async () => {
+    const receivedMessages: Buffer[] = []
+    const howMany = 2
+    const messages = Array.from(Array(howMany).keys()).map((_) => Buffer.from("hello"))
     const publisher = await connection.declarePublisher({ stream: streamName })
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
-    await publisher.send(Buffer.from("hello"))
+    for (const m of messages) {
+      await publisher.send(m)
+    }
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      receivedMessages.push(message.content)
     )
 
-    // await eventually(() =>
-    //   expect(messages).eql([
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //     Buffer.from("hello"),
-    //   ])
-    // )
+    await eventually(async () => expect(await rabbit.returnSingleConsumerCredits()).eql(10), 5000)
+    await eventually(() => expect(receivedMessages).eql(messages), 1500)
   }).timeout(10000)
 })
