@@ -11,9 +11,6 @@ describe("credit management", () => {
   let connection: Connection
 
   beforeEach(async () => {
-    try {
-      await rabbit.deleteStream(streamName)
-    } catch (error) {}
     connection = await connect({
       hostname: "localhost",
       port: 5552,
