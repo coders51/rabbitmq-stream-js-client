@@ -29,13 +29,6 @@ describe("credit management", () => {
     await rabbit.createStream(streamName)
   })
 
-  afterEach(async () => {
-    await connection.close()
-    try {
-      await rabbit.deleteStream(streamName)
-    } catch (error) {}
-  })
-
   it(`the number of credit remain stable after have consumed some messages`, async () => {
     const receivedMessages: Buffer[] = []
     const howMany = 2
@@ -54,5 +47,9 @@ describe("credit management", () => {
       const allConsumerCredits = await rabbit.returnConsumersCredits()
       expect(allConsumerCredits[0].allCredits[0]).eql(10)
     }, 15000)
+    await connection.close()
+    try {
+      await rabbit.deleteStream(streamName)
+    } catch (error) {}
   }).timeout(20000)
 })
