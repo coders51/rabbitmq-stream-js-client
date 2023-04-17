@@ -146,11 +146,9 @@ export class Rabbit {
       password: "rabbit",
       responseType: "json",
     })
-    console.log("------------------------", inspect(allConsumersResp.body))
     const consumerChannelDetails = allConsumersResp.body.map((d) => d.channel_details)
     for (const consumerChannelDetail of consumerChannelDetails) {
       const connectionName = consumerChannelDetail.connection_name
-      console.log("------------------------", connectionName)
       const resp = await got.get<RabbitConnectionDetails[]>(
         `http://localhost:15672/api/stream/connections/%2F/${connectionName}/consumers`,
         {
