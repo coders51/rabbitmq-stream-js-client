@@ -1,5 +1,4 @@
 import got from "got"
-import { inspect } from "util"
 
 interface RabbitConnectionResponse {
   name: string
