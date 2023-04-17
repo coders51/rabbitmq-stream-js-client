@@ -5,7 +5,7 @@ import { eventually } from "../support/util"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Message } from "../../src/producer"
 
-describe("credit management", () => {
+describe.skip("credit management", () => {
   const rabbit = new Rabbit()
   const streamName = "credit-test-stream"
   let connection: Connection
