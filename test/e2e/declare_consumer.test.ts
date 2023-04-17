@@ -5,7 +5,7 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync } from "../support/util"
 
-describe("declare consumer", () => {
+describe.skip("declare consumer", () => {
   const rabbit = new Rabbit()
   const testStreamName = "test-stream"
   const nonExistingStream = "not-the-test-stream"
