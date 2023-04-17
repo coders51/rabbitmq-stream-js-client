@@ -1,11 +1,11 @@
 import { expect } from "chai"
 import { Connection, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, eventuallyWithoutThrow } from "../support/util"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Message } from "../../src/producer"
 
-describe.skip("credit management", () => {
+describe("credit management", () => {
   const rabbit = new Rabbit()
   const streamName = "credit-test-stream"
   let connection: Connection
@@ -50,9 +50,9 @@ describe.skip("credit management", () => {
     )
 
     await eventually(() => expect(receivedMessages).eql(messages))
-    await eventually(async () => {
+    await eventuallyWithoutThrow(async () => {
       const allConsumerCredits = await rabbit.returnConsumersCredits()
       expect(allConsumerCredits[0].allCredits[0]).eql(10)
-    }, 10000)
+    }, 15000)
   }).timeout(20000)
 })

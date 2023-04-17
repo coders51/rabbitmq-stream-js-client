@@ -20,6 +20,21 @@ export async function eventually(fn: Function, timeout = 1500) {
   }
 }
 
+export async function eventuallyWithoutThrow(fn: Function, timeout = 1500) {
+  const start = Date.now()
+  while (true) {
+    try {
+      await fn()
+      return
+    } catch (error) {
+      if (elapsedFrom(start) > timeout) {
+        expect.fail(error as string)
+      }
+      await wait(5)
+    }
+  }
+}
+
 export async function expectToThrowAsync(
   method: () => Promise<unknown>,
   expectedError: Function | Error,
