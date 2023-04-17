@@ -31,8 +31,7 @@ describe("credit management", () => {
     await rabbit.deleteStream(streamName)
   })
 
-  //eslint-disable-next-line no-only-tests/no-only-tests
-  it.only(`the number of credit remain stable after have consumed some messages`, async () => {
+  it(`the number of credit remain stable after have consumed some messages`, async () => {
     const receivedMessages: Buffer[] = []
     const howMany = 2
     const messages = Array.from(Array(howMany).keys()).map((_) => Buffer.from("hello"))
