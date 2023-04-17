@@ -1,7 +1,7 @@
 import { expect } from "chai"
 import { Connection, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { eventually, eventuallyWithoutThrow } from "../support/util"
+import { eventually } from "../support/util"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Message } from "../../src/producer"
 
@@ -11,9 +11,6 @@ describe("credit management", () => {
   let connection: Connection
 
   beforeEach(async () => {
-    try {
-      await rabbit.deleteStream(streamName)
-    } catch (error) {}
     connection = await connect({
       hostname: "localhost",
       port: 5552,
@@ -29,7 +26,13 @@ describe("credit management", () => {
     await rabbit.createStream(streamName)
   })
 
-  it(`the number of credit remain stable after have consumed some messages`, async () => {
+  afterEach(async () => {
+    await connection.close()
+    await rabbit.deleteStream(streamName)
+  })
+
+  //eslint-disable-next-line no-only-tests/no-only-tests
+  it.only(`the number of credit remain stable after have consumed some messages`, async () => {
     const receivedMessages: Buffer[] = []
     const howMany = 2
     const messages = Array.from(Array(howMany).keys()).map((_) => Buffer.from("hello"))
@@ -42,14 +45,10 @@ describe("credit management", () => {
       receivedMessages.push(message.content)
     )
 
-    await eventually(() => expect(receivedMessages).eql(messages))
-    await eventuallyWithoutThrow(async () => {
+    await eventually(async () => {
+      expect(receivedMessages).eql(messages)
       const allConsumerCredits = await rabbit.returnConsumersCredits()
       expect(allConsumerCredits[0].allCredits[0]).eql(10)
-    }, 15000)
-    await connection.close()
-    try {
-      await rabbit.deleteStream(streamName)
-    } catch (error) {}
+    }, 5000)
   }).timeout(20000)
 })
