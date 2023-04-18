@@ -7,6 +7,9 @@ import { eventually } from "../support/util"
 describe("publish a message and get confirmation", () => {
   const rabbit = new Rabbit()
   let connection: Connection
+  let confirmed: boolean
+  let stream: string
+  const publisherRef = "my publisher"
 
   beforeEach(async () => {
     connection = await connect({
@@ -17,45 +20,36 @@ describe("publish a message and get confirmation", () => {
       vhost: "/",
       frameMax: 0, // not used
       heartbeat: 0, // not used
+      listeners: {
+        metadata_update: (_data) => {
+          return
+        },
+        publish_confirm: (_data) => (confirmed = true),
+      },
     })
+    stream = `my-stream-${randomUUID()}`
+    await rabbit.createStream(stream)
+    confirmed = false
   })
   afterEach(() => connection.close())
   afterEach(() => rabbit.closeAllConnections())
 
   it("after the server replies with a confirm, the confirm callback is invoked", async () => {
-    const stream = `my-stream-${randomUUID()}`
-    await rabbit.createStream(stream)
-    let confirmed = false
-    const publisher = await connection.declarePublisher({
-      stream,
-      publisherRef: "my publisher",
-    })
-
-    publisher.on("publish_confirm", (err: Error | null, _pubIds: bigint[]) => {
-      if (!err) {
-        confirmed = true
-      }
-    })
+    const publisher = await connection.declarePublisher({ stream, publisherRef })
+    publisher.on("publish_confirm", (err: Error | null, _pubIds: bigint[]) => (confirmed = !err))
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
-    }, 10000)
-    expect(confirmed).true
+      expect(confirmed).true
+    }, 5000)
   }).timeout(10000)
 
   it("after the server replies with a confirm, the confirm callback is invoked with the publishingId as an argument", async () => {
-    const stream = `my-stream-${randomUUID()}`
-    await rabbit.createStream(stream)
     let publishingIds: bigint[] = []
-    const publisher = await connection.declarePublisher({
-      stream,
-      publisherRef: "my publisher",
-    })
-    publisher.on("publish_confirm", (_err: Error | null, pubIds: bigint[]) => {
-      publishingIds = pubIds
-    })
+    const publisher = await connection.declarePublisher({ stream, publisherRef })
+    publisher.on("publish_confirm", (_err: Error | null, pubIds: bigint[]) => (publishingIds = pubIds))
 
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
     const lastPublishingId = await publisher.getLastPublishingId()
@@ -68,13 +62,9 @@ describe("publish a message and get confirmation", () => {
 
   it.skip("after the server replies with an error, the error callback is invoked", async () => {
     // how to force an error from the server? --LM
-    const stream = `my-stream-${randomUUID()}`
-    await rabbit.createStream(stream)
     let errored = false
-    const publisher = await connection.declarePublisher({
-      stream,
-      publisherRef: "my publisher",
-    })
+    const publisher = await connection.declarePublisher({ stream, publisherRef })
+
     publisher.on("publish_confirm", (error, _publishingIds) => {
       if (error) {
         errored = true
@@ -93,13 +83,9 @@ describe("publish a message and get confirmation", () => {
     "after the server replies with an error, the error callback is invoked with the error as an argument",
     async () => {
       // how to force an error from the server? --LM
-      const stream = `my-stream-${randomUUID()}`
-      await rabbit.createStream(stream)
       let error: Error | undefined = undefined
-      const publisher = await connection.declarePublisher({
-        stream,
-        publisherRef: "my publisher",
-      })
+      const publisher = await connection.declarePublisher({ stream, publisherRef })
+
       publisher.on("publish_confirm", (err, _publishingIds) => {
         if (err) {
           error = err

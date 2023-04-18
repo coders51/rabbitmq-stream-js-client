@@ -47,6 +47,7 @@ import { TuneResponse } from "./responses/tune_response"
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
+export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
   messages: Message[]
@@ -117,7 +118,14 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
       const publishingId = dataResponse.readUInt64()
       publishingIds.push(publishingId)
     }
-    return { key, version, publisherId, publishingIds } as RawPublishConfirmResponse
+    const response: RawPublishConfirmResponse = {
+      size,
+      key: key as PublishConfirmResponse["key"],
+      version,
+      publisherId,
+      publishingIds,
+    }
+    return response
   }
   const correlationId = dataResponse.readUInt32()
   const code = dataResponse.readUInt16()
@@ -480,6 +488,7 @@ export class ResponseDecoder {
       } else if (isPublishConfirmResponse(response)) {
         this.logger.debug(`publish_confirm received from the server: ${inspect(response)}`)
         this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
+        this.logger.debug(`publish confirm received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
@@ -487,8 +496,8 @@ export class ResponseDecoder {
   }
 
   public on(
-    event: "metadata_update" | "credit_response" | "deliver",
-    listener: MetadataUpdateListener | CreditListener | DeliverListener
+    event: "metadata_update" | "publish_confirm" | "deliver",
+    listener: MetadataUpdateListener | DeliverListener | PublishConfirmListener
   ) {
     this.emitter.on(event, listener)
   }

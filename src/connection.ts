@@ -14,16 +14,16 @@ import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { TuneRequest } from "./requests/tune_request"
-import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
-import { OpenResponse } from "./responses/open_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { OpenResponse } from "./responses/open_response"
 import { Response } from "./responses/response"
+import { MetadataUpdateListener, PublishConfirmListener, ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
@@ -90,8 +90,17 @@ export class Connection {
     })
   }
 
-  public on(event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on(event, listener)
+  public on(event: "metadata_update" | "publish_confirm", listener: MetadataUpdateListener | PublishConfirmListener) {
+    switch (event) {
+      case "metadata_update":
+        this.decoder.on("metadata_update", listener)
+        break
+      case "publish_confirm":
+        this.decoder.on("publish_confirm", listener)
+        break
+      default:
+        break
+    }
   }
 
   public async close(
@@ -121,7 +130,6 @@ export class Connection {
       publisherId: publisherId,
       publisherRef: params.publisherRef,
       boot: params.boot,
-      emitter: this.emitter,
     })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -357,7 +365,8 @@ export class Connection {
 
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) {
-      this.on("metadata_update", listeners.metadata_update)
+      this.decoder.on("metadata_update", listeners.metadata_update)
+      this.decoder.on("publish_confirm", listeners.publish_confirm)
     }
   }
 
@@ -378,6 +387,7 @@ export class Connection {
 
 export type ListenersParams = {
   metadata_update: MetadataUpdateListener
+  publish_confirm: PublishConfirmListener
 }
 
 export interface ConnectionParams {

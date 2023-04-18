@@ -1,10 +1,8 @@
-import { EventEmitter } from "stream"
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 
 export type MessageApplicationProperties = Record<string, string | number>
-
 export interface MessageProperties {
   contentType?: string
   contentEncoding?: string
@@ -32,8 +30,6 @@ interface MessageOptions {
   applicationProperties?: Record<string, string | number>
 }
 type PublishConfirmCallback = (err: Error | null, publishingIds: bigint[]) => void
-type PublisherEvent = "publish_confirm"
-
 export class Producer {
   private connection: Connection
   private stream: string
@@ -41,7 +37,6 @@ export class Producer {
   private publisherRef: string
   private boot: boolean
   private publishingId: bigint
-  private eventEmitter: EventEmitter
 
   constructor(params: {
     connection: Connection
@@ -49,7 +44,6 @@ export class Producer {
     publisherId: number
     publisherRef?: string
     boot?: boolean
-    emitter: EventEmitter
   }) {
     this.connection = params.connection
     this.stream = params.stream
@@ -57,14 +51,7 @@ export class Producer {
     this.publisherRef = params.publisherRef || ""
     this.boot = params.boot || false
     this.publishingId = params.boot ? -1n : 0n
-    this.eventEmitter = params.emitter
   }
-
-  /*
-    @deprecate This method should not be used
-  */
-  send(publishingId: bigint, message: Buffer, opts?: MessageOptions): Promise<void>
-  send(message: Buffer, opts?: MessageOptions): Promise<void>
 
   send(args0: bigint | Buffer, arg1: Buffer | MessageOptions = {}, opts: MessageOptions = {}) {
     if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
@@ -83,15 +70,8 @@ export class Producer {
     )
   }
 
-  public on(eventName: PublisherEvent, cb: PublishConfirmCallback) {
-    switch (eventName) {
-      case "publish_confirm":
-        this.eventEmitter.removeAllListeners("publish_confirm")
-        this.eventEmitter.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
-        break
-      default:
-        throw Error(`Event ${eventName} was not recognized`)
-    }
+  public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
+    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
   }
 
   private async sendWithPublisherSequence(message: Buffer, opts: MessageOptions) {

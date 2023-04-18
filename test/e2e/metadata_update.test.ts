@@ -15,6 +15,9 @@ describe("update the metadata from the server", () => {
     metadataUpdateResponses.length = 0
     const listeners: ListenersParams = {
       metadata_update: (data) => metadataUpdateResponses.push(data),
+      publish_confirm: (_data) => {
+        return
+      },
     }
     connection = await createConnection(username, password, listeners)
     streamName = createStreamName()
