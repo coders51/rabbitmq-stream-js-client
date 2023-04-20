@@ -42,6 +42,8 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeliverResponse } from "./responses/deliver_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 
 export class Connection {
@@ -262,6 +264,18 @@ export class Connection {
       `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
     )
     return res.sequence
+  }
+
+  public async queryOffset(params: { reference: string; stream: string }): Promise<bigint> {
+    this.logger.debug(`Query Offset...`)
+    const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
+
+    if (!res.ok) {
+      throw new Error(`Query offset command returned error with code ${res.code}`)
+    }
+
+    this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
+    return res.offsetValue
   }
 
   private responseReceived<T extends Response>(response: T) {
