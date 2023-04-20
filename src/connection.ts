@@ -35,7 +35,8 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StoreOffsetResponse } from "./responses/store_offset_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 
 export class Connection {
@@ -130,22 +131,29 @@ export class Connection {
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
-    const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle, consumerId)
-    this.consumers.set(consumerId, consumer)
+    const consumerRef = this.incConsumerId()
+    const consumer = new Consumer(
+      {
+        connection: this,
+        stream: params.stream,
+        consumerRef: params.consumerRef,
+      },
+      handle
+    )
+    this.consumers.set(consumerRef, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+      new SubscribeRequest({ ...params, subscriptionId: consumerRef, credit: 10 })
     )
     if (!res.ok) {
-      this.consumers.delete(consumerId)
+      this.consumers.delete(consumerRef)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
     this.logger.info(
       `New consumer created with stream name ${
         params.stream
-      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
+      }, consumer id ${consumerRef} and offset ${params.offset.toString()}`
     )
     return consumer
   }
@@ -225,16 +233,20 @@ export class Connection {
     return res.sequence
   }
 
-  public async storeOffset(params: { reference: string; stream: string; offsetValue: bigint }): Promise<true> {
-    this.logger.debug(`Store Offset...`)
-    const res = await this.sendAndWait<StoreOffsetResponse>(new StoreOffsetRequest(params))
+  public storeOffset(params: { reference: string; stream: string; offsetValue: bigint }): Promise<void> {
+    return this.send(new StoreOffsetRequest(params))
+  }
+
+  public async queryOffset(params: { reference: string; stream: string }): Promise<bigint> {
+    this.logger.debug(`Query Offset...`)
+    const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
 
     if (!res.ok) {
-      throw new Error(`Store Offset command returned error with code ${res.code}`)
+      throw new Error(`Query offset command returned error with code ${res.code}`)
     }
 
-    this.logger.debug(`Store Offset response: ${res.ok} with params: '${inspect(params)}'`)
-    return res.ok
+    this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
+    return res.offsetValue
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -380,7 +392,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+      this.logger.debug(`on deliver -> ${consumer.getConsumerRef()}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -411,6 +423,7 @@ export interface DeclarePublisherParams {
 
 export interface DeclareConsumerParams {
   stream: string
+  consumerRef?: string
   offset: Offset
 }
 
