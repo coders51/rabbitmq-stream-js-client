@@ -165,7 +165,14 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle, consumerId)
+    const consumer = new Consumer(
+      {
+        connection: this,
+        stream: params.stream,
+        consumerRef: params.consumerRef,
+      },
+      handle
+    )
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
@@ -295,6 +302,10 @@ export class Connection {
     return this.send(new CreditRequest({ ...params }))
   }
 
+  public storeOffset(params: StoreOffsetParams): Promise<void> {
+    return this.send(new StoreOffsetRequest(params))
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -402,7 +413,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+      this.logger.debug(`on deliver -> ${consumer.getConsumerRef()}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -435,6 +446,7 @@ export interface DeclarePublisherParams {
 
 export interface DeclareConsumerParams {
   stream: string
+  consumerRef?: string
   offset: Offset
 }
 
@@ -443,6 +455,12 @@ export interface SubscribeParams {
   stream: string
   credit: number
   offset: Offset
+}
+
+export interface StoreOffsetParams {
+  reference: string
+  stream: string
+  offsetValue: bigint
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
