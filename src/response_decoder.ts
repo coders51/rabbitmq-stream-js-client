@@ -88,22 +88,17 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
     }
     return { size, key, version, metadataInfo } as RawMetadataUpdateResponse
   }
+
   if (key === CreditResponse.key) {
-    const responseCodeCredit = dataResponse.readUInt16()
+    const responseCode = dataResponse.readUInt16()
     const subscriptionId = dataResponse.readUInt8()
-    const response: RawCreditResponse = {
-      size,
-      key: key as CreditResponse["key"],
-      version,
-      responseCode: responseCodeCredit,
-      subscriptionId,
-    }
-    return response
+    return { size, key, version, responseCode, subscriptionId } as RawCreditResponse
   }
+
   const correlationId = dataResponse.readUInt32()
-  const responseCode = dataResponse.readUInt16()
+  const code = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
-  return { size, key, version, correlationId, code: responseCode, payload }
+  return { size, key, version, correlationId, code, payload }
 }
 
 function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): MessageAndSubId {
@@ -301,8 +296,8 @@ export class ResponseDecoder {
         this.emitter.emit("deliver", new DeliverResponse(response))
         this.logger.debug(`deliver received from the server: ${inspect(response)}`)
       } else if (isCreditResponse(response)) {
-        this.logger.debug(`credit received from the server: ${inspect(response)}`)
         this.emitter.emit("credit_response", new CreditResponse(response))
+        this.logger.debug(`credit received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
