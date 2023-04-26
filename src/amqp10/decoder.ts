@@ -16,6 +16,8 @@ export const FormatCode = {
   Vbin32: 0xb0,
   Str32: 0xb1,
   Sym32: 0xb3,
+  List0: 0x45,
+  List8: 0xc0,
   List32: 0xd0,
   Map32: 0xd1,
   Null: 0x40,

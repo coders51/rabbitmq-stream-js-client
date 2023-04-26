@@ -1,10 +1,12 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { Connection } from "../../src"
-import { Producer } from "../../src/producer"
+import { Producer, MessageProperties } from "../../src/producer"
 import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, getMessageFrom } from "../support/util"
+import * as ampq from "amqplib"
+import { inspect } from "util"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit()

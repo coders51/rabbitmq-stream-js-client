@@ -125,6 +125,58 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const messageType = dataResponse.readUInt8()
   dataResponse.rewind(1)
 
+  const messages: Buffer[] = []
+
+  let type
+  let next
+  let headerType
+  let length
+
+  for (let i = 0; i < numEntries; i++) {
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        type = dataResponse.readUInt8()
+        switch (type) {
+          case FormatCode.Vbin8:
+            const length = dataResponse.readUInt8()
+            messages.push(dataResponse.readBufferOf(length))
+        }
+        break
+      case FormatCodeType.MessageProperties:
+        dataResponse.rewind(3)
+        type = dataResponse.readInt8()
+
+        if (type !== 0) {
+          throw new Error(`invalid composite header %#02x: ${type}`)
+        }
+
+        next = dataResponse.readUInt64()
+        headerType = dataResponse.readInt8()
+
+        switch (headerType) {
+          case FormatCode.List0:
+            length = 0
+            break
+          case FormatCode.List8:
+            dataResponse.forward(8)
+            const lenB = dataResponse.readInt8()
+            length = lenB
+            break
+          case FormatCode.List32:
+            dataResponse.forward(32)
+            const lenI = dataResponse.readInt32()
+            length = lenI
+            break
+          // default:
+          //   throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
+        }
+        break
+
+      default:
+        break
+    }
+  }
+
   const data = {
     magicVersion,
     chunkType,
@@ -140,12 +192,12 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     messageType, // indicate if it contains subentries
   }
   logger.debug(inspect(data))
-  const messages: Buffer[] = []
+  const decodedMessages: Buffer[] = []
   for (let i = 0; i < numEntries; i++) {
-    messages.push(decodeMessage(dataResponse))
+    decodedMessages.push(decodeMessage(dataResponse))
   }
 
-  return { subscriptionId, messages }
+  return { subscriptionId, messages: decodedMessages }
 }
 
 const EmptyBuffer = Buffer.from("")
@@ -278,6 +330,10 @@ export class BufferDataReader implements DataReader {
 
   position(): number {
     return this.offset
+  }
+
+  forward(count: number): void {
+    this.offset += count
   }
 }
 

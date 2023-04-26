@@ -14,6 +14,7 @@ export interface DataReader {
 
   rewind(count: number): void
   position(): number
+  forward(count: number): void
 }
 
 export interface RawResponse {

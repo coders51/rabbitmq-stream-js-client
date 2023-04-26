@@ -360,10 +360,16 @@ export class Connection {
   }
 
   private registerDelivers() {
-    this.decoder.on("deliver", async (response: DeliverResponse) => {
-      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers.size}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
-      response.messages.map((x) => this.consumers.get(response.subscriptionId)?.handle(x))
+    this.decoder.on("deliver", (response: DeliverResponse) => {
+      // this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${inspect(this.consumers)}`)
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (consumer) {
+        this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+        this.logger.debug(`response.messages.lenght: ${response.messages.length}`)
+        response.messages.map((x) => consumer.handle(x, this.logger))
+      } else {
+        this.logger.error(`On deliver no consumer found`)
+      }
     })
   }
 }

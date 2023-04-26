@@ -1,10 +1,13 @@
 import { expect } from "chai"
 import { Connection } from "../../src"
-import { Message, Producer } from "../../src/producer"
+import { Message, MessageProperties, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, range } from "../support/util"
+import * as ampq from "amqplib"
+import { inspect } from "node:util"
+import { Logger } from "winston"
 
 describe("declare consumer", () => {
   const rabbit = new Rabbit()
@@ -34,8 +37,9 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+    await connection.declareConsumer(
+      { stream: streamName, offset: Offset.first() },
+      (message: Message, _logger: Logger) => messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -78,4 +82,63 @@ describe("declare consumer", () => {
       "Declare Consumer command returned error with code 2 - Stream does not exist"
     )
   })
+
+  it("declaring a consumer on an existing stream - the consumer should read message properties", async () => {
+    const messageProperties: MessageProperties[] = []
+    const messages: string[] = []
+    const properties = createProperties()
+    await publisher.send(Buffer.from("hello"), { properties })
+
+    await connection.declareConsumer(
+      { stream: streamName, offset: Offset.first() },
+      (message: Message, logger: Logger) => {
+        logger.debug(`handle -> ${inspect(message)}`)
+        messageProperties.push(message.properties || {})
+        messages.push("JSON.stringify(message.properties?.correlationId) ||")
+      }
+    )
+
+    await eventually(async () => {
+      expect(messageProperties).eql([properties])
+    })
+  }).timeout(10000)
 })
+
+function createProperties(): MessageProperties {
+  return {
+    contentType: `contentType`,
+    contentEncoding: `contentEncoding`,
+    replyTo: `replyTo`,
+    to: `to`,
+    subject: `subject`,
+    correlationId: `correlationIdAAA`,
+    messageId: `messageId`,
+    userId: Buffer.from(`userId`),
+    absoluteExpiryTime: new Date(),
+    creationTime: new Date(),
+    groupId: `groupId`,
+    groupSequence: 666,
+    replyToGroupId: `replyToGroupId`,
+  }
+}
+
+async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
+  return new Promise(async (res, rej) => {
+    const con = await ampq.connect("amqp://rabbit:rabbit@localhost")
+    con.on("error", async (err) => rej(err))
+    const ch = await con.createChannel()
+    await ch.prefetch(1)
+    await ch.consume(
+      stream,
+      async (msg) => {
+        if (!msg) return
+        msg.properties.userId
+        ch.ack(msg)
+        await ch.close()
+        await con.close()
+        res({ content: msg.content.toString(), properties: msg.properties })
+      },
+      { arguments: { "x-stream-offset": "first" } }
+    )
+  })
+}
