@@ -3,7 +3,7 @@ import { RawCreditResponse } from "./raw_response"
 import { Response } from "./response"
 
 export class CreditResponse implements Response {
-  static key = 0x8009
+  static key = 0x8009 as const
 
   constructor(private response: RawCreditResponse) {
     if (this.response.key !== CreditResponse.key) {
