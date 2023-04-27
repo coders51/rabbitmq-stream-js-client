@@ -365,7 +365,7 @@ export class Connection {
       const consumer = this.consumers.get(response.subscriptionId)
       if (consumer) {
         this.logger.debug(`on deliver -> ${consumer.consumerId}`)
-        this.logger.debug(`response.messages.lenght: ${response.messages.length}`)
+        this.logger.debug(`response.messages.length: ${response.messages.length}`)
         response.messages.map((x) => consumer.handle(x, this.logger))
       } else {
         this.logger.error(`On deliver no consumer found`)
