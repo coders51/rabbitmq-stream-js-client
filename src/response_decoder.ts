@@ -303,8 +303,8 @@ export class ResponseDecoder {
         this.emitter.emit("deliver", new DeliverResponse(response))
         this.logger.debug(`deliver received from the server: ${inspect(response)}`)
       } else if (isCreditResponse(response)) {
-        this.emitter.emit("credit_response", new CreditResponse(response))
         this.logger.debug(`credit received from the server: ${inspect(response)}`)
+        this.emitter.emit("credit_response", new CreditResponse(response))
       } else {
         this.emitResponseReceived(response)
       }
