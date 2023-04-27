@@ -29,6 +29,8 @@ import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 import { CreditResponse } from "./responses/credit_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { Properties } from "./amqp10/properties"
+import { Message, MessageProperties } from "./producer"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -44,7 +46,7 @@ export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
-  messages: Buffer[]
+  messages: Message[]
 }
 
 type PossibleRawResponses =
@@ -125,21 +127,25 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const messageType = dataResponse.readUInt8()
   dataResponse.rewind(1)
 
-  const messages: Buffer[] = []
+  const messages: Message[] = []
 
   let type
   let next
   let headerType
   let length
+  let properties
 
   for (let i = 0; i < numEntries; i++) {
+    let content = Buffer.from("")
+    let messageProperties: MessageProperties = {}
+
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
         type = dataResponse.readUInt8()
         switch (type) {
           case FormatCode.Vbin8:
-            const length = dataResponse.readUInt8()
-            messages.push(dataResponse.readBufferOf(length))
+            const lengthVbin8 = dataResponse.readUInt8()
+            content = dataResponse.readBufferOf(lengthVbin8)
         }
         break
       case FormatCodeType.MessageProperties:
@@ -150,22 +156,35 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
           throw new Error(`invalid composite header %#02x: ${type}`)
         }
 
-        next = dataResponse.readUInt64()
-        headerType = dataResponse.readInt8()
+        const nextType = dataResponse.readInt8()
+        switch (nextType) {
+          case FormatCode.SmallUlong:
+            const retSmallLong = dataResponse.readInt8()
+            next = BigInt(retSmallLong)
+            break
+          case FormatCode.ULong:
+            const retULong = dataResponse.readUInt64()
+            next = retULong
+            break
+          default:
+            next = 0n
+        }
+        headerType = dataResponse.readUInt8()
 
         switch (headerType) {
           case FormatCode.List0:
             length = 0
             break
           case FormatCode.List8:
-            dataResponse.forward(8)
+            dataResponse.forward(1)
             const lenB = dataResponse.readInt8()
             length = lenB
             break
           case FormatCode.List32:
-            dataResponse.forward(32)
+            dataResponse.forward(4)
             const lenI = dataResponse.readInt32()
             length = lenI
+            messageProperties = Properties.Parse(dataResponse, length)
             break
           // default:
           //   throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
@@ -175,6 +194,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
       default:
         break
     }
+    messages.push({ content, properties: messageProperties })
   }
 
   const data = {
@@ -189,7 +209,14 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     dataLength,
     trailerLength,
     reserved,
-    messageType, // indicate if it contains subentries
+    messageType,
+    messageLength,
+    formatCode,
+    type,
+    next,
+    headerType,
+    length,
+    properties,
   }
   logger.debug(inspect(data))
   const decodedMessages: Buffer[] = []
@@ -197,7 +224,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     decodedMessages.push(decodeMessage(dataResponse))
   }
 
-  return { subscriptionId, messages: decodedMessages }
+  return { subscriptionId, messages }
 }
 
 const EmptyBuffer = Buffer.from("")
@@ -311,6 +338,18 @@ export class BufferDataReader implements DataReader {
     return ret
   }
 
+  readDouble(): number {
+    const ret = this.data.readDoubleBE(this.offset)
+    this.offset += 8
+    return ret
+  }
+
+  readFloat(): number {
+    const ret = this.data.readFloatBE(this.offset)
+    this.offset += 4
+    return ret
+  }
+
   readInt32(): number {
     const ret = this.data.readInt32BE(this.offset)
     this.offset += 4
@@ -324,12 +363,17 @@ export class BufferDataReader implements DataReader {
     return value
   }
 
-  rewind(count: number): void {
-    this.offset -= count
+  readUTF8String(): string {
+    // Reading of string type
+    this.readUInt8()
+    const size = this.readUInt8()
+    const value = this.data.toString("utf8", this.offset, this.offset + size)
+    this.offset += size
+    return value
   }
 
-  position(): number {
-    return this.offset
+  rewind(count: number): void {
+    this.offset -= count
   }
 
   forward(count: number): void {

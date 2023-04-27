@@ -1,8 +1,10 @@
+import { Message } from "../producer"
+
 export interface DataReader {
   readBufferOf(length: number): Buffer
   readTo(size: number): DataReader
   readToEnd(): DataReader
-
+  atEnd(): boolean
   readInt8(): number
   readUInt8(): number
   readUInt16(): number
@@ -11,9 +13,8 @@ export interface DataReader {
   readUInt64(): bigint
   readInt64(): bigint
   readString(): string
-
+  readUTF8String(): string
   rewind(count: number): void
-  position(): number
   forward(count: number): void
 }
 
@@ -39,7 +40,7 @@ export interface RawDeliverResponse {
   key: 0x0008
   version: number
   subscriptionId: number
-  messages: Buffer[]
+  messages: Message[]
 }
 
 export interface RawMetadataUpdateResponse {

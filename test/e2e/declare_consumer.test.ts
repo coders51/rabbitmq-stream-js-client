@@ -4,8 +4,7 @@ import { Message, MessageProperties, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync, range } from "../support/util"
-import * as ampq from "amqplib"
+import { eventually, expectToThrowAsync } from "../support/util"
 import { inspect } from "node:util"
 import { Logger } from "winston"
 
@@ -13,6 +12,7 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit()
   let streamName: string
   let nonExistingStreamName: string
+  const testStreamName = "test-stream"
   let connection: Connection
   let publisher: Producer
 
@@ -33,12 +33,12 @@ describe("declare consumer", () => {
     } catch (e) {}
   })
 
-  it("should handle the message", async () => {
+  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
     await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first() },
+      { stream: testStreamName, offset: Offset.first() },
       (message: Message, _logger: Logger) => messages.push(message.content)
     )
 
@@ -64,7 +64,7 @@ describe("declare consumer", () => {
       receivedMessages.push(message.content)
     })
 
-    const messages = range(1000).map((n) => Buffer.from(`hello${n}`))
+    const messages = Array.from(Array(1000).keys()).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
       await publisher.send(m)
     }
@@ -120,25 +120,4 @@ function createProperties(): MessageProperties {
     groupSequence: 666,
     replyToGroupId: `replyToGroupId`,
   }
-}
-
-async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
-  return new Promise(async (res, rej) => {
-    const con = await ampq.connect("amqp://rabbit:rabbit@localhost")
-    con.on("error", async (err) => rej(err))
-    const ch = await con.createChannel()
-    await ch.prefetch(1)
-    await ch.consume(
-      stream,
-      async (msg) => {
-        if (!msg) return
-        msg.properties.userId
-        ch.ack(msg)
-        await ch.close()
-        await con.close()
-        res({ content: msg.content.toString(), properties: msg.properties })
-      },
-      { arguments: { "x-stream-offset": "first" } }
-    )
-  })
 }
