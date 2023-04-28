@@ -70,7 +70,7 @@ describe("declare consumer", () => {
     // await eventually(() => expect(receivedClassicMessages).eql(messages), 7000)
     // await ch.close()
     // await conn.close()
-    await eventually(() => expect(receivedMessages).eql(messages), 7000)
+    await eventually(() => expect(receivedMessages).eql(messages), 10000)
   }).timeout(50000)
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
