@@ -35,12 +35,12 @@ describe("declare consumer", () => {
 
   it("should handle the message", async () => {
     const messages: string[] = []
-    const publisher = await connection.declarePublisher({ stream: testStreamName })
-    await publisher.send(Buffer.from("hello"))
-
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.next() }, (message: Message) =>
       messages.push(message.content.toString())
     )
+
+    const publisher = await connection.declarePublisher({ stream: testStreamName })
+    await publisher.send(Buffer.from("hello"))
 
     await eventually(() => expect(messages).eql(["hello"]))
   }).timeout(10000)
@@ -62,16 +62,16 @@ describe("declare consumer", () => {
   it(`consume a lot of messages`, async () => {
     const receivedMessages: string[] = []
     const receivedMessages1: string[] = []
+
+    await connection.declareConsumer({ stream: testStreamName, offset: Offset.next() }, (message: Message) => {
+      receivedMessages.push(message.content.toString())
+    })
+
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     const messages = range(1000).map((n) => "hello" + n)
     for (const m of messages) {
       await publisher.send(Buffer.from(m))
     }
-
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) => {
-      const m = message.content.toString()
-      receivedMessages.push(m)
-    })
 
     const { conn, ch } = await createClassicConsumer(testStreamName, (m) =>
       receivedMessages1.push(m.content.toString())
