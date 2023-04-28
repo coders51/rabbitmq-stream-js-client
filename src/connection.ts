@@ -348,7 +348,7 @@ export class Connection {
   }
 }
 
-type ListenersParams = {
+export type ListenersParams = {
   metadata_update: MetadataUpdateListener
   credit: CreditListener
 }

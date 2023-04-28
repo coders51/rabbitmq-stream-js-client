@@ -93,4 +93,8 @@ export class Producer {
   getLastPublishingId() {
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
+
+  get ref() {
+    return this.publisherRef
+  }
 }

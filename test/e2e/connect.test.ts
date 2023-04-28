@@ -6,8 +6,6 @@ import { eventually } from "../support/util"
 describe("connect", () => {
   const rabbit = new Rabbit()
 
-  afterEach(() => rabbit.closeAllConnections())
-
   it("using parameters", async () => {
     const connection = await connect({
       hostname: "localhost",
@@ -23,6 +21,7 @@ describe("connect", () => {
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)
     await connection.close()
+    await rabbit.closeAllConnections()
   }).timeout(10000)
 
   it("raise exception if goes in timeout")

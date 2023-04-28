@@ -43,3 +43,11 @@ export async function expectToThrowAsync(
 export function wait(timeout: number) {
   return new Promise((res) => setTimeout(res, timeout))
 }
+
+export function range(count: number): number[] {
+  const ret = Array(count)
+  for (let index = 0; index < count; index++) {
+    ret[index] = index
+  }
+  return ret
+}
