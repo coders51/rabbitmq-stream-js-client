@@ -52,6 +52,14 @@ export interface MetadataInfo {
   stream: string
 }
 
+export interface RawCreditResponse {
+  size: number
+  key: 0x8009
+  version: number
+  responseCode: number
+  subscriptionId: number
+}
+
 export interface RawHeartbeatResponse {
   key: 0x0014
   version: number

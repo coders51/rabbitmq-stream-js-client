@@ -32,6 +32,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { DeliverResponse } from "./responses/deliver_response"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -87,8 +88,8 @@ export class Connection {
     })
   }
 
-  public on(_event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on("metadata_update", listener)
+  public on(event: "metadata_update", listener: MetadataUpdateListener) {
+    this.decoder.on(event, listener)
   }
 
   public async close(
@@ -234,6 +235,10 @@ export class Connection {
     return res
   }
 
+  private askForCredit(params: CreditRequestParams): Promise<void> {
+    return this.send(new CreditRequest({ ...params }))
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -329,18 +334,23 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) this.decoder.on("metadata_update", listeners.metadata_update)
+    if (listeners) {
+      this.on("metadata_update", listeners.metadata_update)
+    }
   }
 
   private registerDelivers() {
-    this.decoder.on("deliver", (response: DeliverResponse) => {
+    this.decoder.on("deliver", async (response: DeliverResponse) => {
       this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => this.consumers[response.subscriptionId].handle(x))
     })
   }
 }
 
-type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
+type ListenersParams = {
+  metadata_update: MetadataUpdateListener
+}
 
 export interface ConnectionParams {
   hostname: string

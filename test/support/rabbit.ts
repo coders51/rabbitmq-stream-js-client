@@ -4,6 +4,11 @@ interface RabbitConnectionResponse {
   name: string
 }
 
+interface RabbitConsumerCredits {
+  connectionName: string
+  allCredits: number[]
+}
+
 // not completed
 interface MessageInfoResponse {
   messages: number
@@ -22,10 +27,26 @@ interface RabbitConsumersResponseQueue {
   vhost: string
 }
 
+interface RabbitChannelDetails {
+  connection_name: string
+  name: string
+  node: string
+  number: number
+  peer_host: string
+  peer_port: number
+  user: string
+}
+
 interface RabbitConsumersResponse {
   queue: RabbitConsumersResponseQueue
   consumer_tag: string
+  channel_details: RabbitChannelDetails
 }
+
+interface RabbitConnectionDetails {
+  credits: number
+}
+
 interface RabbitQueueResponse {
   arguments: Record<string, string>
   auto_delete: boolean
@@ -115,6 +136,29 @@ export class Rabbit {
       responseType: "json",
     })
     return resp.body.map((p) => p.consumer_tag)
+  }
+
+  async returnConsumersCredits(): Promise<RabbitConsumerCredits[]> {
+    const allConsumerCredits: RabbitConsumerCredits[] = []
+    const allConsumersResp = await got.get<RabbitConsumersResponse[]>(`http://localhost:15672/api/consumers`, {
+      username: "rabbit",
+      password: "rabbit",
+      responseType: "json",
+    })
+    const consumerChannelDetails = allConsumersResp.body.map((d) => d.channel_details)
+    for (const consumerChannelDetail of consumerChannelDetails) {
+      const connectionName = consumerChannelDetail.connection_name
+      const resp = await got.get<RabbitConnectionDetails[]>(
+        `http://localhost:15672/api/stream/connections/%2F/${connectionName}/consumers`,
+        {
+          username: "rabbit",
+          password: "rabbit",
+          responseType: "json",
+        }
+      )
+      allConsumerCredits.push({ connectionName, allCredits: resp.body.map((rcd) => rcd.credits) })
+    }
+    return allConsumerCredits
   }
 
   async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {
