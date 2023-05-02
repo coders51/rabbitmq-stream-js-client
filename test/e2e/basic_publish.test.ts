@@ -1,11 +1,10 @@
 import { expect } from "chai"
+import { randomUUID } from "crypto"
 import { Connection } from "../../src"
-import { getMessageFrom } from "../../src/util"
+import { Producer } from "../../src/producer"
 import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
-import { randomUUID } from "crypto"
-import { Producer } from "../../src/producer"
+import { eventually, getMessageFrom } from "../support/util"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit()
