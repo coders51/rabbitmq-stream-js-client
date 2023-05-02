@@ -4,11 +4,6 @@ interface RabbitConnectionResponse {
   name: string
 }
 
-interface RabbitConsumerCredits {
-  connectionName: string
-  allCredits: number[]
-}
-
 // not completed
 interface MessageInfoResponse {
   messages: number

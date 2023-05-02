@@ -48,8 +48,8 @@ describe("credit management", () => {
 
     await eventually(async () => {
       expect(receivedMessages).eql(messages)
-      const allConsumerCredits = await rabbit.returnConsumersCredits()
-      expect(allConsumerCredits[0].allCredits[0]).eql(10)
+      const credits = await rabbit.returnSingleConsumerCredits()
+      expect(credits).eql(10)
     }, 5000)
   }).timeout(20000)
 })
