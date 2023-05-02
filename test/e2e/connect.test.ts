@@ -1,22 +1,25 @@
 import { expect } from "chai"
-import { connect } from "../../src"
+import { Connection } from "../../src"
+import { createConnection } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually } from "../support/util"
 
 describe("connect", () => {
   const rabbit = new Rabbit()
+  let connection: Connection
+
+  beforeEach(async () => {
+    connection = await createConnection()
+  })
+
+  afterEach(async () => {
+    try {
+      await connection.close()
+      await rabbit.closeAllConnections()
+    } catch (e) {}
+  })
 
   it("using parameters", async () => {
-    const connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0, // not used
-      heartbeat: 0, // not user
-    })
-
     await eventually(async () => {
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)

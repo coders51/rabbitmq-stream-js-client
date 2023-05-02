@@ -53,7 +53,7 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
   }).timeout(10000)
 
-  it.skip(`consume a lot of messages`, async () => {
+  it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
     //const receivedClassicMessages: Buffer[] = []
 
