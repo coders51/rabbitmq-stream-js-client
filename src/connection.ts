@@ -234,7 +234,7 @@ export class Connection {
     return res
   }
 
-  public askForCredit(params: CreditRequestParams): Promise<void> {
+  private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
   }
 
