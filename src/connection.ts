@@ -33,6 +33,8 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -127,7 +129,7 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle)
+    const consumer = new Consumer(handle, consumerId)
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
@@ -144,6 +146,23 @@ export class Connection {
       }, consumer id ${consumerId} and offset ${params.offset.toString()}`
     )
     return consumer
+  }
+
+  public async closeConsumer(consumerId: number) {
+    const targetConsumer = this.consumers.get(consumerId)
+    if (!targetConsumer) {
+      this.logger.error("Consumer does not exist")
+      throw new Error(`Consumer with id: ${consumerId} does not exist`)
+    }
+    const res = await this.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+
+    if (!res.ok) {
+      throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+
+    this.consumers.delete(consumerId)
+    this.logger.info(`Closed consumer with id: ${consumerId}`)
+    return res.ok
   }
 
   public send(cmd: Request): Promise<void> {
