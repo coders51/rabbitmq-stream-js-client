@@ -1,12 +1,10 @@
 import { Socket } from "net"
 import { inspect } from "util"
-import { Consumer, ConsumerFunc } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
 import { Producer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
@@ -15,7 +13,6 @@ import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
 import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
@@ -33,6 +30,9 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { Consumer, ConsumerFunc } from "./consumer"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 
@@ -163,10 +163,6 @@ export class Connection {
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
-  }
-
-  public getConsumersNumber() {
-    return this.consumers.length
   }
 
   public send(cmd: Request): Promise<void> {
