@@ -1,6 +1,6 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
-import { Message, MessageProperties, Producer } from "../../src/producer"
+import { Connection, connect } from "../../src"
+import { Message, MessageApplicationProperties, MessageProperties, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
@@ -102,6 +102,26 @@ describe("declare consumer", () => {
       expect(messageProperties).eql([properties])
     })
   }).timeout(10000)
+
+  it("declaring a consumer on an existing stream - the consumer should read application properties", async () => {
+    const messageApplicationProperties: MessageApplicationProperties[] = []
+    const messages: string[] = []
+    const applicationProperties = createApplicationProperties()
+    await publisher.send(Buffer.from("hello"), { applicationProperties })
+
+    await connection.declareConsumer(
+      { stream: streamName, offset: Offset.first() },
+      (message: Message, logger: Logger) => {
+        logger.debug(`handle -> ${inspect(message)}`)
+        messageApplicationProperties.push(message.applicationProperties || {})
+        messages.push("JSON.stringify(message.properties?.correlationId) ||")
+      }
+    )
+
+    await eventually(async () => {
+      expect(messageApplicationProperties).eql([applicationProperties])
+    })
+  }).timeout(10000)
 })
 
 function createProperties(): MessageProperties {
@@ -119,5 +139,12 @@ function createProperties(): MessageProperties {
     groupId: `groupId`,
     groupSequence: 666,
     replyToGroupId: `replyToGroupId`,
+  }
+}
+
+function createApplicationProperties(): MessageApplicationProperties {
+  return {
+    application1: "application1",
+    application2: 666,
   }
 }

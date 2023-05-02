@@ -19,13 +19,17 @@ export const FormatCode = {
   List0: 0x45,
   List8: 0xc0,
   List32: 0xd0,
+  Map8: 0xc1,
   Map32: 0xd1,
   Null: 0x40,
   ULong0: 0x44,
   SmallUlong: 0x53,
   ULong: 0x80,
   Uint: 0x70,
+  Uint0: 0x43,
   Int: 0x71,
+  SmallUint: 0x52,
+  SmallInt: 0x54,
   Timestamp: 0x83,
 } as const
 

@@ -85,7 +85,16 @@ export class Producer {
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: this.publishingId, message: { content: message, properties: opts.properties } }],
+        messages: [
+          {
+            publishingId: this.publishingId,
+            message: {
+              content: message,
+              properties: opts.properties,
+              applicationProperties: opts.applicationProperties,
+            },
+          },
+        ],
       })
     )
   }

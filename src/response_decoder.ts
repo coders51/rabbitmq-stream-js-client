@@ -31,6 +31,7 @@ import { CreditResponse } from "./responses/credit_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { Properties } from "./amqp10/properties"
 import { Message, MessageProperties } from "./producer"
+import { ApplicationProperties } from "./amqp10/applicationProperties"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -130,10 +131,13 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const messages: Message[] = []
 
   let type
+  let mapType
   let next
   let headerType
   let length
   let properties
+  let applicationProperties
+  let applicationPropertiesLength = 0
 
   for (let i = 0; i < numEntries; i++) {
     let content = Buffer.from("")
@@ -190,11 +194,28 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
           //   throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
         }
         break
-
+      case FormatCodeType.ApplicationProperties:
+        mapType = dataResponse.readUInt8()
+        switch (mapType) {
+          case FormatCode.Map8:
+            // Read first empty byte
+            dataResponse.readUInt8()
+            const shortNumElements = dataResponse.readUInt8()
+            applicationPropertiesLength = shortNumElements
+            break
+          case FormatCode.Map32:
+            // Read first empty four bytes
+            dataResponse.readUInt32()
+            const longNumElements = dataResponse.readUInt32()
+            applicationPropertiesLength = longNumElements
+            break
+        }
+        applicationProperties = ApplicationProperties.Parse(dataResponse, applicationPropertiesLength)
+        break
       default:
         break
     }
-    messages.push({ content, properties: messageProperties })
+    messages.push({ content, properties: messageProperties, applicationProperties })
   }
 
   const data = {
@@ -217,6 +238,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     headerType,
     length,
     properties,
+    applicationProperties,
   }
   logger.debug(inspect(data))
   const decodedMessages: Buffer[] = []
@@ -365,11 +387,22 @@ export class BufferDataReader implements DataReader {
 
   readUTF8String(): string {
     // Reading of string type
-    this.readUInt8()
-    const size = this.readUInt8()
-    const value = this.data.toString("utf8", this.offset, this.offset + size)
-    this.offset += size
-    return value
+    const type = this.readUInt8()
+    switch (type) {
+      case FormatCode.Str8:
+      case FormatCode.Sym8:
+        const sizeStr8 = this.readUInt8()
+        const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
+        this.offset += sizeStr8
+        return valueStr8
+      case FormatCode.Str32:
+        const sizeStr32 = this.readUInt32()
+        const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
+        this.offset += sizeStr32
+        return valueStr32
+      default:
+        throw new Error("ReadUTFString ERROR, unknown string type")
+    }
   }
 
   rewind(count: number): void {
