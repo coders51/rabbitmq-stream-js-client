@@ -3,7 +3,7 @@ import { Connection, connect } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, expectToThrowAsync } from "../support/util"
 
 describe("close consumer", () => {
   const rabbit = new Rabbit()
@@ -40,5 +40,13 @@ describe("close consumer", () => {
     const response = await connection.closeConsumer(consumer.consumerId)
 
     await eventually(() => expect(response).eql(true))
+    await eventually(() => expect(connection.getConsumersNumber()).eql(0))
+  }).timeout(10000)
+
+  it("closing a non-existing consumer should rise an error", async () => {
+    const nonExistingConsumerId = 123456
+    await connection.declarePublisher({ stream: testStreamName })
+
+    await expectToThrowAsync(() => connection.closeConsumer(nonExistingConsumerId), Error)
   }).timeout(10000)
 })

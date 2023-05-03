@@ -165,6 +165,10 @@ export class Connection {
     return res.ok
   }
 
+  public getConsumersNumber() {
+    return this.consumers.length
+  }
+
   public send(cmd: Request): Promise<void> {
     return new Promise((res, rej) => {
       const body = cmd.toBuffer()
