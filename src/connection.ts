@@ -166,7 +166,7 @@ export class Connection {
   }
 
   public getConsumersNumber() {
-    return this.consumers.length
+    return this.consumers.size
   }
 
   public send(cmd: Request): Promise<void> {
