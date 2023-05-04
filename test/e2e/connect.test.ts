@@ -15,6 +15,9 @@ describe("connect", () => {
   afterEach(async () => {
     try {
       await connection.close()
+    } catch (e) {}
+
+    try {
       await rabbit.closeAllConnections()
     } catch (e) {}
   })
