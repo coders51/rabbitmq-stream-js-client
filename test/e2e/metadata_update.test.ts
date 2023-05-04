@@ -15,7 +15,6 @@ describe("update the metadata from the server", () => {
     metadataUpdateResponses.length = 0
     const listeners: ListenersParams = {
       metadata_update: (data) => metadataUpdateResponses.push(data),
-      credit: (_data) => console.error("Subscribe server error"),
     }
     connection = await createConnection(listeners)
     streamName = createStreamName()

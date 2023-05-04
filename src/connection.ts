@@ -17,7 +17,7 @@ import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
-import { CreditListener, MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
@@ -88,7 +88,7 @@ export class Connection {
     })
   }
 
-  public on(event: "metadata_update" | "credit_response", listener: MetadataUpdateListener | CreditListener) {
+  public on(event: "metadata_update", listener: MetadataUpdateListener) {
     this.decoder.on(event, listener)
   }
 
@@ -335,7 +335,6 @@ export class Connection {
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) {
       this.on("metadata_update", listeners.metadata_update)
-      this.on("credit_response", listeners.credit)
     }
   }
 
@@ -350,7 +349,6 @@ export class Connection {
 
 export type ListenersParams = {
   metadata_update: MetadataUpdateListener
-  credit: CreditListener
 }
 
 export interface ConnectionParams {
