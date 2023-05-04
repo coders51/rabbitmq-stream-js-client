@@ -1,44 +1,40 @@
 import { expect } from "chai"
-import { Connection, connect } from "../../src"
-import { Message } from "../../src/producer"
+import { Connection } from "../../src"
+import { Message, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
+import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync } from "../support/util"
+import { eventually, expectToThrowAsync, range } from "../support/util"
 
 describe("declare consumer", () => {
   const rabbit = new Rabbit()
-  const testStreamName = "test-stream"
-  const nonExistingStream = "not-the-test-stream"
+  let streamName: string
+  let nonExistingStreamName: string
   let connection: Connection
+  let publisher: Producer
 
   beforeEach(async () => {
-    try {
-      await rabbit.deleteStream(testStreamName)
-    } catch (error) {}
-    await rabbit.createStream(testStreamName)
-
-    connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    connection = await createConnection()
+    streamName = createStreamName()
+    nonExistingStreamName = createStreamName()
+    await rabbit.createStream(streamName)
+    publisher = await createPublisher(streamName, connection)
   })
 
   afterEach(async () => {
-    await connection.close()
-    await rabbit.deleteStream(testStreamName)
+    try {
+      await connection.close()
+      await rabbit.deleteStream(streamName)
+      await rabbit.closeAllConnections()
+      await rabbit.deleteAllQueues({ match: /my-stream-/ })
+    } catch (e) {}
   })
 
-  it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
+  it("should handle the message", async () => {
     const messages: Buffer[] = []
-    const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
 
@@ -47,22 +43,35 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {
     const messages: Buffer[] = []
-    const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
     await publisher.send(Buffer.from("world"))
 
-    await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message: Message) =>
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
-    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
   }).timeout(10000)
+
+  it(`consume a lot of messages`, async () => {
+    const receivedMessages: Buffer[] = []
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
+      receivedMessages.push(message.content)
+    })
+
+    const messages = range(1000).map((n) => Buffer.from(`hello${n}`))
+    for (const m of messages) {
+      await publisher.send(m)
+    }
+
+    await eventually(() => expect(receivedMessages).eql(messages), 10000)
+  }).timeout(50000)
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
       () =>
-        connection.declareConsumer({ stream: nonExistingStream, offset: Offset.first() }, (message: Message) =>
+        connection.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
           console.log(message.content)
         ),
       Error,

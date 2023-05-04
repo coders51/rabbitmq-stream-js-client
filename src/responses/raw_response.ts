@@ -13,6 +13,7 @@ export interface DataReader {
   readString(): string
 
   rewind(count: number): void
+  position(): number
 }
 
 export interface RawResponse {
