@@ -32,44 +32,38 @@ describe("declare consumer", () => {
 
   it("should handle the message", async () => {
     const messages: Buffer[] = []
-    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) =>
+    await publisher.send(Buffer.from("hello"))
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
-
-    await publisher.send(Buffer.from("hello"))
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
   it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {
     const messages: Buffer[] = []
-    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) =>
-      messages.push(message.content)
-    )
-
     await publisher.send(Buffer.from("hello"))
     await publisher.send(Buffer.from("world"))
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
+    )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
   }).timeout(10000)
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-    //const receivedClassicMessages: Buffer[] = []
-
-    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
-      receivedMessages.push(message.content)
-    })
-
     const messages = range(1000).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
       await publisher.send(m)
     }
 
-    // const { conn, ch } = await createClassicConsumer(streamName, (m) => receivedClassicMessages.push(m.content))
-    // await eventually(() => expect(receivedClassicMessages).eql(messages), 7000)
-    // await ch.close()
-    // await conn.close()
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      receivedMessages.push(message.content)
+    })
+
     await eventually(() => expect(receivedMessages).eql(messages), 10000)
   }).timeout(50000)
 
