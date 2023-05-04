@@ -55,14 +55,15 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
+      receivedMessages.push(message.content)
+    })
+
     const messages = range(1000).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
       await publisher.send(m)
     }
-
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      receivedMessages.push(message.content)
-    })
 
     await eventually(() => expect(receivedMessages).eql(messages), 10000)
   }).timeout(50000)
