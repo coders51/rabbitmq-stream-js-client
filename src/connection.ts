@@ -1,37 +1,38 @@
 import { Socket } from "net"
 import { inspect } from "util"
+import { Consumer, ConsumerFunc } from "./consumer"
+import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
+import { Heartbeat } from "./heartbeat"
+import { Producer } from "./producer"
+import { CloseRequest } from "./requests/close_request"
+import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { TuneRequest } from "./requests/tune_request"
+import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { CloseResponse } from "./responses/close_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
 import { OpenResponse } from "./responses/open_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { Response } from "./responses/response"
-import { ResponseDecoder } from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
-import { TuneResponse } from "./responses/tune_response"
-import { Producer } from "./producer"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
-import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
-import { CreateStreamResponse } from "./responses/create_stream_response"
-import { CreateStreamRequest, CreateStreamArguments } from "./requests/create_stream_request"
-import { Heartbeat } from "./heartbeat"
-import { TuneRequest } from "./requests/tune_request"
-import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeleteStreamRequest } from "./requests/delete_stream_request"
-import { CloseResponse } from "./responses/close_response"
-import { CloseRequest } from "./requests/close_request"
-import { QueryPublisherRequest } from "./requests/query_publisher_request"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { MetadataUpdateResponse } from "./responses/metadata_update_response"
-import EventEmitter from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { TuneResponse } from "./responses/tune_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -42,11 +43,12 @@ export class Connection {
   private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
   private heartbeat: Heartbeat
-  private emitter: EventEmitter = new EventEmitter()
+  private consumerId = 0
+  private consumers = new Map<number, Consumer>()
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.emitter, this.logger)
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
@@ -55,6 +57,7 @@ export class Connection {
 
   public start(params: ConnectionParams): Promise<Connection> {
     this.registerListeners(params.listeners)
+    this.registerDelivers()
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(`Error on connection ${params.hostname}:${params.port} vhost:${params.vhost} err: ${err}`)
@@ -85,8 +88,8 @@ export class Connection {
     })
   }
 
-  public on(_event: "metadata_update", listener: MetadataUpdateListener) {
-    this.emitter.on("metadata_update", listener)
+  public on(event: "metadata_update", listener: MetadataUpdateListener) {
+    this.decoder.on(event, listener)
   }
 
   public async close(
@@ -120,6 +123,27 @@ export class Connection {
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
     return producer
+  }
+
+  public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
+    const consumerId = this.incConsumerId()
+    const consumer = new Consumer(handle)
+    this.consumers.set(consumerId, consumer)
+
+    const res = await this.sendAndWait<SubscribeResponse>(
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+    )
+    if (!res.ok) {
+      this.consumers.delete(consumerId)
+      throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+
+    this.logger.info(
+      `New consumer created with stream name ${
+        params.stream
+      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
+    )
+    return consumer
   }
 
   public send(cmd: Request): Promise<void> {
@@ -210,6 +234,10 @@ export class Connection {
     return res
   }
 
+  private askForCredit(params: CreditRequestParams): Promise<void> {
+    return this.send(new CreditRequest({ ...params }))
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -298,14 +326,30 @@ export class Connection {
     return publisherId
   }
 
+  private incConsumerId() {
+    const consumerId = this.consumerId
+    this.consumerId++
+    return consumerId
+  }
+
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) this.on("metadata_update", listeners.metadata_update)
+    if (listeners) {
+      this.on("metadata_update", listeners.metadata_update)
+    }
+  }
+
+  private registerDelivers() {
+    this.decoder.on("deliver", async (response: DeliverResponse) => {
+      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers.size}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      response.messages.map((x) => this.consumers.get(response.subscriptionId)?.handle(x))
+    })
   }
 }
 
-type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
-
-type ListenersParams = Record<"metadata_update", MetadataUpdateListener>
+export type ListenersParams = {
+  metadata_update: MetadataUpdateListener
+}
 
 export interface ConnectionParams {
   hostname: string
@@ -320,8 +364,13 @@ export interface ConnectionParams {
 
 export interface DeclarePublisherParams {
   stream: string
-  publisherRef: string
+  publisherRef?: string
   boot?: boolean
+}
+
+export interface DeclareConsumerParams {
+  stream: string
+  offset: Offset
 }
 
 export interface SubscribeParams {

@@ -1,12 +1,13 @@
 import { inspect } from "node:util"
 import { isDate } from "node:util/types"
-import { Message, MessageProperties } from "../producer"
+import { Message, MessageApplicationProperties, MessageProperties } from "../producer"
 import { DataWriter } from "../requests/data_writer"
 
 const FormatCodeType = {
   MessageProperties: 0x73,
+  ApplicationProperties: 0x74,
   ApplicationData: 0x75,
-}
+} as const
 
 const FormatCode = {
   Described: 0x00,
@@ -17,16 +18,30 @@ const FormatCode = {
   Str32: 0xb1,
   Sym32: 0xb3,
   List32: 0xd0,
+  Map32: 0xd1,
   Null: 0x40,
   SmallUlong: 0x53,
   Uint: 0x70,
+  Int: 0x71,
   Timestamp: 0x83,
-}
+} as const
 
-export function amqpEncode(writer: DataWriter, { content, properties }: Message): void {
-  writer.writeUInt32(lengthOfContent(content) + lengthOfProperties(properties))
+const PropertySizeDescription =
+  3 + // sizeOf DescribedFormatCode.Size (3 byte)
+  1 + // sizeOf FormatCode.List32 (byte)
+  4 + // sizeOf field numbers (uint)
+  4 // sizeof propertySize (uint)
+
+type MessageApplicationPropertiesList = [string, string | number][]
+
+export function amqpEncode(writer: DataWriter, { content, properties, applicationProperties }: Message): void {
+  const applicationPropertiesList = toList(applicationProperties)
+  writer.writeUInt32(
+    lengthOfContent(content) + lengthOfProperties(properties) + lengthOfApplicationProperties(applicationPropertiesList)
+  )
 
   writeProperties(writer, properties)
+  writeApplicationProperties(writer, applicationPropertiesList)
   writeContent(writer, content)
 }
 
@@ -37,8 +52,36 @@ function lengthOfContent(content: Buffer) {
 function lengthOfProperties(properties?: MessageProperties) {
   if (!properties) return 0
 
-  // header + FormatCode.List32 + value of getPropertySize() + count + size of all properties
-  return 3 + 1 + 4 + 4 + getPropertySize(properties)
+  return PropertySizeDescription + getPropertySize(properties)
+}
+
+function lengthOfApplicationProperties(applicationProperties: MessageApplicationPropertiesList) {
+  if (!applicationProperties.length) {
+    return 0
+  }
+
+  return PropertySizeDescription + getApplicationPropertySize(applicationProperties)
+}
+
+function writeApplicationProperties(writer: DataWriter, applicationPropertiesList: MessageApplicationPropertiesList) {
+  if (!applicationPropertiesList.length) {
+    return
+  }
+
+  // write applicationData header
+  writer.writeByte(FormatCode.Described)
+  writer.writeByte(FormatCode.SmallUlong)
+  writer.writeByte(FormatCodeType.ApplicationProperties)
+
+  writer.writeByte(FormatCode.Map32)
+  writer.writeUInt32(getApplicationPropertySize(applicationPropertiesList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
+  writer.writeUInt32(applicationPropertiesList.length * 2)
+  applicationPropertiesList
+    .filter(([key]) => key)
+    .forEach(([k, v]) => {
+      amqpWriteString(writer, k)
+      typeof v === "string" ? amqpWriteString(writer, v) : amqpWriteIntNumber(writer, v)
+    })
 }
 
 function writeProperties(writer: DataWriter, properties?: MessageProperties) {
@@ -104,6 +147,10 @@ function getPropertySize(properties: MessageProperties): number {
   )
 }
 
+function getApplicationPropertySize(applicationProperties: MessageApplicationPropertiesList): number {
+  return applicationProperties.reduce((sum, [k, v]) => sum + getSizeOf(k) + getSizeOf(v), 0)
+}
+
 function amqpWriteString(writer: DataWriter, data?: string): void {
   if (!data) {
     return amqpWriteNull(writer)
@@ -143,6 +190,15 @@ function amqpWriteNumber(writer: DataWriter, data?: number): void {
 
   writer.writeByte(FormatCode.Uint)
   writer.writeUInt32(data)
+}
+
+function amqpWriteIntNumber(writer: DataWriter, data?: number): void {
+  if (!data) {
+    return amqpWriteNull(writer)
+  }
+
+  writer.writeByte(FormatCode.Int)
+  writer.writeInt32(data)
 }
 
 function amqpWriteBuffer(writer: DataWriter, data?: Buffer): void {
@@ -195,4 +251,9 @@ function getSizeOf(value?: string | Date | number | Buffer): number {
   }
 
   throw new Error(`Unsupported type: ${inspect(value)}`)
+}
+
+function toList(applicationProperties?: MessageApplicationProperties): MessageApplicationPropertiesList {
+  if (!applicationProperties) return []
+  return Object.entries(applicationProperties)
 }

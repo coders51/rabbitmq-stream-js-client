@@ -9,6 +9,8 @@ import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import {
   DataReader,
+  RawDeliverResponse,
+  RawCreditResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawResponse,
@@ -23,6 +25,9 @@ import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { FormatCodeType, FormatCode } from "./amqp10/decoder"
+import { CreditResponse } from "./responses/credit_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -33,17 +38,41 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 //   CorrelationId => uint32
 //   ResponseCode => uint16
 
-function decode(data: DataReader): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
-  const size = data.readUInt32()
-  return decodeResponse(data.readTo(size), size)
+export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+export type CreditListener = (creditResponse: CreditResponse) => void
+export type DeliverListener = (response: DeliverResponse) => void
+type MessageAndSubId = {
+  subscriptionId: number
+  messages: Buffer[]
 }
 
-function decodeResponse(
-  dataResponse: DataReader,
-  size: number
-): RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse {
+type PossibleRawResponses =
+  | RawResponse
+  | RawTuneResponse
+  | RawHeartbeatResponse
+  | RawMetadataUpdateResponse
+  | RawDeliverResponse
+  | RawCreditResponse
+
+function decode(data: DataReader, logger: Logger): PossibleRawResponses {
+  const size = data.readUInt32()
+  return decodeResponse(data.readTo(size), size, logger)
+}
+
+function decodeResponse(dataResponse: DataReader, size: number, logger: Logger): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
+  if (key === DeliverResponse.key) {
+    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, logger)
+    const response: RawDeliverResponse = {
+      size,
+      key: key as DeliverResponse["key"],
+      version,
+      subscriptionId,
+      messages,
+    }
+    return response
+  }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
@@ -59,19 +88,126 @@ function decodeResponse(
     }
     return { size, key, version, metadataInfo } as RawMetadataUpdateResponse
   }
+
+  if (key === CreditResponse.key) {
+    const responseCode = dataResponse.readUInt16()
+    const subscriptionId = dataResponse.readUInt8()
+    const response: RawCreditResponse = {
+      size,
+      key,
+      version,
+      responseCode,
+      subscriptionId,
+    }
+    return response
+  }
+
   const correlationId = dataResponse.readUInt32()
-  const responseCode = dataResponse.readUInt16()
+  const code = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
-  return { size, key, version, correlationId, code: responseCode, payload }
+  return { size, key, version, correlationId, code, payload }
 }
 
-class BufferDataReader implements DataReader {
+function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): MessageAndSubId {
+  const subscriptionId = dataResponse.readUInt8()
+  const magicVersion = dataResponse.readInt8()
+  const chunkType = dataResponse.readInt8()
+  const numEntries = dataResponse.readUInt16()
+  const numRecords = dataResponse.readUInt32()
+  const timestamp = dataResponse.readInt64()
+  const epoch = dataResponse.readUInt64()
+  const chunkFirstOffset = dataResponse.readUInt64()
+  const chunkCrc = dataResponse.readInt32()
+  const dataLength = dataResponse.readUInt32()
+  const trailerLength = dataResponse.readUInt32()
+  const reserved = dataResponse.readUInt32()
+  const messageType = dataResponse.readUInt8()
+  dataResponse.rewind(1)
+
+  const data = {
+    magicVersion,
+    chunkType,
+    numEntries,
+    numRecords,
+    timestamp,
+    epoch,
+    chunkFirstOffset,
+    chunkCrc,
+    dataLength,
+    trailerLength,
+    reserved,
+    messageType, // indicate if it contains subentries
+  }
+  logger.debug(inspect(data))
+  const messages: Buffer[] = []
+  for (let i = 0; i < numEntries; i++) {
+    messages.push(decodeMessage(dataResponse))
+  }
+
+  return { subscriptionId, messages }
+}
+
+const EmptyBuffer = Buffer.from("")
+
+function decodeMessage(dataResponse: DataReader): Buffer {
+  const messageLength = dataResponse.readUInt32()
+  const startFrom = dataResponse.position()
+
+  let content = EmptyBuffer
+  while (dataResponse.position() - startFrom !== messageLength) {
+    const formatCode = readFormatCodeType(dataResponse)
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        content = decodeApplicationData(dataResponse)
+        break
+      case FormatCodeType.MessageAnnotations:
+      case FormatCodeType.MessageProperties:
+      case FormatCodeType.ApplicationProperties:
+      case FormatCodeType.MessageHeader:
+      case FormatCodeType.AmqpValue:
+        throw new Error("Not implemented")
+        break
+      default:
+        throw new Error(`Not supported format code ${formatCode}`)
+    }
+  }
+
+  return content
+}
+
+function decodeApplicationData(dataResponse: DataReader) {
+  const type = dataResponse.readUInt8()
+  switch (type) {
+    case FormatCode.Vbin8:
+      const l8 = dataResponse.readUInt8()
+      return dataResponse.readBufferOf(l8)
+    case FormatCode.Vbin32:
+      const l32 = dataResponse.readUInt32()
+      return dataResponse.readBufferOf(l32)
+    default:
+      throw new Error(`Unknown data type ${type}`)
+  }
+}
+
+function readFormatCodeType(dataResponse: DataReader) {
+  dataResponse.readInt8()
+  dataResponse.readInt8()
+  return dataResponse.readInt8()
+}
+
+export class BufferDataReader implements DataReader {
   private offset = 0
 
   constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    this.offset += size
+    return ret
+  }
+
+  readBufferOf(size: number): Buffer {
+    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
@@ -84,6 +220,24 @@ class BufferDataReader implements DataReader {
 
   atEnd(): boolean {
     return this.offset === this.data.length
+  }
+
+  readInt8(): number {
+    const ret = this.data.readInt8(this.offset)
+    this.offset += 1
+    return ret
+  }
+
+  readInt64(): bigint {
+    const ret = this.data.readBigInt64BE(this.offset)
+    this.offset += 8
+    return ret
+  }
+
+  readUInt8(): number {
+    const ret = this.data.readUInt8(this.offset)
+    this.offset += 1
+    return ret
   }
 
   readUInt16(): number {
@@ -116,30 +270,41 @@ class BufferDataReader implements DataReader {
     this.offset += size
     return value
   }
+
+  rewind(count: number): void {
+    this.offset -= count
+  }
+
+  position(): number {
+    return this.offset
+  }
 }
 
-function isTuneResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
-): params is RawTuneResponse {
+function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
   return params.key === TuneResponse.key
 }
 
-function isHeartbeatResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
-): params is RawHeartbeatResponse {
+function isHeartbeatResponse(params: PossibleRawResponses): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
 
-function isMetadataUpdateResponse(
-  params: RawResponse | RawTuneResponse | RawHeartbeatResponse | RawMetadataUpdateResponse
-): params is RawMetadataUpdateResponse {
+function isMetadataUpdateResponse(params: PossibleRawResponses): params is RawMetadataUpdateResponse {
   return params.key === MetadataUpdateResponse.key
+}
+
+function isDeliverResponse(params: PossibleRawResponses): params is RawDeliverResponse {
+  return params.key === DeliverResponse.key
+}
+
+function isCreditResponse(params: PossibleRawResponses): params is RawCreditResponse {
+  return params.key === CreditResponse.key
 }
 
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
+  private emitter = new EventEmitter()
 
-  constructor(private listener: DecoderListenerFunc, private emitter: EventEmitter, private logger: Logger) {
+  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -155,18 +320,32 @@ export class ResponseDecoder {
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
     while (!dataReader.atEnd()) {
-      const response = decode(dataReader)
-      if (isTuneResponse(response)) {
-        this.emitTuneResponseReceived(response)
-      } else if (isHeartbeatResponse(response)) {
+      const response = decode(dataReader, this.logger)
+      if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
+      } else if (isTuneResponse(response)) {
+        this.emitTuneResponseReceived(response)
+        this.logger.debug(`tune received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
+      } else if (isDeliverResponse(response)) {
+        this.emitter.emit("deliver", new DeliverResponse(response))
+        this.logger.debug(`deliver received from the server: ${inspect(response)}`)
+      } else if (isCreditResponse(response)) {
+        this.logger.debug(`credit received from the server: ${inspect(response)}`)
+        this.emitter.emit("credit_response", new CreditResponse(response))
       } else {
         this.emitResponseReceived(response)
       }
     }
+  }
+
+  public on(
+    event: "metadata_update" | "credit_response" | "deliver",
+    listener: MetadataUpdateListener | CreditListener | DeliverListener
+  ) {
+    this.emitter.on(event, listener)
   }
 
   private addFactoryFor(type: AbstractTypeClass) {

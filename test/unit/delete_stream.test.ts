@@ -19,8 +19,9 @@ describe("Delete command", () => {
       heartbeat: 0, // not user
     })
   })
+
   afterEach(async () => {
-    await rabbit.deleteAllQueues()
+    await rabbit.deleteAllQueues({ match: /queue/ })
   })
 
   afterEach(async () => {

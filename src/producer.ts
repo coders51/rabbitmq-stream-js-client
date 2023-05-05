@@ -1,10 +1,7 @@
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 
-export interface Message {
-  content: Buffer
-  properties?: MessageProperties
-}
+export type MessageApplicationProperties = Record<string, string | number>
 
 export interface MessageProperties {
   contentType?: string
@@ -22,6 +19,17 @@ export interface MessageProperties {
   replyToGroupId?: string
 }
 
+export interface Message {
+  content: Buffer
+  properties?: MessageProperties
+  applicationProperties?: MessageApplicationProperties
+}
+
+interface MessageOptions {
+  properties?: MessageProperties
+  applicationProperties?: Record<string, string | number>
+}
+
 export class Producer {
   private connection: Connection
   private stream: string
@@ -34,13 +42,13 @@ export class Producer {
     connection: Connection
     stream: string
     publisherId: number
-    publisherRef: string
+    publisherRef?: string
     boot?: boolean
   }) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
-    this.publisherRef = params.publisherRef
+    this.publisherRef = params.publisherRef || ""
     this.boot = params.boot || false
     this.publishingId = params.boot ? -1n : 0n
   }
@@ -48,14 +56,10 @@ export class Producer {
   /*
     @deprecate This method should not be used
   */
-  send(publishingId: bigint, message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
-  send(message: Buffer, opts?: { properties?: MessageProperties }): Promise<void>
+  send(publishingId: bigint, message: Buffer, opts?: MessageOptions): Promise<void>
+  send(message: Buffer, opts?: MessageOptions): Promise<void>
 
-  send(
-    args0: bigint | Buffer,
-    arg1: Buffer | { properties?: MessageProperties } = {},
-    opts: { properties?: MessageProperties } = {}
-  ) {
+  send(args0: bigint | Buffer, arg1: Buffer | MessageOptions = {}, opts: MessageOptions = {}) {
     if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
       return this.sendWithPublisherSequence(args0, arg1)
     }
@@ -67,12 +71,12 @@ export class Producer {
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: args0, message: { content: arg1, properties: opts.properties } }],
+        messages: [{ publishingId: args0, message: { content: arg1, ...opts } }],
       })
     )
   }
 
-  private async sendWithPublisherSequence(message: Buffer, opts: { properties?: MessageProperties }) {
+  private async sendWithPublisherSequence(message: Buffer, opts: MessageOptions) {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
@@ -88,5 +92,9 @@ export class Producer {
 
   getLastPublishingId() {
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
+  }
+
+  get ref() {
+    return this.publisherRef
   }
 }
