@@ -149,23 +149,21 @@ export class Connection {
   }
 
   public async closeConsumer(consumerId: number) {
-    const targetConsumer = this.consumers.get(consumerId)
-    if (!targetConsumer) {
+    const consumer = this.consumers.get(consumerId)
+    if (!consumer) {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
     }
     const res = await this.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
-
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
   }
 
-  public getConsumersNumber() {
+  public consumerCounts() {
     return this.consumers.size
   }
 
