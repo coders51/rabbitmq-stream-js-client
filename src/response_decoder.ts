@@ -28,6 +28,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 import { CreditResponse } from "./responses/credit_response"
+import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -315,6 +316,7 @@ export class ResponseDecoder {
     this.addFactoryFor(DeleteStreamResponse)
     this.addFactoryFor(QueryPublisherResponse)
     this.addFactoryFor(SubscribeResponse)
+    this.addFactoryFor(UnsubscribeResponse)
   }
 
   add(data: Buffer) {

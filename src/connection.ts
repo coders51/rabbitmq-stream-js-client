@@ -1,12 +1,10 @@
 import { Socket } from "net"
 import { inspect } from "util"
-import { Consumer, ConsumerFunc } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
 import { Producer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
@@ -15,7 +13,6 @@ import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
 import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
@@ -33,6 +30,11 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
+import { Consumer, ConsumerFunc } from "./consumer"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -127,7 +129,7 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle)
+    const consumer = new Consumer(handle, consumerId)
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
@@ -144,6 +146,25 @@ export class Connection {
       }, consumer id ${consumerId} and offset ${params.offset.toString()}`
     )
     return consumer
+  }
+
+  public async closeConsumer(consumerId: number) {
+    const consumer = this.consumers.get(consumerId)
+    if (!consumer) {
+      this.logger.error("Consumer does not exist")
+      throw new Error(`Consumer with id: ${consumerId} does not exist`)
+    }
+    const res = await this.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    if (!res.ok) {
+      throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.consumers.delete(consumerId)
+    this.logger.info(`Closed consumer with id: ${consumerId}`)
+    return res.ok
+  }
+
+  public consumerCounts() {
+    return this.consumers.size
   }
 
   public send(cmd: Request): Promise<void> {
