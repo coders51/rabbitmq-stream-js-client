@@ -30,7 +30,7 @@ import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 import { CreditResponse } from "./responses/credit_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { Properties } from "./amqp10/properties"
-import { Message, MessageProperties } from "./producer"
+import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
 
 // Frame => Size (Request | Response | Command)
@@ -127,6 +127,8 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const reserved = dataResponse.readUInt32()
   const messageType = dataResponse.readUInt8()
   dataResponse.rewind(1)
+  const messageLength = dataResponse.readUInt32()
+  const formatCode = readFormatCodeType(dataResponse)
 
   const messages: Message[] = []
 
@@ -136,21 +138,16 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   let headerType
   let length
   let properties
-  let applicationProperties
   let applicationPropertiesLength = 0
 
   for (let i = 0; i < numEntries; i++) {
     let content = Buffer.from("")
     let messageProperties: MessageProperties = {}
+    let applicationProperties: MessageApplicationProperties = {}
 
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
-        type = dataResponse.readUInt8()
-        switch (type) {
-          case FormatCode.Vbin8:
-            const lengthVbin8 = dataResponse.readUInt8()
-            content = dataResponse.readBufferOf(lengthVbin8)
-        }
+        content = decodeApplicationData(dataResponse)
         break
       case FormatCodeType.MessageProperties:
         dataResponse.rewind(3)
@@ -212,8 +209,11 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
         }
         applicationProperties = ApplicationProperties.Parse(dataResponse, applicationPropertiesLength)
         break
+      case FormatCodeType.MessageHeader:
+      case FormatCodeType.AmqpValue:
+        throw new Error("Not implemented")
       default:
-        break
+        throw new Error(`Not supported format code ${formatCode}`)
     }
     messages.push({ content, properties: messageProperties, applicationProperties })
   }
@@ -238,43 +238,10 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     headerType,
     length,
     properties,
-    applicationProperties,
   }
   logger.debug(inspect(data))
-  const decodedMessages: Buffer[] = []
-  for (let i = 0; i < numEntries; i++) {
-    decodedMessages.push(decodeMessage(dataResponse))
-  }
 
   return { subscriptionId, messages }
-}
-
-const EmptyBuffer = Buffer.from("")
-
-function decodeMessage(dataResponse: DataReader): Buffer {
-  const messageLength = dataResponse.readUInt32()
-  const startFrom = dataResponse.position()
-
-  let content = EmptyBuffer
-  while (dataResponse.position() - startFrom !== messageLength) {
-    const formatCode = readFormatCodeType(dataResponse)
-    switch (formatCode) {
-      case FormatCodeType.ApplicationData:
-        content = decodeApplicationData(dataResponse)
-        break
-      case FormatCodeType.MessageAnnotations:
-      case FormatCodeType.MessageProperties:
-      case FormatCodeType.ApplicationProperties:
-      case FormatCodeType.MessageHeader:
-      case FormatCodeType.AmqpValue:
-        throw new Error("Not implemented")
-        break
-      default:
-        throw new Error(`Not supported format code ${formatCode}`)
-    }
-  }
-
-  return content
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -411,6 +378,10 @@ export class BufferDataReader implements DataReader {
 
   forward(count: number): void {
     this.offset += count
+  }
+
+  position(): number {
+    return this.offset
   }
 }
 

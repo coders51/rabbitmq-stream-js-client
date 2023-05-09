@@ -16,6 +16,7 @@ export interface DataReader {
   readUTF8String(): string
   rewind(count: number): void
   forward(count: number): void
+  position(): number
 }
 
 export interface RawResponse {

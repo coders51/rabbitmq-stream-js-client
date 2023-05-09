@@ -32,7 +32,6 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 
@@ -253,10 +252,6 @@ export class Connection {
       throw new Error(`Subscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     return res
-  }
-
-  private askForCredit(params: CreditRequestParams): Promise<void> {
-    return this.send(new CreditRequest({ ...params }))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {

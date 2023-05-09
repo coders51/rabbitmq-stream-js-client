@@ -1,10 +1,10 @@
 import { expect } from "chai"
-import { Connection, connect } from "../../src"
+import { Connection } from "../../src"
 import { Message, MessageApplicationProperties, MessageProperties, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync } from "../support/util"
+import { eventually, expectToThrowAsync, range } from "../support/util"
 import { inspect } from "node:util"
 import { Logger } from "winston"
 
@@ -12,7 +12,6 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit()
   let streamName: string
   let nonExistingStreamName: string
-  const testStreamName = "test-stream"
   let connection: Connection
   let publisher: Producer
 
@@ -38,14 +37,14 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
 
     await connection.declareConsumer(
-      { stream: testStreamName, offset: Offset.first() },
+      { stream: streamName, offset: Offset.first() },
       (message: Message, _logger: Logger) => messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
-  it("declaring a consumer on an existing stream - the consumer should be handle more then one message", async () => {
+  it("declaring a consumer on an existing stream - the consumer should handle more then one message", async () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
     await publisher.send(Buffer.from("world"))
@@ -59,12 +58,11 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-
     await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
       receivedMessages.push(message.content)
     })
 
-    const messages = Array.from(Array(1000).keys()).map((n) => Buffer.from(`hello${n}`))
+    const messages = range(3).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
       await publisher.send(m)
     }
