@@ -48,12 +48,13 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
     await publisher.send(Buffer.from("world"))
+    await publisher.send(Buffer.from("world"))
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
 
-    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world")]))
+    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world"), Buffer.from("world")]))
   }).timeout(10000)
 
   it(`consume a lot of messages`, async () => {
