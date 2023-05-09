@@ -127,24 +127,47 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   const reserved = dataResponse.readUInt32()
   const messageType = dataResponse.readUInt8()
   dataResponse.rewind(1)
-  const messageLength = dataResponse.readUInt32()
-  const formatCode = readFormatCodeType(dataResponse)
 
+  const data = {
+    magicVersion,
+    chunkType,
+    numEntries,
+    numRecords,
+    timestamp,
+    epoch,
+    chunkFirstOffset,
+    chunkCrc,
+    dataLength,
+    trailerLength,
+    reserved,
+    messageType, // indicate if it contains subentries
+  }
+  logger.debug(inspect(data))
   const messages: Message[] = []
+  for (let i = 0; i < numEntries; i++) {
+    messages.push(decodeMessage(dataResponse))
+  }
 
+  return { subscriptionId, messages }
+}
+
+const EmptyBuffer = Buffer.from("")
+
+function decodeMessage(dataResponse: DataReader): Message {
+  const messageLength = dataResponse.readUInt32()
+  const startFrom = dataResponse.position()
+
+  let content = EmptyBuffer
   let type
   let mapType
-  let next
+  // let next = 0n
   let headerType
   let length
-  let properties
   let applicationPropertiesLength = 0
-
-  for (let i = 0; i < numEntries; i++) {
-    let content = Buffer.from("")
-    let messageProperties: MessageProperties = {}
-    let applicationProperties: MessageApplicationProperties = {}
-
+  let messageProperties: MessageProperties = {}
+  let applicationProperties: MessageApplicationProperties = {}
+  while (dataResponse.position() - startFrom !== messageLength) {
+    const formatCode = readFormatCodeType(dataResponse)
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
         content = decodeApplicationData(dataResponse)
@@ -160,15 +183,16 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
         const nextType = dataResponse.readInt8()
         switch (nextType) {
           case FormatCode.SmallUlong:
-            const retSmallLong = dataResponse.readInt8()
-            next = BigInt(retSmallLong)
+            dataResponse.readInt8() // read a SmallUlong
+            // next = BigInt(retSmallLong)
             break
           case FormatCode.ULong:
-            const retULong = dataResponse.readUInt64()
-            next = retULong
+            dataResponse.readUInt64() // read an ULong
+            // next = retULong
             break
           default:
-            next = 0n
+            // next = 0n
+            break
         }
         headerType = dataResponse.readUInt8()
 
@@ -187,8 +211,8 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
             length = lenI
             messageProperties = Properties.Parse(dataResponse, length)
             break
-          // default:
-          //   throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
+          default:
+            throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
         }
         break
       case FormatCodeType.ApplicationProperties:
@@ -211,37 +235,13 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
         break
       case FormatCodeType.MessageHeader:
       case FormatCodeType.AmqpValue:
-        throw new Error("Not implemented")
+        break
       default:
         throw new Error(`Not supported format code ${formatCode}`)
     }
-    messages.push({ content, properties: messageProperties, applicationProperties })
   }
 
-  const data = {
-    magicVersion,
-    chunkType,
-    numEntries,
-    numRecords,
-    timestamp,
-    epoch,
-    chunkFirstOffset,
-    chunkCrc,
-    dataLength,
-    trailerLength,
-    reserved,
-    messageType,
-    messageLength,
-    formatCode,
-    type,
-    next,
-    headerType,
-    length,
-    properties,
-  }
-  logger.debug(inspect(data))
-
-  return { subscriptionId, messages }
+  return { content, properties: messageProperties, applicationProperties }
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -259,9 +259,9 @@ function decodeApplicationData(dataResponse: DataReader) {
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
-  dataResponse.readInt8()
-  dataResponse.readInt8()
-  return dataResponse.readInt8()
+  dataResponse.readUInt8()
+  dataResponse.readUInt8()
+  return dataResponse.readUInt8()
 }
 
 export class BufferDataReader implements DataReader {

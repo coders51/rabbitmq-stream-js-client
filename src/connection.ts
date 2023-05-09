@@ -34,6 +34,7 @@ import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -254,6 +255,10 @@ export class Connection {
     return res
   }
 
+  private askForCredit(params: CreditRequestParams): Promise<void> {
+    return this.send(new CreditRequest({ ...params }))
+  }
+
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
     const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
@@ -355,11 +360,12 @@ export class Connection {
   }
 
   private registerDelivers() {
-    this.decoder.on("deliver", (response: DeliverResponse) => {
+    this.decoder.on("deliver", async (response: DeliverResponse) => {
       const consumer = this.consumers.get(response.subscriptionId)
       if (consumer) {
         this.logger.debug(`on deliver -> ${consumer.consumerId}`)
         this.logger.debug(`response.messages.length: ${response.messages.length}`)
+        await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
         response.messages.map((x) => consumer.handle(x, this.logger))
       } else {
         this.logger.error(`On deliver no consumer found`)
