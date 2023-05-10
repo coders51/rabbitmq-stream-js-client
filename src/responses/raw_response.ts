@@ -12,7 +12,8 @@ export interface DataReader {
   readUInt64(): bigint
   readInt64(): bigint
   readString(): string
-  readUTF8String(): string
+  readString8(): string
+  readString32(): string
   rewind(count: number): void
   forward(count: number): void
   position(): number

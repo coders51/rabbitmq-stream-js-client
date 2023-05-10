@@ -184,22 +184,8 @@ function decodeMessage(dataResponse: DataReader): Message {
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
-  let applicationPropertiesLength = 0
   const mapType = dataResponse.readUInt8()
-  switch (mapType) {
-    case FormatCode.Map8:
-      // Read first empty byte
-      dataResponse.readUInt8()
-      const shortNumElements = dataResponse.readUInt8()
-      applicationPropertiesLength = shortNumElements
-      break
-    case FormatCode.Map32:
-      // Read first empty four bytes
-      dataResponse.readUInt32()
-      const longNumElements = dataResponse.readUInt32()
-      applicationPropertiesLength = longNumElements
-      break
-  }
+  const applicationPropertiesLength = decodeMapType(dataResponse, mapType)
   return ApplicationProperties.parse(dataResponse, applicationPropertiesLength)
 }
 
@@ -263,6 +249,75 @@ function readFormatCodeType(dataResponse: DataReader) {
   dataResponse.readUInt8()
   return dataResponse.readUInt8()
 }
+
+export function readUTF8String(dataResponse: DataReader) {
+  const type = dataResponse.readUInt8()
+  switch (type) {
+    case FormatCode.Str8:
+    case FormatCode.Sym8:
+      return dataResponse.readString8()
+    case FormatCode.Str32:
+      return dataResponse.readString32()
+    default:
+      throw new Error("ReadUTFString ERROR, unknown string type")
+  }
+}
+
+function decodeMapType(dataResponse: DataReader, mapType: number) {
+  switch (mapType) {
+    case FormatCode.Map8:
+      // Read first empty byte
+      dataResponse.readUInt8()
+      const shortNumElements = dataResponse.readUInt8()
+      return shortNumElements
+    case FormatCode.Map32:
+      // Read first empty four bytes
+      dataResponse.readUInt32()
+      const longNumElements = dataResponse.readUInt32()
+      return longNumElements
+    default:
+      return 0
+  }
+}
+
+// function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
+//   switch (formatCode) {
+//     case FormatCode.Map8:
+//       // Read first empty byte
+//       dataResponse.readUInt8()
+//       const shortNumElements = dataResponse.readUInt8()
+//       return shortNumElements
+//     case FormatCode.Map32:
+//       // Read first empty four bytes
+//       dataResponse.readUInt32()
+//       const longNumElements = dataResponse.readUInt32()
+//       return longNumElements
+//     case FormatCode.SmallUlong:
+//       dataResponse.readInt8() // read a SmallUlong
+//       break
+//     case FormatCode.ULong:
+//       dataResponse.readUInt64() // read an ULong
+//       break
+//     case FormatCode.List0:
+//       return {}
+//     case FormatCode.List8:
+//       dataResponse.forward(1)
+//       dataResponse.readInt8()
+//       return {}
+//     case FormatCode.List32:
+//       dataResponse.forward(4)
+//       const lenI = dataResponse.readInt32()
+//       return Properties.parse(dataResponse, lenI)
+//     case FormatCode.Vbin8:
+//       const l8 = dataResponse.readUInt8()
+//       return dataResponse.readBufferOf(l8)
+//     case FormatCode.Vbin32:
+//       const l32 = dataResponse.readUInt32()
+//       return dataResponse.readBufferOf(l32)
+//     default:
+//       throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
+//   }
+// }
 
 export class BufferDataReader implements DataReader {
   private offset = 0
@@ -348,23 +403,18 @@ export class BufferDataReader implements DataReader {
     return value
   }
 
-  readUTF8String(): string {
-    const type = this.readUInt8()
-    switch (type) {
-      case FormatCode.Str8:
-      case FormatCode.Sym8:
-        const sizeStr8 = this.readUInt8()
-        const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
-        this.offset += sizeStr8
-        return valueStr8
-      case FormatCode.Str32:
-        const sizeStr32 = this.readUInt32()
-        const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
-        this.offset += sizeStr32
-        return valueStr32
-      default:
-        throw new Error("ReadUTFString ERROR, unknown string type")
-    }
+  readString8(): string {
+    const sizeStr8 = this.readUInt8()
+    const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
+    this.offset += sizeStr8
+    return valueStr8
+  }
+
+  readString32(): string {
+    const sizeStr32 = this.readUInt32()
+    const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
+    this.offset += sizeStr32
+    return valueStr32
   }
 
   rewind(count: number): void {
