@@ -21,12 +21,12 @@ export interface MessageProperties {
 
 export interface Message {
   content: Buffer
-  properties?: MessageProperties
+  messageProperties?: MessageProperties
   applicationProperties?: MessageApplicationProperties
 }
 
 interface MessageOptions {
-  properties?: MessageProperties
+  messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
 
@@ -90,7 +90,7 @@ export class Producer {
             publishingId: this.publishingId,
             message: {
               content: message,
-              properties: opts.properties,
+              messageProperties: opts.messageProperties,
               applicationProperties: opts.applicationProperties,
             },
           },

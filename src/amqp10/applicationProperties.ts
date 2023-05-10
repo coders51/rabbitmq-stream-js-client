@@ -1,13 +1,13 @@
 import { MessageApplicationProperties } from "../producer"
 import { DataReader } from "../responses/raw_response"
 import { FormatCode } from "./decoder"
+import { range } from "../../test/support/util"
 
 export class ApplicationProperties {
-  public static Parse(dataReader: DataReader, elementsLength: number): MessageApplicationProperties {
+  public static parse(dataReader: DataReader, elementsLength: number): MessageApplicationProperties {
     const numEntries = elementsLength / 2
-    const messageApplicationProperties: MessageApplicationProperties = {}
 
-    for (let index = 0; index < numEntries; index++) {
+    return range(numEntries).reduce((acc: MessageApplicationProperties, _) => {
       const propertyKey = dataReader.readUTF8String()
       let propertyValue: string | number
       const nextByteType = dataReader.readUInt8()
@@ -47,9 +47,8 @@ export class ApplicationProperties {
           propertyValue = ""
           break
       }
-      messageApplicationProperties[propertyKey] = propertyValue
-    }
-
-    return messageApplicationProperties
+      acc[propertyKey] = propertyValue
+      return acc
+    }, {})
   }
 }

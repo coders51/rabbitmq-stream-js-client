@@ -158,12 +158,6 @@ function decodeMessage(dataResponse: DataReader): Message {
   const startFrom = dataResponse.position()
 
   let content = EmptyBuffer
-  let type
-  let mapType
-  // let next = 0n
-  let headerType
-  let length
-  let applicationPropertiesLength = 0
   let messageProperties: MessageProperties = {}
   let applicationProperties: MessageApplicationProperties = {}
   while (dataResponse.position() - startFrom !== messageLength) {
@@ -173,65 +167,10 @@ function decodeMessage(dataResponse: DataReader): Message {
         content = decodeApplicationData(dataResponse)
         break
       case FormatCodeType.MessageProperties:
-        dataResponse.rewind(3)
-        type = dataResponse.readInt8()
-
-        if (type !== 0) {
-          throw new Error(`invalid composite header %#02x: ${type}`)
-        }
-
-        const nextType = dataResponse.readInt8()
-        switch (nextType) {
-          case FormatCode.SmallUlong:
-            dataResponse.readInt8() // read a SmallUlong
-            // next = BigInt(retSmallLong)
-            break
-          case FormatCode.ULong:
-            dataResponse.readUInt64() // read an ULong
-            // next = retULong
-            break
-          default:
-            // next = 0n
-            break
-        }
-        headerType = dataResponse.readUInt8()
-
-        switch (headerType) {
-          case FormatCode.List0:
-            length = 0
-            break
-          case FormatCode.List8:
-            dataResponse.forward(1)
-            const lenB = dataResponse.readInt8()
-            length = lenB
-            break
-          case FormatCode.List32:
-            dataResponse.forward(4)
-            const lenI = dataResponse.readInt32()
-            length = lenI
-            messageProperties = Properties.Parse(dataResponse, length)
-            break
-          default:
-            throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
-        }
+        messageProperties = decodeMessageProperties(dataResponse)
         break
       case FormatCodeType.ApplicationProperties:
-        mapType = dataResponse.readUInt8()
-        switch (mapType) {
-          case FormatCode.Map8:
-            // Read first empty byte
-            dataResponse.readUInt8()
-            const shortNumElements = dataResponse.readUInt8()
-            applicationPropertiesLength = shortNumElements
-            break
-          case FormatCode.Map32:
-            // Read first empty four bytes
-            dataResponse.readUInt32()
-            const longNumElements = dataResponse.readUInt32()
-            applicationPropertiesLength = longNumElements
-            break
-        }
-        applicationProperties = ApplicationProperties.Parse(dataResponse, applicationPropertiesLength)
+        applicationProperties = decodeApplicationProperties(dataResponse)
         break
       case FormatCodeType.MessageHeader:
       case FormatCodeType.AmqpValue:
@@ -241,7 +180,68 @@ function decodeMessage(dataResponse: DataReader): Message {
     }
   }
 
-  return { content, properties: messageProperties, applicationProperties }
+  return { content, messageProperties, applicationProperties }
+}
+
+function decodeApplicationProperties(dataResponse: DataReader) {
+  let applicationPropertiesLength = 0
+  const mapType = dataResponse.readUInt8()
+  switch (mapType) {
+    case FormatCode.Map8:
+      // Read first empty byte
+      dataResponse.readUInt8()
+      const shortNumElements = dataResponse.readUInt8()
+      applicationPropertiesLength = shortNumElements
+      break
+    case FormatCode.Map32:
+      // Read first empty four bytes
+      dataResponse.readUInt32()
+      const longNumElements = dataResponse.readUInt32()
+      applicationPropertiesLength = longNumElements
+      break
+  }
+  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength)
+}
+
+function decodeMessageProperties(dataResponse: DataReader) {
+  dataResponse.rewind(3)
+  const type = dataResponse.readInt8()
+
+  if (type !== 0) {
+    throw new Error(`invalid composite header %#02x: ${type}`)
+  }
+
+  const nextType = dataResponse.readInt8()
+  switch (nextType) {
+    case FormatCode.SmallUlong:
+      dataResponse.readInt8() // read a SmallUlong
+      break
+    case FormatCode.ULong:
+      dataResponse.readUInt64() // read an ULong
+      break
+    default:
+      break
+  }
+
+  let length = 0
+  const headerType = dataResponse.readUInt8()
+  switch (headerType) {
+    case FormatCode.List0:
+      length = 0
+      return {}
+    case FormatCode.List8:
+      dataResponse.forward(1)
+      const lenB = dataResponse.readInt8()
+      length = lenB
+      return {}
+    case FormatCode.List32:
+      dataResponse.forward(4)
+      const lenI = dataResponse.readInt32()
+      length = lenI
+      return Properties.parse(dataResponse, length)
+    default:
+      throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
+  }
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -285,10 +285,6 @@ export class BufferDataReader implements DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset))
     this.offset = this.data.length
     return ret
-  }
-
-  atEnd(): boolean {
-    return this.offset === this.data.length
   }
 
   readInt8(): number {
@@ -353,7 +349,6 @@ export class BufferDataReader implements DataReader {
   }
 
   readUTF8String(): string {
-    // Reading of string type
     const type = this.readUInt8()
     switch (type) {
       case FormatCode.Str8:
@@ -382,6 +377,10 @@ export class BufferDataReader implements DataReader {
 
   position(): number {
     return this.offset
+  }
+
+  isAtEnd(): boolean {
+    return this.offset === this.data.length
   }
 }
 
@@ -425,7 +424,7 @@ export class ResponseDecoder {
 
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
-    while (!dataReader.atEnd()) {
+    while (!dataReader.isAtEnd()) {
       const response = decode(dataReader, this.logger)
       if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)

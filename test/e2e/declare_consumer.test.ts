@@ -5,8 +5,6 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, range } from "../support/util"
-import { inspect } from "node:util"
-import { Logger } from "winston"
 
 describe("declare consumer", () => {
   const rabbit = new Rabbit()
@@ -36,9 +34,8 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first() },
-      (message: Message, _logger: Logger) => messages.push(message.content)
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -86,16 +83,12 @@ describe("declare consumer", () => {
     const messageProperties: MessageProperties[] = []
     const messages: string[] = []
     const properties = createProperties()
-    await publisher.send(Buffer.from("hello"), { properties })
+    await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first() },
-      (message: Message, logger: Logger) => {
-        logger.debug(`handle -> ${inspect(message)}`)
-        messageProperties.push(message.properties || {})
-        messages.push("JSON.stringify(message.properties?.correlationId) ||")
-      }
-    )
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageProperties.push(message.messageProperties || {})
+      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+    })
 
     await eventually(async () => {
       expect(messageProperties).eql([properties])
@@ -108,14 +101,10 @@ describe("declare consumer", () => {
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first() },
-      (message: Message, logger: Logger) => {
-        logger.debug(`handle -> ${inspect(message)}`)
-        messageApplicationProperties.push(message.applicationProperties || {})
-        messages.push("JSON.stringify(message.properties?.correlationId) ||")
-      }
-    )
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageApplicationProperties.push(message.applicationProperties || {})
+      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+    })
 
     await eventually(async () => {
       expect(messageApplicationProperties).eql([applicationProperties])

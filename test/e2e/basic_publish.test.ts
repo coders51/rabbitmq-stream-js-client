@@ -57,20 +57,20 @@ describe("publish a message", () => {
 
   it("with properties and they are read from classic client", async () => {
     const message = `test${randomUUID()}`
-    const properties = createProperties()
+    const messageProperties = createProperties()
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { properties })
+    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { messageProperties })
 
     const msg = await getMessageFrom(streamName)
     const { content, properties: classicProperties } = msg
     expect(message).eql(content)
-    expect(Math.floor((properties.creationTime?.getTime() || 1) / 1000)).eql(classicProperties.timestamp)
-    expect(properties.replyTo).eql(classicProperties.replyTo)
-    expect(properties.correlationId).eql(classicProperties.correlationId)
-    expect(properties.contentEncoding).eql(classicProperties.contentEncoding)
-    expect(properties.contentType).eql(classicProperties.contentType)
-    expect(properties.messageId).eql(classicProperties.messageId)
-    expect(properties.userId?.toString()).eql(classicProperties.userId)
+    expect(Math.floor((messageProperties.creationTime?.getTime() || 1) / 1000)).eql(classicProperties.timestamp)
+    expect(messageProperties.replyTo).eql(classicProperties.replyTo)
+    expect(messageProperties.correlationId).eql(classicProperties.correlationId)
+    expect(messageProperties.contentEncoding).eql(classicProperties.contentEncoding)
+    expect(messageProperties.contentType).eql(classicProperties.contentType)
+    expect(messageProperties.messageId).eql(classicProperties.messageId)
+    expect(messageProperties.userId?.toString()).eql(classicProperties.userId)
   })
 
   it("with application properties and they are read from classic client", async () => {

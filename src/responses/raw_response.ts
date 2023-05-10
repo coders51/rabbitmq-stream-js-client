@@ -4,7 +4,6 @@ export interface DataReader {
   readBufferOf(length: number): Buffer
   readTo(size: number): DataReader
   readToEnd(): DataReader
-  atEnd(): boolean
   readInt8(): number
   readUInt8(): number
   readUInt16(): number
@@ -17,6 +16,7 @@ export interface DataReader {
   rewind(count: number): void
   forward(count: number): void
   position(): number
+  isAtEnd(): boolean
 }
 
 export interface RawResponse {
