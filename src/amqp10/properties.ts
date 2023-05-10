@@ -1,6 +1,6 @@
 import { MessageProperties } from "../producer"
 import { DataReader } from "../responses/raw_response"
-import { range } from "../../test/support/util"
+import { range } from "../util"
 
 export class Properties {
   public static parse(dataResponse: DataReader, fields: number): MessageProperties {

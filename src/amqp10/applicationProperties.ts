@@ -1,7 +1,7 @@
 import { MessageApplicationProperties } from "../producer"
 import { DataReader } from "../responses/raw_response"
 import { FormatCode } from "./decoder"
-import { range } from "../../test/support/util"
+import { range } from "../util"
 
 export class ApplicationProperties {
   public static parse(dataReader: DataReader, elementsLength: number): MessageApplicationProperties {

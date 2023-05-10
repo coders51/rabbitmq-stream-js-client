@@ -4,7 +4,8 @@ import { Message, MessageApplicationProperties, MessageProperties, Producer } fr
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync, range } from "../support/util"
+import { eventually, expectToThrowAsync } from "../support/util"
+import { range } from "../../src/util"
 
 describe("declare consumer", () => {
   const rabbit = new Rabbit()
