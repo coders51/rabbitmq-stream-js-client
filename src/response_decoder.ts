@@ -184,140 +184,89 @@ function decodeMessage(dataResponse: DataReader): Message {
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
-  const mapType = dataResponse.readUInt8()
-  const applicationPropertiesLength = decodeMapType(dataResponse, mapType)
-  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength)
+  const formatCode = dataResponse.readUInt8()
+  const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
+  if (!applicationPropertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
 }
 
 function decodeMessageProperties(dataResponse: DataReader) {
   dataResponse.rewind(3)
   const type = dataResponse.readInt8()
-
   if (type !== 0) {
     throw new Error(`invalid composite header %#02x: ${type}`)
   }
 
   const nextType = dataResponse.readInt8()
-  switch (nextType) {
-    case FormatCode.SmallUlong:
-      dataResponse.readInt8() // read a SmallUlong
-      break
-    case FormatCode.ULong:
-      dataResponse.readUInt64() // read an ULong
-      break
-    default:
-      break
-  }
+  decodeFormatCode(dataResponse, nextType)
 
-  let length = 0
-  const headerType = dataResponse.readUInt8()
-  switch (headerType) {
-    case FormatCode.List0:
-      length = 0
-      return {}
-    case FormatCode.List8:
-      dataResponse.forward(1)
-      const lenB = dataResponse.readInt8()
-      length = lenB
-      return {}
-    case FormatCode.List32:
-      dataResponse.forward(4)
-      const lenI = dataResponse.readInt32()
-      length = lenI
-      return Properties.parse(dataResponse, length)
-    default:
-      throw new Error(`ReadCompositeHeader Invalid type ${headerType}`)
-  }
+  const formatCode = dataResponse.readUInt8()
+  const propertiesLength = decodeFormatCode(dataResponse, formatCode)
+  if (!propertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return Properties.parse(dataResponse, propertiesLength as number)
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
-  const type = dataResponse.readUInt8()
-  switch (type) {
-    case FormatCode.Vbin8:
-      const l8 = dataResponse.readUInt8()
-      return dataResponse.readBufferOf(l8)
-    case FormatCode.Vbin32:
-      const l32 = dataResponse.readUInt32()
-      return dataResponse.readBufferOf(l32)
-    default:
-      throw new Error(`Unknown data type ${type}`)
-  }
+  const formatCode = dataResponse.readUInt8()
+  const length = decodeFormatCode(dataResponse, formatCode)
+  if (!length) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return dataResponse.readBufferOf(length as number)
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
   dataResponse.readUInt8()
   dataResponse.readUInt8()
+
   return dataResponse.readUInt8()
 }
 
 export function readUTF8String(dataResponse: DataReader) {
-  const type = dataResponse.readUInt8()
-  switch (type) {
+  const formatCode = dataResponse.readUInt8()
+  const decodedString = decodeFormatCode(dataResponse, formatCode)
+  if (!decodedString) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return decodedString as string
+}
+
+function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
+  switch (formatCode) {
+    case FormatCode.Map8:
+      // Read first empty byte
+      dataResponse.readUInt8()
+      return dataResponse.readUInt8()
+    case FormatCode.Map32:
+      // Read first empty four bytes
+      dataResponse.readUInt32()
+      return dataResponse.readUInt32()
+    case FormatCode.SmallUlong:
+      return dataResponse.readInt8() // Read a SmallUlong
+    case FormatCode.ULong:
+      return dataResponse.readUInt64() // Read an ULong
+    case FormatCode.List0:
+      return undefined
+    case FormatCode.List8:
+      dataResponse.forward(1)
+      dataResponse.readInt8() // Read length of List8
+      return undefined
+    case FormatCode.List32:
+      dataResponse.forward(4)
+      return dataResponse.readInt32()
+    case FormatCode.Vbin8:
+      return dataResponse.readUInt8()
+    case FormatCode.Vbin32:
+      return dataResponse.readUInt32()
     case FormatCode.Str8:
     case FormatCode.Sym8:
       return dataResponse.readString8()
     case FormatCode.Str32:
       return dataResponse.readString32()
     default:
-      throw new Error("ReadUTFString ERROR, unknown string type")
+      throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
   }
 }
-
-function decodeMapType(dataResponse: DataReader, mapType: number) {
-  switch (mapType) {
-    case FormatCode.Map8:
-      // Read first empty byte
-      dataResponse.readUInt8()
-      const shortNumElements = dataResponse.readUInt8()
-      return shortNumElements
-    case FormatCode.Map32:
-      // Read first empty four bytes
-      dataResponse.readUInt32()
-      const longNumElements = dataResponse.readUInt32()
-      return longNumElements
-    default:
-      return 0
-  }
-}
-
-// function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
-//   switch (formatCode) {
-//     case FormatCode.Map8:
-//       // Read first empty byte
-//       dataResponse.readUInt8()
-//       const shortNumElements = dataResponse.readUInt8()
-//       return shortNumElements
-//     case FormatCode.Map32:
-//       // Read first empty four bytes
-//       dataResponse.readUInt32()
-//       const longNumElements = dataResponse.readUInt32()
-//       return longNumElements
-//     case FormatCode.SmallUlong:
-//       dataResponse.readInt8() // read a SmallUlong
-//       break
-//     case FormatCode.ULong:
-//       dataResponse.readUInt64() // read an ULong
-//       break
-//     case FormatCode.List0:
-//       return {}
-//     case FormatCode.List8:
-//       dataResponse.forward(1)
-//       dataResponse.readInt8()
-//       return {}
-//     case FormatCode.List32:
-//       dataResponse.forward(4)
-//       const lenI = dataResponse.readInt32()
-//       return Properties.parse(dataResponse, lenI)
-//     case FormatCode.Vbin8:
-//       const l8 = dataResponse.readUInt8()
-//       return dataResponse.readBufferOf(l8)
-//     case FormatCode.Vbin32:
-//       const l32 = dataResponse.readUInt32()
-//       return dataResponse.readBufferOf(l32)
-//     default:
-//       throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
-//   }
-// }
 
 export class BufferDataReader implements DataReader {
   private offset = 0
