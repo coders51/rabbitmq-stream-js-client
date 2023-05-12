@@ -231,7 +231,7 @@ export function readUTF8String(dataResponse: DataReader) {
   return decodedString as string
 }
 
-function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number, skipByte = false) {
   switch (formatCode) {
     case FormatCode.Map8:
       // Read first empty byte
@@ -260,9 +260,26 @@ function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return dataResponse.readUInt32()
     case FormatCode.Str8:
     case FormatCode.Sym8:
+      if (skipByte) dataResponse.forward(1)
       return dataResponse.readString8()
     case FormatCode.Str32:
+    case FormatCode.Sym32:
+      if (skipByte) dataResponse.forward(1)
       return dataResponse.readString32()
+    case FormatCode.Uint0:
+      return 0
+    case FormatCode.SmallUint:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readUInt8()
+    case FormatCode.Uint:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readUInt32()
+    case FormatCode.SmallInt:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readInt8()
+    case FormatCode.Int:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readInt32()
     default:
       throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
   }
