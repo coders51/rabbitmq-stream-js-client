@@ -32,9 +32,9 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { Consumer, ConsumerFunc } from "./consumer"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -361,9 +361,15 @@ export class Connection {
 
   private registerDelivers() {
     this.decoder.on("deliver", async (response: DeliverResponse) => {
-      this.logger.debug(`on deliver -> ${inspect(response)} - consumers: ${this.consumers.size}`)
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (!consumer) {
+        this.logger.error(`On deliver no consumer found`)
+        return
+      }
+      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+      this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
-      response.messages.map((x) => this.consumers.get(response.subscriptionId)?.handle(x))
+      response.messages.map((x) => consumer.handle(x))
     })
   }
 }

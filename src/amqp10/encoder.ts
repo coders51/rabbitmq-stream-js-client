@@ -34,13 +34,15 @@ const PropertySizeDescription =
 
 type MessageApplicationPropertiesList = [string, string | number][]
 
-export function amqpEncode(writer: DataWriter, { content, properties, applicationProperties }: Message): void {
+export function amqpEncode(writer: DataWriter, { content, messageProperties, applicationProperties }: Message): void {
   const applicationPropertiesList = toList(applicationProperties)
   writer.writeUInt32(
-    lengthOfContent(content) + lengthOfProperties(properties) + lengthOfApplicationProperties(applicationPropertiesList)
+    lengthOfContent(content) +
+      lengthOfProperties(messageProperties) +
+      lengthOfApplicationProperties(applicationPropertiesList)
   )
 
-  writeProperties(writer, properties)
+  writeProperties(writer, messageProperties)
   writeApplicationProperties(writer, applicationPropertiesList)
   writeContent(writer, content)
 }

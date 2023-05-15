@@ -45,14 +45,6 @@ export function wait(timeout: number) {
   return new Promise((res) => setTimeout(res, timeout))
 }
 
-export function range(count: number): number[] {
-  const ret = Array(count)
-  for (let index = 0; index < count; index++) {
-    ret[index] = index
-  }
-  return ret
-}
-
 export async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
   return new Promise(async (res, rej) => {
     const con = await ampq.connect("amqp://rabbit:rabbit@localhost")

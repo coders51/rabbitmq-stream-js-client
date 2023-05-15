@@ -29,6 +29,9 @@ import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 import { CreditResponse } from "./responses/credit_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { Properties } from "./amqp10/properties"
+import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
+import { ApplicationProperties } from "./amqp10/applicationProperties"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -44,7 +47,7 @@ export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
-  messages: Buffer[]
+  messages: Message[]
 }
 
 type PossibleRawResponses =
@@ -140,7 +143,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
     messageType, // indicate if it contains subentries
   }
   logger.debug(inspect(data))
-  const messages: Buffer[] = []
+  const messages: Message[] = []
   for (let i = 0; i < numEntries; i++) {
     messages.push(decodeMessage(dataResponse))
   }
@@ -150,50 +153,136 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
 
 const EmptyBuffer = Buffer.from("")
 
-function decodeMessage(dataResponse: DataReader): Buffer {
+function decodeMessage(dataResponse: DataReader): Message {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 
   let content = EmptyBuffer
+  let messageProperties: MessageProperties = {}
+  let applicationProperties: MessageApplicationProperties = {}
   while (dataResponse.position() - startFrom !== messageLength) {
     const formatCode = readFormatCodeType(dataResponse)
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
         content = decodeApplicationData(dataResponse)
         break
-      case FormatCodeType.MessageAnnotations:
       case FormatCodeType.MessageProperties:
+        messageProperties = decodeMessageProperties(dataResponse)
+        break
       case FormatCodeType.ApplicationProperties:
+        applicationProperties = decodeApplicationProperties(dataResponse)
+        break
       case FormatCodeType.MessageHeader:
       case FormatCodeType.AmqpValue:
-        throw new Error("Not implemented")
         break
       default:
         throw new Error(`Not supported format code ${formatCode}`)
     }
   }
 
-  return content
+  return { content, messageProperties, applicationProperties }
+}
+
+function decodeApplicationProperties(dataResponse: DataReader) {
+  const formatCode = dataResponse.readUInt8()
+  const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
+  if (!applicationPropertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
+}
+
+function decodeMessageProperties(dataResponse: DataReader) {
+  dataResponse.rewind(3)
+  const type = dataResponse.readInt8()
+  if (type !== 0) {
+    throw new Error(`invalid composite header %#02x: ${type}`)
+  }
+
+  const nextType = dataResponse.readInt8()
+  decodeFormatCode(dataResponse, nextType)
+
+  const formatCode = dataResponse.readUInt8()
+  const propertiesLength = decodeFormatCode(dataResponse, formatCode)
+  if (!propertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return Properties.parse(dataResponse, propertiesLength as number)
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
-  const type = dataResponse.readUInt8()
-  switch (type) {
-    case FormatCode.Vbin8:
-      const l8 = dataResponse.readUInt8()
-      return dataResponse.readBufferOf(l8)
-    case FormatCode.Vbin32:
-      const l32 = dataResponse.readUInt32()
-      return dataResponse.readBufferOf(l32)
-    default:
-      throw new Error(`Unknown data type ${type}`)
-  }
+  const formatCode = dataResponse.readUInt8()
+  const length = decodeFormatCode(dataResponse, formatCode)
+  if (!length) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return dataResponse.readBufferOf(length as number)
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
-  dataResponse.readInt8()
-  dataResponse.readInt8()
-  return dataResponse.readInt8()
+  dataResponse.readUInt8()
+  dataResponse.readUInt8()
+
+  return dataResponse.readUInt8()
+}
+
+export function readUTF8String(dataResponse: DataReader) {
+  const formatCode = dataResponse.readUInt8()
+  const decodedString = decodeFormatCode(dataResponse, formatCode)
+  if (!decodedString) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return decodedString as string
+}
+
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number, skipByte = false) {
+  switch (formatCode) {
+    case FormatCode.Map8:
+      // Read first empty byte
+      dataResponse.readUInt8()
+      return dataResponse.readUInt8()
+    case FormatCode.Map32:
+      // Read first empty four bytes
+      dataResponse.readUInt32()
+      return dataResponse.readUInt32()
+    case FormatCode.SmallUlong:
+      return dataResponse.readInt8() // Read a SmallUlong
+    case FormatCode.ULong:
+      return dataResponse.readUInt64() // Read an ULong
+    case FormatCode.List0:
+      return undefined
+    case FormatCode.List8:
+      dataResponse.forward(1)
+      dataResponse.readInt8() // Read length of List8
+      return undefined
+    case FormatCode.List32:
+      dataResponse.forward(4)
+      return dataResponse.readInt32()
+    case FormatCode.Vbin8:
+      return dataResponse.readUInt8()
+    case FormatCode.Vbin32:
+      return dataResponse.readUInt32()
+    case FormatCode.Str8:
+    case FormatCode.Sym8:
+      if (skipByte) dataResponse.forward(1)
+      return dataResponse.readString8()
+    case FormatCode.Str32:
+    case FormatCode.Sym32:
+      if (skipByte) dataResponse.forward(1)
+      return dataResponse.readString32()
+    case FormatCode.Uint0:
+      return 0
+    case FormatCode.SmallUint:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readUInt8()
+    case FormatCode.Uint:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readUInt32()
+    case FormatCode.SmallInt:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readInt8()
+    case FormatCode.Int:
+      dataResponse.forward(1) // Skipping formatCode
+      return dataResponse.readInt32()
+    default:
+      throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
+  }
 }
 
 export class BufferDataReader implements DataReader {
@@ -217,10 +306,6 @@ export class BufferDataReader implements DataReader {
     const ret = new BufferDataReader(this.data.slice(this.offset))
     this.offset = this.data.length
     return ret
-  }
-
-  atEnd(): boolean {
-    return this.offset === this.data.length
   }
 
   readInt8(): number {
@@ -259,6 +344,18 @@ export class BufferDataReader implements DataReader {
     return ret
   }
 
+  readDouble(): number {
+    const ret = this.data.readDoubleBE(this.offset)
+    this.offset += 8
+    return ret
+  }
+
+  readFloat(): number {
+    const ret = this.data.readFloatBE(this.offset)
+    this.offset += 4
+    return ret
+  }
+
   readInt32(): number {
     const ret = this.data.readInt32BE(this.offset)
     this.offset += 4
@@ -272,12 +369,34 @@ export class BufferDataReader implements DataReader {
     return value
   }
 
+  readString8(): string {
+    const sizeStr8 = this.readUInt8()
+    const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
+    this.offset += sizeStr8
+    return valueStr8
+  }
+
+  readString32(): string {
+    const sizeStr32 = this.readUInt32()
+    const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
+    this.offset += sizeStr32
+    return valueStr32
+  }
+
   rewind(count: number): void {
     this.offset -= count
   }
 
+  forward(count: number): void {
+    this.offset += count
+  }
+
   position(): number {
     return this.offset
+  }
+
+  isAtEnd(): boolean {
+    return this.offset === this.data.length
   }
 }
 
@@ -321,7 +440,7 @@ export class ResponseDecoder {
 
   add(data: Buffer) {
     const dataReader = new BufferDataReader(data)
-    while (!dataReader.atEnd()) {
+    while (!dataReader.isAtEnd()) {
       const response = decode(dataReader, this.logger)
       if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)

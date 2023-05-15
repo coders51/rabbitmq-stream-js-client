@@ -21,12 +21,12 @@ export interface MessageProperties {
 
 export interface Message {
   content: Buffer
-  properties?: MessageProperties
+  messageProperties?: MessageProperties
   applicationProperties?: MessageApplicationProperties
 }
 
 interface MessageOptions {
-  properties?: MessageProperties
+  messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
 
@@ -85,7 +85,16 @@ export class Producer {
     return this.connection.send(
       new PublishRequest({
         publisherId: this.publisherId,
-        messages: [{ publishingId: this.publishingId, message: { content: message, properties: opts.properties } }],
+        messages: [
+          {
+            publishingId: this.publishingId,
+            message: {
+              content: message,
+              messageProperties: opts.messageProperties,
+              applicationProperties: opts.applicationProperties,
+            },
+          },
+        ],
       })
     )
   }

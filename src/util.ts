@@ -23,3 +23,11 @@ export function createConsoleLog({ silent, level } = { silent: false, level: "de
     transports: new transports.Console(),
   })
 }
+
+export function range(count: number): number[] {
+  const ret = Array(count)
+  for (let index = 0; index < count; index++) {
+    ret[index] = index
+  }
+  return ret
+}
