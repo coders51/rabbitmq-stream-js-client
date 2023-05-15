@@ -7,16 +7,20 @@ export class Consumer {
   private connection: Connection
   private stream: string
   private consumerRef: string
+  public consumerId: number
+
   constructor(
     params: {
       connection: Connection
       stream: string
+      consumerId: number
       consumerRef?: string
     },
     readonly handle: ConsumerFunc
   ) {
     this.connection = params.connection
     this.stream = params.stream
+    this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef || ""
   }
 

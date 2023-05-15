@@ -131,29 +131,30 @@ export class Connection {
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
-    const consumerRef = this.incConsumerId()
+    const consumerId = this.incConsumerId()
     const consumer = new Consumer(
       {
         connection: this,
         stream: params.stream,
+        consumerId,
         consumerRef: params.consumerRef,
       },
       handle
     )
-    this.consumers.set(consumerRef, consumer)
+    this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerRef, credit: 10 })
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
     )
     if (!res.ok) {
-      this.consumers.delete(consumerRef)
+      this.consumers.delete(consumerId)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
     this.logger.info(
       `New consumer created with stream name ${
         params.stream
-      }, consumer id ${consumerRef} and offset ${params.offset.toString()}`
+      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
     )
     return consumer
   }
