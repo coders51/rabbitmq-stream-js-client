@@ -69,3 +69,14 @@ export interface RawHeartbeatResponse {
   key: 0x0014
   version: number
 }
+
+export interface RawPublishError {
+  key: 0x0004
+  version: number
+  publisherId: number
+  publishingError: PublishingError
+}
+export interface PublishingError {
+  publishingId: bigint
+  code: number
+}

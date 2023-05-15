@@ -13,6 +13,7 @@ import {
   RawCreditResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
+  RawPublishError,
   RawResponse,
   RawTuneResponse,
 } from "./responses/raw_response"
@@ -23,6 +24,7 @@ import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { CloseResponse } from "./responses/close_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import { PublishError } from "./responses/publish_error"
 import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
@@ -43,6 +45,7 @@ import { ApplicationProperties } from "./amqp10/applicationProperties"
 //   ResponseCode => uint16
 
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
+export type PublishErrorListener = (publishError: PublishError) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 type MessageAndSubId = {
@@ -55,6 +58,7 @@ type PossibleRawResponses =
   | RawTuneResponse
   | RawHeartbeatResponse
   | RawMetadataUpdateResponse
+  | RawPublishError
   | RawDeliverResponse
   | RawCreditResponse
 
@@ -92,7 +96,14 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
     }
     return { size, key, version, metadataInfo } as RawMetadataUpdateResponse
   }
-
+  if (key === PublishError.key) {
+    const publisherId = dataResponse.readUInt8()
+    const publishingError = {
+      publishingId: dataResponse.readUInt64(),
+      code: dataResponse.readUInt16(),
+    }
+    return { size, key, version, publisherId, publishingError } as RawPublishError
+  }
   if (key === CreditResponse.key) {
     const responseCode = dataResponse.readUInt16()
     const subscriptionId = dataResponse.readUInt8()
@@ -412,6 +423,10 @@ function isMetadataUpdateResponse(params: PossibleRawResponses): params is RawMe
   return params.key === MetadataUpdateResponse.key
 }
 
+function isPublishError(params: PossibleRawResponses): params is RawPublishError {
+  return params.key === PublishError.key
+}
+
 function isDeliverResponse(params: PossibleRawResponses): params is RawDeliverResponse {
   return params.key === DeliverResponse.key
 }
@@ -450,6 +465,9 @@ export class ResponseDecoder {
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
+      } else if (isPublishError(response)) {
+        this.emitter.emit("publish_error", new PublishError(response))
+        this.logger.debug(`publishing error received from the server: ${inspect(response)}`)
       } else if (isDeliverResponse(response)) {
         this.emitter.emit("deliver", new DeliverResponse(response))
         this.logger.debug(`deliver received from the server: ${inspect(response)}`)
@@ -463,8 +481,8 @@ export class ResponseDecoder {
   }
 
   public on(
-    event: "metadata_update" | "credit_response" | "deliver",
-    listener: MetadataUpdateListener | CreditListener | DeliverListener
+    event: "metadata_update" | "credit_response" | "deliver" | "publish_error",
+    listener: MetadataUpdateListener | CreditListener | DeliverListener | PublishErrorListener
   ) {
     this.emitter.on(event, listener)
   }

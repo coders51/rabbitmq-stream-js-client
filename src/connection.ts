@@ -14,7 +14,7 @@ import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { TuneRequest } from "./requests/tune_request"
-import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
+import { MetadataUpdateListener, PublishErrorListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
@@ -90,8 +90,17 @@ export class Connection {
     })
   }
 
-  public on(event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on(event, listener)
+  public on(event: "metadata_update" | "publish_error", listener: MetadataUpdateListener | PublishErrorListener) {
+    switch (event) {
+      case "metadata_update":
+        this.decoder.on("metadata_update", listener)
+        break
+      case "publish_error":
+        this.decoder.on("pulish_error", listener)
+        break
+      default:
+        break
+    }
   }
 
   public async close(
@@ -356,6 +365,7 @@ export class Connection {
   private registerListeners(listeners?: ListenersParams) {
     if (listeners) {
       this.on("metadata_update", listeners.metadata_update)
+      this.on("publish_error", listeners.publish_error)
     }
   }
 
@@ -376,6 +386,7 @@ export class Connection {
 
 export type ListenersParams = {
   metadata_update: MetadataUpdateListener
+  publish_error: PublishErrorListener
 }
 
 export interface ConnectionParams {
