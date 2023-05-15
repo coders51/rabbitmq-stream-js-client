@@ -6,26 +6,26 @@ export type ConsumerFunc = (message: Message) => void
 export class Consumer {
   private connection: Connection
   private stream: string
+  public consumerId: number
   private consumerRef: string
+
   constructor(
     params: {
       connection: Connection
       stream: string
+      consumerId: number
       consumerRef?: string
     },
     readonly handle: ConsumerFunc
   ) {
     this.connection = params.connection
     this.stream = params.stream
+    this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef || ""
   }
 
   async close(): Promise<void> {
     throw new Error("Method not implemented.")
-  }
-
-  public getConsumerRef(): string {
-    return this.consumerRef
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {
