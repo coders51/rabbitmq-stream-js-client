@@ -7,7 +7,7 @@ import { eventually, expectToThrowAsync, username, password } from "../support/u
 describe("declare publisher", () => {
   let streamName: string
   let nonExistingStreamName: string
-  const rabbit = new Rabbit("rabbit", "rabbit")
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
 
   beforeEach(async () => {
