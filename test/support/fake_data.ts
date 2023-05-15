@@ -27,7 +27,7 @@ export function createStreamName() {
 export async function createPublisher(streamName: string, connection: Connection) {
   const publisher = await connection.declarePublisher({
     stream: streamName,
-    publisherRef: "my-publisher-${randomUUID()}",
+    publisherRef: `my-publisher-${randomUUID()}`,
   })
   return publisher
 }
