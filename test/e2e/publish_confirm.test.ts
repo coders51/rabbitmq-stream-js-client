@@ -57,7 +57,6 @@ describe("publish a message and get confirmation", () => {
     // how to force an error from the server? --LM
     let errored = false
     const publisher = await connection.declarePublisher({ stream, publisherRef })
-
     publisher.on("publish_confirm", (error, _publishingIds) => {
       if (error) {
         errored = true
@@ -78,7 +77,6 @@ describe("publish a message and get confirmation", () => {
       // how to force an error from the server? --LM
       let error: Error | undefined = undefined
       const publisher = await connection.declarePublisher({ stream, publisherRef })
-
       publisher.on("publish_confirm", (err, _publishingIds) => {
         if (err) {
           error = err
