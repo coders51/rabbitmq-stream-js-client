@@ -27,17 +27,17 @@ export function createStreamName() {
 export async function createPublisher(streamName: string, connection: Connection) {
   const publisher = await connection.declarePublisher({
     stream: streamName,
-    publisherRef: "my-publisher-${randomUUID()}",
+    publisherRef: `my-publisher-${randomUUID()}`,
   })
   return publisher
 }
 
-export async function createConnection(listeners?: ListenersParams) {
+export async function createConnection(username: string, password: string, listeners?: ListenersParams) {
   return await connect({
     hostname: "localhost",
     port: 5552,
-    username: "rabbit",
-    password: "rabbit",
+    username,
+    password,
     vhost: "/",
     frameMax: 0, // not used
     heartbeat: 0,

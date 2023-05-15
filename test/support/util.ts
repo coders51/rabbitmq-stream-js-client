@@ -45,9 +45,13 @@ export function wait(timeout: number) {
   return new Promise((res) => setTimeout(res, timeout))
 }
 
-export async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
+export async function getMessageFrom(
+  stream: string,
+  user: string,
+  pwd: string
+): Promise<{ content: string; properties: ampq.MessageProperties }> {
   return new Promise(async (res, rej) => {
-    const con = await ampq.connect("amqp://rabbit:rabbit@localhost")
+    const con = await ampq.connect(`amqp://${user}:${pwd}@localhost`)
     con.on("error", async (err) => rej(err))
     const ch = await con.createChannel()
     await ch.prefetch(1)
@@ -70,7 +74,7 @@ export async function createClassicConsumer(
   stream: string,
   cb: (msg: ampq.Message) => void
 ): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
-  const conn = await ampq.connect("amqp://rabbit:rabbit@localhost")
+  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
   const ch = await conn.createChannel()
   await ch.prefetch(1)
   await ch.consume(
@@ -85,3 +89,5 @@ export async function createClassicConsumer(
 
   return { conn, ch }
 }
+export const username = process.env.RABBITMQ_USER || "rabbit"
+export const password = process.env.RABBITMQ_PASSWORD || "rabbit"

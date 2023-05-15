@@ -4,16 +4,16 @@ import { Connection } from "../../src"
 import { Producer } from "../../src/producer"
 import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, getMessageFrom } from "../support/util"
+import { eventually, username, password, getMessageFrom } from "../support/util"
 
 describe("publish a message", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
   let streamName: string
   let publisher: Producer
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
     publisher = await createPublisher(streamName, connection)
@@ -51,7 +51,7 @@ describe("publish a message", () => {
 
     await publisher.send(BigInt(Date.now() + 1), Buffer.from(message))
 
-    const { content } = await getMessageFrom(streamName)
+    const { content } = await getMessageFrom(streamName, username, password)
     expect(message).eql(content)
   })
 
@@ -61,7 +61,7 @@ describe("publish a message", () => {
 
     await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { messageProperties })
 
-    const msg = await getMessageFrom(streamName)
+    const msg = await getMessageFrom(streamName, username, password)
     const { content, properties: classicProperties } = msg
     expect(message).eql(content)
     expect(Math.floor((messageProperties.creationTime?.getTime() || 1) / 1000)).eql(classicProperties.timestamp)
@@ -79,7 +79,7 @@ describe("publish a message", () => {
 
     await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { applicationProperties })
 
-    const msg = await getMessageFrom(streamName)
+    const msg = await getMessageFrom(streamName, username, password)
     const { content, properties } = msg
     expect(message).eql(content)
     expect(properties.headers).eql({ ...applicationProperties, "x-stream-offset": 0 })

@@ -4,18 +4,18 @@ import { Message, MessageApplicationProperties, MessageProperties, Producer } fr
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync } from "../support/util"
 import { range } from "../../src/util"
+import { eventually, expectToThrowAsync, username, password } from "../support/util"
 
 describe("declare consumer", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let nonExistingStreamName: string
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
   let publisher: Producer
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
     nonExistingStreamName = createStreamName()
     await rabbit.createStream(streamName)

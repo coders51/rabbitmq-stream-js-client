@@ -3,10 +3,10 @@ import { Connection, ListenersParams } from "../../src"
 import { MetadataUpdateResponse } from "../../src/responses/metadata_update_response"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, username, password } from "../support/util"
 
 describe("update the metadata from the server", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
   let streamName: string
   const metadataUpdateResponses: MetadataUpdateResponse[] = []
@@ -16,7 +16,7 @@ describe("update the metadata from the server", () => {
     const listeners: ListenersParams = {
       metadata_update: (data) => metadataUpdateResponses.push(data),
     }
-    connection = await createConnection(listeners)
+    connection = await createConnection(username, password, listeners)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
   })

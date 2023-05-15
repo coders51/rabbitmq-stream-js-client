@@ -2,9 +2,10 @@ import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
+import { password, username } from "../support/util"
 
 describe("Producer", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   const testStreamName = "test-stream"
   let publisherRef: string
 
@@ -19,8 +20,8 @@ describe("Producer", () => {
     const oldConnection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0,
       heartbeat: 0,
@@ -32,8 +33,8 @@ describe("Producer", () => {
     const newConnection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0,
       heartbeat: 0,
@@ -50,8 +51,8 @@ describe("Producer", () => {
     const oldConnection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0,
       heartbeat: 0,
@@ -63,8 +64,8 @@ describe("Producer", () => {
     const newConnection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0,
       heartbeat: 0,

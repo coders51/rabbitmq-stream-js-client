@@ -1,17 +1,20 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { Connection } from "../../src"
-import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
+import { createConnection, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
+import { username, password } from "../support/util"
 
 describe("query publisher sequence", () => {
-  const rabbit = new Rabbit()
   let streamName: string
   let connection: Connection
+  let publisherRef: string
+  const rabbit = new Rabbit(username, password)
 
   beforeEach(async () => {
-    connection = await createConnection()
+    connection = await createConnection(username, password)
     streamName = createStreamName()
+    publisherRef = randomUUID()
     await rabbit.createStream(streamName)
   })
 
@@ -25,8 +28,7 @@ describe("query publisher sequence", () => {
   })
 
   it("asking for the last sequence read from a publisher returns the last sequence id", async () => {
-    const publisher = await createPublisher(streamName, connection)
-
+    const publisher = await connection.declarePublisher({ stream: streamName, publisherRef })
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
     await publisher.send(2n, Buffer.from(`test${randomUUID()}`))
     await publisher.send(3n, Buffer.from(`test${randomUUID()}`))
@@ -38,7 +40,7 @@ describe("query publisher sequence", () => {
   }).timeout(10000)
 
   it("asking for the last sequence read from a publisher whose never sent any message should return 0", async () => {
-    const publisher = await createPublisher(streamName, connection)
+    const publisher = await connection.declarePublisher({ stream: streamName, publisherRef })
 
     const lastPublishingId = await publisher.getLastPublishingId()
 

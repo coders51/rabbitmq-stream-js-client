@@ -2,6 +2,9 @@ const rabbit = require("rabbitmq-stream-js-client")
 const amqplib = require("amqplib")
 const { randomUUID } = require("crypto")
 
+const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
+const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
+
 async function main() {
   const streamName = `example-${randomUUID()}`
   console.log(`Create stream ${streamName}`)
@@ -9,8 +12,8 @@ async function main() {
   const connection = await rabbit.connect({
     hostname: "localhost",
     port: 5552,
-    username: "rabbit",
-    password: "rabbit",
+    username: rabbitUser,
+    password: rabbitPassword,
     vhost: "/",
     heartbeat: 0,
   })
@@ -34,7 +37,7 @@ async function main() {
 async function createClassicConsumer(queueName) {
   return new Promise(async (res, rej) => {
     try {
-      const conn = await amqplib.connect("amqp://rabbit:rabbit@localhost")
+      const conn = await amqplib.connect(`amqp://${rabbitUser}:${rabbitPassword}@localhost`)
       const ch = await conn.createChannel()
       await ch.prefetch(1000)
       await ch.consume(

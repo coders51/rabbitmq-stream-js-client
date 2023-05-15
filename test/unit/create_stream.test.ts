@@ -2,10 +2,10 @@ import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { connect, Connection } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { expectToThrowAsync } from "../support/util"
+import { expectToThrowAsync, username, password } from "../support/util"
 
 describe("Stream", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   const streamName = `test-stream-${randomUUID()}`
   const payload = {
     "x-queue-leader-locator": "test",
@@ -20,8 +20,8 @@ describe("Stream", () => {
     connection = await connect({
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username,
+      password,
       vhost: "/",
       frameMax: 0,
       heartbeat: 0,

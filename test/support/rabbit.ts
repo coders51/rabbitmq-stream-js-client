@@ -1,5 +1,4 @@
 import got from "got"
-
 interface RabbitConnectionResponse {
   name: string
 }
@@ -59,6 +58,8 @@ interface RabbitQueueResponse {
 }
 
 export class Rabbit {
+  constructor(private username: string, private password: string) {}
+
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
     await Promise.all(l.map((c) => this.closeConnection(c.name)))
@@ -66,16 +67,16 @@ export class Rabbit {
 
   async closeConnection(name: string) {
     return got.delete(`http://localhost:15672/api/connections/${name}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
   }
 
   async getQueueInfo(queue: string): Promise<MessageInfoResponse> {
     const ret = await got.get<MessageInfoResponse>(`http://localhost:15672/api/queues/%2F/${queue}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return ret.body
@@ -84,8 +85,8 @@ export class Rabbit {
   async getMessages(queue: string) {
     // I think it's not possible to execute on stream queue
     const ret = await got.post<unknown>(`http://localhost:15672/api/queues/%2F/${queue}/get`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
       body: JSON.stringify({ count: 100, ackmode: "ack_requeue_false", encoding: "auto", truncate: 50000 }),
     })
@@ -94,8 +95,8 @@ export class Rabbit {
 
   async getConnections(): Promise<RabbitConnectionResponse[]> {
     const ret = await got.get<RabbitConnectionResponse[]>(`http://localhost:15672/api/connections`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return ret.body
@@ -104,16 +105,16 @@ export class Rabbit {
   createStream(streamName: string) {
     return got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
       body: JSON.stringify({ auto_delete: false, durable: true, arguments: { "x-queue-type": "stream" } }),
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
   }
 
   deleteStream(streamName: string) {
     return got.delete<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
     })
   }
 
@@ -121,8 +122,8 @@ export class Rabbit {
     const resp = await got.get<RabbitPublishersResponse[]>(
       `http://localhost:15672/api/stream/publishers/%2F/${streamName}`,
       {
-        username: "rabbit",
-        password: "rabbit",
+        username: this.username,
+        password: this.password,
         responseType: "json",
       }
     )
@@ -131,8 +132,8 @@ export class Rabbit {
 
   async returnConsumers(): Promise<string[]> {
     const resp = await got.get<RabbitConsumersResponse[]>(`http://localhost:15672/api/consumers/%2F/`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return resp.body.map((p) => p.consumer_tag)
@@ -163,8 +164,8 @@ export class Rabbit {
 
   async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {
     const ret = await got.get<RabbitQueueResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return ret.body
@@ -172,8 +173,8 @@ export class Rabbit {
 
   async deleteQueue(vhost: string = "%2F", name: string): Promise<void> {
     await got.delete(`http://localhost:15672/api/queues/${vhost}/${name}`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
   }
@@ -181,8 +182,8 @@ export class Rabbit {
   async createQueue(vhost: string = "%2F", name: string): Promise<RabbitConnectionResponse> {
     const r = await got.put<RabbitConnectionResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
       json: { arguments: { "x-queue-type": "stream" }, durable: true },
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
     })
 
     return r.body
@@ -190,8 +191,8 @@ export class Rabbit {
 
   async getQueues(): Promise<RabbitQueueResponse[]> {
     const ret = await got.get<RabbitQueueResponse[]>(`http://localhost:15672/api/queues`, {
-      username: "rabbit",
-      password: "rabbit",
+      username: this.username,
+      password: this.password,
       responseType: "json",
     })
     return ret.body
