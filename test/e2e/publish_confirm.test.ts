@@ -1,32 +1,25 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { connect, Connection } from "../../src"
+import { Connection, ListenersParams } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, password, username } from "../support/util"
+import { createConnection } from "../support/fake_data"
 
 describe("publish a message and get confirmation", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   let connection: Connection
   let confirmed: boolean
   let stream: string
   const publisherRef = "my publisher"
+  const listeners: ListenersParams = {
+    metadata_update: (_data) => {
+      return
+    },
+    publish_confirm: (_data) => (confirmed = true),
+  }
 
   beforeEach(async () => {
-    connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0, // not used
-      heartbeat: 0, // not used
-      listeners: {
-        metadata_update: (_data) => {
-          return
-        },
-        publish_confirm: (_data) => (confirmed = true),
-      },
-    })
+    connection = await createConnection(username, password, listeners)
     stream = `my-stream-${randomUUID()}`
     await rabbit.createStream(stream)
     confirmed = false
