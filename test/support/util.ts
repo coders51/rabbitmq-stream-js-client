@@ -45,9 +45,13 @@ export function wait(timeout: number) {
   return new Promise((res) => setTimeout(res, timeout))
 }
 
-export async function getMessageFrom(stream: string): Promise<{ content: string; properties: ampq.MessageProperties }> {
+export async function getMessageFrom(
+  stream: string,
+  user: string,
+  pwd: string
+): Promise<{ content: string; properties: ampq.MessageProperties }> {
   return new Promise(async (res, rej) => {
-    const con = await ampq.connect(`amqp://${username}:${password}@localhost`)
+    const con = await ampq.connect(`amqp://${user}:${pwd}@localhost`)
     con.on("error", async (err) => rej(err))
     const ch = await con.createChannel()
     await ch.prefetch(1)
