@@ -39,7 +39,6 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { DeliverResponse } from "./responses/deliver_response"
 export class Connection {
@@ -157,6 +156,7 @@ export class Connection {
       {
         connection: this,
         stream: params.stream,
+        consumerId,
         consumerRef: params.consumerRef,
       },
       handle
@@ -401,7 +401,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.getConsumerRef()}`)
+      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
