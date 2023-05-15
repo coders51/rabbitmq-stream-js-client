@@ -1,27 +1,19 @@
 import { expect } from "chai"
-import { Connection, connect } from "../../src"
+import { Connection } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
-import { eventually } from "../support/util"
+import { eventually, password, username } from "../support/util"
+import { createConnection } from "../support/fake_data"
 
 describe("declare consumer", () => {
-  const rabbit = new Rabbit()
+  const rabbit = new Rabbit(username, password)
   const testStreamName = "test-stream"
   let connection: Connection
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
-
-    connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username: "rabbit",
-      password: "rabbit",
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    connection = await createConnection(username, password)
   })
 
   afterEach(async () => {
