@@ -5,7 +5,7 @@ const { randomUUID } = require("crypto")
 async function main() {
   const streamName = `example-${randomUUID()}`
   console.log(`Create stream ${streamName}`)
-
+  console.log("AAAA", process.env.RABBITMQ_USER, process.env.RABBITMQ_PASSWORD)
   const connection = await rabbit.connect({
     hostname: "localhost",
     port: 5552,
