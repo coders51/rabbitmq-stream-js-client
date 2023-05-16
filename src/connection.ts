@@ -23,7 +23,12 @@ import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { OpenResponse } from "./responses/open_response"
 import { Response } from "./responses/response"
-import { MetadataUpdateListener, PublishConfirmListener, ResponseDecoder } from "./response_decoder"
+import {
+  MetadataUpdateListener,
+  PublishConfirmListener,
+  PublishErrorListener,
+  ResponseDecoder,
+} from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
@@ -90,13 +95,19 @@ export class Connection {
     })
   }
 
-  public on(event: "metadata_update" | "publish_confirm", listener: MetadataUpdateListener | PublishConfirmListener) {
+  public on(
+    event: "metadata_update" | "publish_confirm" | "publish_error",
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+  ) {
     switch (event) {
       case "metadata_update":
         this.decoder.on("metadata_update", listener)
         break
       case "publish_confirm":
         this.decoder.on("publish_confirm", listener)
+        break
+      case "publish_error":
+        this.decoder.on("publish_error", listener)
         break
       default:
         break
@@ -364,10 +375,8 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) {
-      this.decoder.on("metadata_update", listeners.metadata_update)
-      this.decoder.on("publish_confirm", listeners.publish_confirm)
-    }
+    if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
+    if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
   }
 
   private registerDelivers() {
@@ -386,8 +395,9 @@ export class Connection {
 }
 
 export type ListenersParams = {
-  metadata_update: MetadataUpdateListener
-  publish_confirm: PublishConfirmListener
+  metadata_update?: MetadataUpdateListener
+  publish_confirm?: PublishConfirmListener
+  publish_error?: PublishErrorListener
 }
 
 export interface ConnectionParams {

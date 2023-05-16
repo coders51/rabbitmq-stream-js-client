@@ -18,7 +18,6 @@ export interface DataReader {
   forward(count: number): void
   position(): number
   isAtEnd(): boolean
-  isOver(): boolean
 }
 
 export interface RawResponse {
@@ -77,4 +76,13 @@ export interface RawPublishConfirmResponse {
   version: number
   publisherId: number
   publishingIds: bigint[]
+}
+
+export interface RawPublishErrorResponse {
+  size: number
+  key: 0x0004
+  version: number
+  publisherId: number
+  publishingId: bigint
+  code: number
 }

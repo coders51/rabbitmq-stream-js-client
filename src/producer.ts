@@ -1,6 +1,7 @@
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
 
 export type MessageApplicationProperties = Record<string, string | number>
 export interface MessageProperties {
@@ -29,7 +30,7 @@ interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
-type PublishConfirmCallback = (err: Error | null, publishingIds: bigint[]) => void
+type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class Producer {
   private connection: Connection
   private stream: string
@@ -72,6 +73,9 @@ export class Producer {
 
   public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
     this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+    this.connection.on("publish_error", (error: PublishErrorResponse) =>
+      cb(error.publishingError.code, [error.publishingError.publishingId])
+    )
   }
 
   private async sendWithPublisherSequence(message: Buffer, opts: MessageOptions) {

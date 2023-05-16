@@ -22,6 +22,7 @@ import {
   RawPublishConfirmResponse,
   RawResponse,
   RawTuneResponse,
+  RawPublishErrorResponse,
 } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
@@ -34,6 +35,7 @@ import { Properties } from "./amqp10/properties"
 import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
 import { TuneResponse } from "./responses/tune_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -48,6 +50,7 @@ export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
+export type PublishErrorListener = (confirm: PublishErrorResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
   messages: Message[]
@@ -61,6 +64,7 @@ type PossibleRawResponses =
   | RawDeliverResponse
   | RawCreditResponse
   | RawPublishConfirmResponse
+  | RawPublishErrorResponse
 
 function decode(data: DataReader, logger: Logger): PossibleRawResponses {
   const size = data.readUInt32()
@@ -419,10 +423,6 @@ export class BufferDataReader implements DataReader {
   isAtEnd(): boolean {
     return this.offset === this.data.length
   }
-
-  isOver(): boolean {
-    return this.data.length >= this.offset
-  }
 }
 
 function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
@@ -447,6 +447,10 @@ function isCreditResponse(params: PossibleRawResponses): params is RawCreditResp
 
 function isPublishConfirmResponse(params: PossibleRawResponses): params is RawPublishConfirmResponse {
   return params.key === PublishConfirmResponse.key
+}
+
+function isPublishErrorResponse(params: PossibleRawResponses): params is RawPublishErrorResponse {
+  return params.key === PublishErrorResponse.key
 }
 
 export class ResponseDecoder {
@@ -486,9 +490,11 @@ export class ResponseDecoder {
         this.logger.debug(`credit received from the server: ${inspect(response)}`)
         this.emitter.emit("credit_response", new CreditResponse(response))
       } else if (isPublishConfirmResponse(response)) {
-        this.logger.debug(`publish_confirm received from the server: ${inspect(response)}`)
         this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
         this.logger.debug(`publish confirm received from the server: ${inspect(response)}`)
+      } else if (isPublishErrorResponse(response)) {
+        this.emitter.emit("publish_error", new PublishErrorResponse(response))
+        this.logger.debug(`publish error received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
@@ -496,8 +502,8 @@ export class ResponseDecoder {
   }
 
   public on(
-    event: "metadata_update" | "publish_confirm" | "deliver",
-    listener: MetadataUpdateListener | DeliverListener | PublishConfirmListener
+    event: "metadata_update" | "credit_response" | "publish_confirm" | "publish_error" | "deliver",
+    listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener
   ) {
     this.emitter.on(event, listener)
   }
