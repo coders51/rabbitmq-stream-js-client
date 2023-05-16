@@ -101,7 +101,17 @@ export class Producer {
     )
   }
 
+<<<<<<< HEAD
   getLastPublishingId(): Promise<bigint> {
+||||||| parent of dc0ccf1 (DeletePublisher Command)
+  getLastPublishingId() {
+=======
+  getPublisherId() {
+    return this.publisherId
+  }
+
+  getLastPublishingId() {
+>>>>>>> dc0ccf1 (DeletePublisher Command)
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 

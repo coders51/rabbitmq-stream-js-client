@@ -17,6 +17,8 @@ import { TuneRequest } from "./requests/tune_request"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherRequest } from "./requests/delete_publisher_request"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
@@ -52,6 +54,7 @@ export class Connection {
   private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, Consumer>()
+  private publishers = new Map<number, Producer>()
 
   constructor() {
     this.heartbeat = new Heartbeat(this, this.logger)
@@ -147,7 +150,24 @@ export class Connection {
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
+    this.publishers.set(publisherId, producer)
+
     return producer
+  }
+
+  public async deletePublisher(publisherId: number) {
+    const publisher = this.publishers.get(publisherId)
+    if (!publisher) {
+      this.logger.error("Publisher does not exist")
+      throw new Error(`Publisher with id: ${publisherId} does not exist`)
+    }
+    const res = await this.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    if (!res.ok) {
+      throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.publishers.delete(publisherId)
+    this.logger.info(`deleted producer with publishing id ${publisherId}`)
+    return res.ok
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {

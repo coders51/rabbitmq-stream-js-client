@@ -4,8 +4,9 @@ import { Logger } from "winston"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { CloseResponse } from "./responses/close_response"
-import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { HeartbeatResponse } from "./responses/heartbeat_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
@@ -464,6 +465,7 @@ export class ResponseDecoder {
     this.addFactoryFor(OpenResponse)
     this.addFactoryFor(CloseResponse)
     this.addFactoryFor(DeclarePublisherResponse)
+    this.addFactoryFor(DeletePublisherResponse)
     this.addFactoryFor(CreateStreamResponse)
     this.addFactoryFor(DeleteStreamResponse)
     this.addFactoryFor(QueryPublisherResponse)
