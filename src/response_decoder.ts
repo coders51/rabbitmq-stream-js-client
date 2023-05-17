@@ -501,6 +501,11 @@ export class ResponseDecoder {
     }
   }
 
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "credit_response", listener: CreditListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmListener): void
+  public on(event: "publish_error", listener: PublishErrorListener): void
+  public on(event: "deliver", listener: DeliverListener): void
   public on(
     event: "metadata_update" | "credit_response" | "publish_confirm" | "publish_error" | "deliver",
     listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener

@@ -94,20 +94,22 @@ export class Connection {
       this.socket.connect(params.port, params.hostname)
     })
   }
-
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmListener): void
+  public on(event: "publish_error", listener: PublishErrorListener): void
   public on(
     event: "metadata_update" | "publish_confirm" | "publish_error",
     listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
   ) {
     switch (event) {
       case "metadata_update":
-        this.decoder.on("metadata_update", listener)
+        this.decoder.on("metadata_update", listener as MetadataUpdateListener)
         break
       case "publish_confirm":
-        this.decoder.on("publish_confirm", listener)
+        this.decoder.on("publish_confirm", listener as PublishConfirmListener)
         break
       case "publish_error":
-        this.decoder.on("publish_error", listener)
+        this.decoder.on("publish_error", listener as PublishErrorListener)
         break
       default:
         break
@@ -377,7 +379,7 @@ export class Connection {
   private registerListeners(listeners?: ListenersParams) {
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
-    if (listeners?.publish_error) this.decoder.on("publish_confirm", listeners.publish_error)
+    if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
   }
 
   private registerDelivers() {
