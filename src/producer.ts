@@ -1,8 +1,9 @@
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
+import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
 
 export type MessageApplicationProperties = Record<string, string | number>
-
 export interface MessageProperties {
   contentType?: string
   contentEncoding?: string
@@ -29,7 +30,7 @@ interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
 }
-
+type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class Producer {
   private connection: Connection
   private stream: string
@@ -53,12 +54,6 @@ export class Producer {
     this.publishingId = params.boot ? -1n : 0n
   }
 
-  /*
-    @deprecate This method should not be used
-  */
-  send(publishingId: bigint, message: Buffer, opts?: MessageOptions): Promise<void>
-  send(message: Buffer, opts?: MessageOptions): Promise<void>
-
   send(args0: bigint | Buffer, arg1: Buffer | MessageOptions = {}, opts: MessageOptions = {}) {
     if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
       return this.sendWithPublisherSequence(args0, arg1)
@@ -73,6 +68,13 @@ export class Producer {
         publisherId: this.publisherId,
         messages: [{ publishingId: args0, message: { content: arg1, ...opts } }],
       })
+    )
+  }
+
+  public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
+    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+    this.connection.on("publish_error", (error: PublishErrorResponse) =>
+      cb(error.publishingError.code, [error.publishingError.publishingId])
     )
   }
 
@@ -99,7 +101,7 @@ export class Producer {
     )
   }
 
-  getLastPublishingId() {
+  getLastPublishingId(): Promise<bigint> {
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 

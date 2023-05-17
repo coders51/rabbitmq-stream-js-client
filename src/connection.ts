@@ -14,16 +14,21 @@ import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { TuneRequest } from "./requests/tune_request"
-import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
-import { OpenResponse } from "./responses/open_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { OpenResponse } from "./responses/open_response"
 import { Response } from "./responses/response"
+import {
+  MetadataUpdateListener,
+  PublishConfirmListener,
+  PublishErrorListener,
+  ResponseDecoder,
+} from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
@@ -89,9 +94,26 @@ export class Connection {
       this.socket.connect(params.port, params.hostname)
     })
   }
-
-  public on(event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on(event, listener)
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmListener): void
+  public on(event: "publish_error", listener: PublishErrorListener): void
+  public on(
+    event: "metadata_update" | "publish_confirm" | "publish_error",
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+  ) {
+    switch (event) {
+      case "metadata_update":
+        this.decoder.on("metadata_update", listener as MetadataUpdateListener)
+        break
+      case "publish_confirm":
+        this.decoder.on("publish_confirm", listener as PublishConfirmListener)
+        break
+      case "publish_error":
+        this.decoder.on("publish_error", listener as PublishErrorListener)
+        break
+      default:
+        break
+    }
   }
 
   public async close(
@@ -106,9 +128,10 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
     const res = await this.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ ...params, publisherId })
+      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
@@ -354,9 +377,9 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) {
-      this.on("metadata_update", listeners.metadata_update)
-    }
+    if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
+    if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
+    if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
   }
 
   private registerDelivers() {
@@ -375,7 +398,9 @@ export class Connection {
 }
 
 export type ListenersParams = {
-  metadata_update: MetadataUpdateListener
+  metadata_update?: MetadataUpdateListener
+  publish_confirm?: PublishConfirmListener
+  publish_error?: PublishErrorListener
 }
 
 export interface ConnectionParams {

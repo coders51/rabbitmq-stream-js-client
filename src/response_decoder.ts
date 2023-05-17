@@ -1,29 +1,31 @@
+import { EventEmitter } from "events"
 import { inspect } from "util"
 import { Logger } from "winston"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { HeartbeatResponse } from "./responses/heartbeat_response"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import {
   DataReader,
   RawDeliverResponse,
   RawCreditResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
+  RawPublishConfirmResponse,
   RawResponse,
   RawTuneResponse,
+  RawPublishErrorResponse,
 } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { TuneResponse } from "./responses/tune_response"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { CloseResponse } from "./responses/close_response"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { MetadataUpdateResponse } from "./responses/metadata_update_response"
-import { EventEmitter } from "events"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { FormatCodeType, FormatCode } from "./amqp10/decoder"
@@ -32,6 +34,8 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { Properties } from "./amqp10/properties"
 import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
+import { TuneResponse } from "./responses/tune_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -45,6 +49,8 @@ import { ApplicationProperties } from "./amqp10/applicationProperties"
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
+export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
+export type PublishErrorListener = (confirm: PublishErrorResponse) => void
 type MessageAndSubId = {
   subscriptionId: number
   messages: Message[]
@@ -57,6 +63,8 @@ type PossibleRawResponses =
   | RawMetadataUpdateResponse
   | RawDeliverResponse
   | RawCreditResponse
+  | RawPublishConfirmResponse
+  | RawPublishErrorResponse
 
 function decode(data: DataReader, logger: Logger): PossibleRawResponses {
   const size = data.readUInt32()
@@ -106,6 +114,23 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
     return response
   }
 
+  if (key === PublishConfirmResponse.key) {
+    const publisherId = dataResponse.readUInt8()
+    const publishingIds: bigint[] = []
+    const howManyPublishingIds = dataResponse.readUInt32()
+    for (let i = 0; i < howManyPublishingIds; i++) {
+      const publishingId = dataResponse.readUInt64()
+      publishingIds.push(publishingId)
+    }
+    const response: RawPublishConfirmResponse = {
+      size,
+      key: key as PublishConfirmResponse["key"],
+      version,
+      publisherId,
+      publishingIds,
+    }
+    return response
+  }
   const correlationId = dataResponse.readUInt32()
   const code = dataResponse.readUInt16()
   const payload = dataResponse.readToEnd()
@@ -420,6 +445,14 @@ function isCreditResponse(params: PossibleRawResponses): params is RawCreditResp
   return params.key === CreditResponse.key
 }
 
+function isPublishConfirmResponse(params: PossibleRawResponses): params is RawPublishConfirmResponse {
+  return params.key === PublishConfirmResponse.key
+}
+
+function isPublishErrorResponse(params: PossibleRawResponses): params is RawPublishErrorResponse {
+  return params.key === PublishErrorResponse.key
+}
+
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
   private emitter = new EventEmitter()
@@ -456,15 +489,26 @@ export class ResponseDecoder {
       } else if (isCreditResponse(response)) {
         this.logger.debug(`credit received from the server: ${inspect(response)}`)
         this.emitter.emit("credit_response", new CreditResponse(response))
+      } else if (isPublishConfirmResponse(response)) {
+        this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
+        this.logger.debug(`publish confirm received from the server: ${inspect(response)}`)
+      } else if (isPublishErrorResponse(response)) {
+        this.emitter.emit("publish_error", new PublishErrorResponse(response))
+        this.logger.debug(`publish error received from the server: ${inspect(response)}`)
       } else {
         this.emitResponseReceived(response)
       }
     }
   }
 
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "credit_response", listener: CreditListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmListener): void
+  public on(event: "publish_error", listener: PublishErrorListener): void
+  public on(event: "deliver", listener: DeliverListener): void
   public on(
-    event: "metadata_update" | "credit_response" | "deliver",
-    listener: MetadataUpdateListener | CreditListener | DeliverListener
+    event: "metadata_update" | "credit_response" | "publish_confirm" | "publish_error" | "deliver",
+    listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener
   ) {
     this.emitter.on(event, listener)
   }
