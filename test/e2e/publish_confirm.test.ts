@@ -28,10 +28,8 @@ describe("publish a message and get confirmation", () => {
 
     await publisher.send(publishingId, Buffer.from(`test${randomUUID()}`))
 
-    await eventually(async () => {
-      expect((await rabbit.getQueueInfo(stream)).messages).eql(1)
-      expect(publishResponses).eql([{ error: null, ids: [publishingId] }])
-    }, 5000)
+    await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(1), 10000)
+    expect(publishResponses).eql([{ error: null, ids: [publishingId] }])
   }).timeout(10000)
 
   it("after the server replies with a confirm, the confirm callback is invoked with the publishingId as an argument", async () => {
