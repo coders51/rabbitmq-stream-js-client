@@ -164,15 +164,12 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(
-      {
-        connection: this,
-        stream: params.stream,
-        consumerId,
-        consumerRef: params.consumerRef,
-      },
-      handle
-    )
+    const consumer = new Consumer(handle, {
+      connection: this,
+      stream: params.stream,
+      consumerId,
+      consumerRef: params.consumerRef,
+    })
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
