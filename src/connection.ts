@@ -377,6 +377,7 @@ export class Connection {
   private registerListeners(listeners?: ListenersParams) {
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
+    if (listeners?.publish_error) this.decoder.on("publish_confirm", listeners.publish_error)
   }
 
   private registerDelivers() {
