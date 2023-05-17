@@ -26,13 +26,13 @@ describe("declare consumer", () => {
     const publisher = await connection.declarePublisher({ stream: testStreamName })
     await publisher.send(Buffer.from("hello"))
     const consumer = await connection.declareConsumer(
-      { stream: testStreamName, offset: Offset.first(), consumerRef: "my consumer" },
+      { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
       (message: Message) => messages.push(message.content)
     )
     await consumer.storeOffset(1n)
 
-    const offset = await consumer.queryOffset()
+    const offset = await connection.queryOffset({ reference: "my_consumer", stream: testStreamName })
 
-    await eventually(() => expect(offset).eql(1n))
+    expect(offset).eql(1n)
   }).timeout(10000)
 })

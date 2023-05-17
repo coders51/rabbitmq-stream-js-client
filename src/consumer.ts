@@ -32,10 +32,6 @@ export class Consumer {
     return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
   }
 
-  public queryOffset() {
-    return this.connection.queryOffset({ reference: this.consumerRef, stream: this.stream })
-  }
-
   public getConsumerRef() {
     return this.consumerRef
   }
