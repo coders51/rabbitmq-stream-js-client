@@ -7,21 +7,21 @@ export class Consumer {
   private connection: Connection
   private stream: string
   public consumerId: number
-  private consumerRef: string
+  public consumerRef: string
 
   constructor(
-    readonly handle: ConsumerFunc,
     params: {
       connection: Connection
       stream: string
       consumerId: number
-      consumerRef?: string
-    }
+      consumerRef: string
+    },
+    readonly handle: ConsumerFunc
   ) {
     this.connection = params.connection
     this.stream = params.stream
     this.consumerId = params.consumerId
-    this.consumerRef = params.consumerRef || ""
+    this.consumerRef = params.consumerRef
   }
 
   async close(): Promise<void> {
