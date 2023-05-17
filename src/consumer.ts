@@ -10,13 +10,13 @@ export class Consumer {
   public consumerRef: string
 
   constructor(
+    readonly handle: ConsumerFunc,
     params: {
       connection: Connection
       stream: string
       consumerId: number
       consumerRef: string
-    },
-    readonly handle: ConsumerFunc
+    }
   ) {
     this.connection = params.connection
     this.stream = params.stream
