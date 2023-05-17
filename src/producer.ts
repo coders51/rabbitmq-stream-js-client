@@ -34,7 +34,7 @@ type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => v
 export class Producer {
   private connection: Connection
   private stream: string
-  private publisherId: number
+  readonly publisherId: number
   private publisherRef: string
   private boot: boolean
   private publishingId: bigint
@@ -101,17 +101,7 @@ export class Producer {
     )
   }
 
-<<<<<<< HEAD
   getLastPublishingId(): Promise<bigint> {
-||||||| parent of dc0ccf1 (DeletePublisher Command)
-  getLastPublishingId() {
-=======
-  getPublisherId() {
-    return this.publisherId
-  }
-
-  getLastPublishingId() {
->>>>>>> dc0ccf1 (DeletePublisher Command)
     return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 
