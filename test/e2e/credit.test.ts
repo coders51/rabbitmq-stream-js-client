@@ -36,8 +36,9 @@ describe.skip("credit management", () => {
       await publisher.send(m)
     }
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      receivedMessages.push(message.content)
+    await connection.declareConsumer(
+      { stream: streamName, offset: Offset.first(), consumerRef: "my_consumer" },
+      (message: Message) => receivedMessages.push(message.content)
     )
 
     await eventually(async () => {
