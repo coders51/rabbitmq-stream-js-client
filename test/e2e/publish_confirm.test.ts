@@ -65,7 +65,6 @@ describe("publish a message and get confirmation", () => {
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
     await eventually(() => expect(errors).lengthOf(1))
-    console.log("AAAAA", errors)
     await eventually(() => expect(errors).eql([256]))
   }).timeout(10000)
 
