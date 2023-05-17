@@ -65,7 +65,7 @@ describe("publish a message and get confirmation", () => {
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
     await eventually(() => expect(errors).lengthOf(1))
-    await eventually(() => expect(errors).eql([256]))
+    expect(errors).eql([256])
   }).timeout(10000)
 
   it("after the server replies with an error, the error callback is invoked with the error as an argument", async () => {
@@ -79,6 +79,6 @@ describe("publish a message and get confirmation", () => {
     await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
 
     await eventually(() => expect(errors).lengthOf(1))
-    await eventually(() => expect(errors).eql([256]))
+    expect(errors).eql([256])
   }).timeout(10000)
 })
