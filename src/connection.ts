@@ -17,6 +17,8 @@ import { TuneRequest } from "./requests/tune_request"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherRequest } from "./requests/delete_publisher_request"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
@@ -147,7 +149,17 @@ export class Connection {
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
+
     return producer
+  }
+
+  public async deletePublisher(publisherId: number) {
+    const res = await this.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    if (!res.ok) {
+      throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`deleted producer with publishing id ${publisherId}`)
+    return res.ok
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
@@ -440,6 +452,8 @@ function errorMessageOf(code: number): string {
   switch (code) {
     case 0x02:
       return "Stream does not exist"
+    case 0x12:
+      return "Publisher does not exist"
 
     default:
       return "Unknown error"
