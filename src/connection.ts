@@ -42,6 +42,8 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { StreamStatsRequest } from "./requests/stream_stats_request"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -256,6 +258,15 @@ export class Connection {
       `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
     )
     return res.sequence
+  }
+
+  public async streamStatsRequest(streamName: string) {
+    const res = await this.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
+    if (!res.ok) {
+      throw new Error(`Stream Stats command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`Statistics for stream name ${streamName}, ${res.statistics}`)
+    return res.statistics
   }
 
   private responseReceived<T extends Response>(response: T) {
