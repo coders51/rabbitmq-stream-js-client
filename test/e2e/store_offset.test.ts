@@ -3,7 +3,7 @@ import { Connection } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
-import { eventually, password, username } from "../support/util"
+import { eventually, expectToThrowAsync, password, username } from "../support/util"
 import { createConnection } from "../support/fake_data"
 
 describe("declare consumer", () => {
@@ -13,7 +13,6 @@ describe("declare consumer", () => {
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
-
     connection = await createConnection(username, password)
   })
 
@@ -36,4 +35,18 @@ describe("declare consumer", () => {
     // TODO - change expect, similar to the credit one
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
+
+  it("declaring a consumer without consumerRef and saving the store offset should rise an error", async () => {
+    const consumer = await connection.declareConsumer(
+      { stream: testStreamName, offset: Offset.first() },
+      (message: Message) => {
+        console.log(message.content)
+      }
+    )
+    await expectToThrowAsync(
+      () => consumer.storeOffset(1n),
+      Error,
+      "ConsumerReference must be defined in order to use this!"
+    )
+  })
 })

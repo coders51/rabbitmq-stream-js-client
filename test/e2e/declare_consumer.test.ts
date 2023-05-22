@@ -35,9 +35,8 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first(), consumerRef: "my_consumer" },
-      (message: Message) => messages.push(message.content)
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -49,9 +48,8 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
     await publisher.send(Buffer.from("world"))
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first(), consumerRef: "my_consumer" },
-      (message: Message) => messages.push(message.content)
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world"), Buffer.from("world")]))
@@ -59,12 +57,9 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.next(), consumerRef: "my_consumer" },
-      (message: Message) => {
-        receivedMessages.push(message.content)
-      }
-    )
+    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
+      receivedMessages.push(message.content)
+    })
 
     const messages = range(1000).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
@@ -77,9 +72,8 @@ describe("declare consumer", () => {
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
       () =>
-        connection.declareConsumer(
-          { stream: nonExistingStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
-          (message: Message) => console.log(message.content)
+        connection.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
+          console.log(message.content)
         ),
       Error,
       "Declare Consumer command returned error with code 2 - Stream does not exist"
@@ -92,13 +86,10 @@ describe("declare consumer", () => {
     const properties = createProperties()
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first(), consumerRef: "my_consumer" },
-      (message: Message) => {
-        messageProperties.push(message.messageProperties || {})
-        messages.push("JSON.stringify(message.properties?.correlationId) ||")
-      }
-    )
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageProperties.push(message.messageProperties || {})
+      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+    })
 
     await eventually(async () => {
       expect(messageProperties).eql([properties])
@@ -111,13 +102,10 @@ describe("declare consumer", () => {
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
-    await connection.declareConsumer(
-      { stream: streamName, offset: Offset.first(), consumerRef: "my_consumer" },
-      (message: Message) => {
-        messageApplicationProperties.push(message.applicationProperties || {})
-        messages.push("JSON.stringify(message.properties?.correlationId) ||")
-      }
-    )
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageApplicationProperties.push(message.applicationProperties || {})
+      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+    })
 
     await eventually(async () => {
       expect(messageApplicationProperties).eql([applicationProperties])

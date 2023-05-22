@@ -22,10 +22,7 @@ describe("close consumer", () => {
 
   it("closing a consumer in an existing stream", async () => {
     await connection.declarePublisher({ stream: testStreamName })
-    const consumer = await connection.declareConsumer(
-      { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
-      console.log
-    )
+    const consumer = await connection.declareConsumer({ stream: testStreamName, offset: Offset.first() }, console.log)
 
     const response = await connection.closeConsumer(consumer.consumerId)
 
