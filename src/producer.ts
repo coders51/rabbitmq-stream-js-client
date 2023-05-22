@@ -35,7 +35,7 @@ type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => v
 export class Producer {
   private connection: Connection
   private stream: string
-  private publisherId: number
+  readonly publisherId: number
   private publisherRef: string
   private boot: boolean
   private publishingId: bigint

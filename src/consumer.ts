@@ -7,7 +7,7 @@ export class Consumer {
   private connection: Connection
   private stream: string
   public consumerId: number
-  public consumerRef: string
+  public consumerRef?: string
 
   constructor(
     readonly handle: ConsumerFunc,
@@ -15,7 +15,7 @@ export class Consumer {
       connection: Connection
       stream: string
       consumerId: number
-      consumerRef: string
+      consumerRef?: string
     }
   ) {
     this.connection = params.connection
@@ -29,6 +29,7 @@ export class Consumer {
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {
+    if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
     return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
   }
 }
