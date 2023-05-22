@@ -443,7 +443,7 @@ export interface DeclarePublisherParams {
 
 export interface DeclareConsumerParams {
   stream: string
-  consumerRef: string
+  consumerRef?: string
   offset: Offset
 }
 

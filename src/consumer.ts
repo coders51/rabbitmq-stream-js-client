@@ -15,13 +15,13 @@ export class Consumer {
       connection: Connection
       stream: string
       consumerId: number
-      consumerRef: string
+      consumerRef?: string
     }
   ) {
     this.connection = params.connection
     this.stream = params.stream
     this.consumerId = params.consumerId
-    this.consumerRef = params.consumerRef || undefined
+    this.consumerRef = params.consumerRef
   }
 
   async close(): Promise<void> {
