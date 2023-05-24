@@ -269,11 +269,9 @@ export class Connection {
   public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
-
     if (!res.ok) {
       throw new Error(`Query offset command returned error with code ${res.code}`)
     }
-
     this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
     return res.offsetValue
   }

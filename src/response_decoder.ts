@@ -182,7 +182,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
 
 const EmptyBuffer = Buffer.from("")
 
-function decodeMessage(dataResponse: DataReader, offset: BigInt): Message {
+function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 

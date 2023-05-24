@@ -24,7 +24,7 @@ export interface Message {
   content: Buffer
   messageProperties?: MessageProperties
   applicationProperties?: MessageApplicationProperties
-  offset?: BigInt
+  offset?: bigint
 }
 
 interface MessageOptions {
