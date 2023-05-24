@@ -1,9 +1,20 @@
 import { AbstractResponse } from "./abstract_response"
 import { RawResponse } from "./raw_response"
 
+export interface Statistcs {
+  committedChunkId: bigint
+  firstChunkId: bigint
+  lastChunkId: bigint
+}
+
 export class StreamStatsResponse extends AbstractResponse {
   static key = 0x801c
-  readonly statistics: Record<string, bigint> = {}
+  private rawStats: Record<string, bigint> = {}
+  readonly statistics: Statistcs = {
+    committedChunkId: BigInt(0),
+    firstChunkId: BigInt(0),
+    lastChunkId: BigInt(0),
+  }
 
   constructor(response: RawResponse) {
     super(response)
@@ -13,7 +24,11 @@ export class StreamStatsResponse extends AbstractResponse {
     for (let i = 0; i < stats; i++) {
       const statKey = this.response.payload.readString()
       const statVal = this.response.payload.readInt64()
-      this.statistics[statKey] = statVal
+      this.rawStats[statKey] = statVal
     }
+
+    this.statistics.committedChunkId = this.rawStats["committed_chunk_id"]
+    this.statistics.firstChunkId = this.rawStats["first_chunk_id"]
+    this.statistics.lastChunkId = this.rawStats["last_chunk_id"]
   }
 }

@@ -30,9 +30,9 @@ describe("StreamStats", () => {
 
     const stats = await connection.streamStatsRequest(testStreamName)
 
-    expect(stats.committed_chunk_id).to.be.a("BigInt")
-    expect(stats.first_chunk_id).to.be.a("BigInt")
-    expect(stats.last_chunk_id).to.be.a("BigInt")
+    expect(stats.committedChunkId).to.be.a("BigInt")
+    expect(stats.firstChunkId).to.be.a("BigInt")
+    expect(stats.lastChunkId).to.be.a("BigInt")
   }).timeout(10000)
 
   it("returns an error when the stream does not exist", async () => {
