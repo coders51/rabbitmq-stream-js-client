@@ -14,16 +14,22 @@ import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { TuneRequest } from "./requests/tune_request"
-import { MetadataUpdateListener, ResponseDecoder } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherRequest } from "./requests/delete_publisher_request"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeliverResponse } from "./responses/deliver_response"
-import { OpenResponse } from "./responses/open_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { OpenResponse } from "./responses/open_response"
 import { Response } from "./responses/response"
+import {
+  MetadataUpdateListener,
+  PublishConfirmListener,
+  PublishErrorListener,
+  ResponseDecoder,
+} from "./response_decoder"
 import { createConsoleLog, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
@@ -35,6 +41,7 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { DeliverResponse } from "./responses/deliver_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
@@ -92,9 +99,26 @@ export class Connection {
       this.socket.connect(params.port, params.hostname)
     })
   }
-
-  public on(event: "metadata_update", listener: MetadataUpdateListener) {
-    this.decoder.on(event, listener)
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmListener): void
+  public on(event: "publish_error", listener: PublishErrorListener): void
+  public on(
+    event: "metadata_update" | "publish_confirm" | "publish_error",
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+  ) {
+    switch (event) {
+      case "metadata_update":
+        this.decoder.on("metadata_update", listener as MetadataUpdateListener)
+        break
+      case "publish_confirm":
+        this.decoder.on("publish_confirm", listener as PublishConfirmListener)
+        break
+      case "publish_error":
+        this.decoder.on("publish_error", listener as PublishErrorListener)
+        break
+      default:
+        break
+    }
   }
 
   public async close(
@@ -109,9 +133,10 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+    const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
     const res = await this.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ ...params, publisherId })
+      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
@@ -127,20 +152,27 @@ export class Connection {
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
+
     return producer
+  }
+
+  public async deletePublisher(publisherId: number) {
+    const res = await this.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    if (!res.ok) {
+      throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`deleted producer with publishing id ${publisherId}`)
+    return res.ok
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(
-      {
-        connection: this,
-        stream: params.stream,
-        consumerId,
-        consumerRef: params.consumerRef,
-      },
-      handle
-    )
+    const consumer = new Consumer(handle, {
+      connection: this,
+      stream: params.stream,
+      consumerId,
+      consumerRef: params.consumerRef,
+    })
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
@@ -234,11 +266,7 @@ export class Connection {
     return res.sequence
   }
 
-  public storeOffset(params: { reference: string; stream: string; offsetValue: bigint }): Promise<void> {
-    return this.send(new StoreOffsetRequest(params))
-  }
-
-  public async queryOffset(params: { reference: string; stream: string }): Promise<bigint> {
+  public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
 
@@ -284,6 +312,10 @@ export class Connection {
 
   private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
+  }
+
+  public storeOffset(params: StoreOffsetParams): Promise<void> {
+    return this.send(new StoreOffsetRequest(params))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -381,9 +413,9 @@ export class Connection {
   }
 
   private registerListeners(listeners?: ListenersParams) {
-    if (listeners) {
-      this.on("metadata_update", listeners.metadata_update)
-    }
+    if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
+    if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
+    if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
   }
 
   private registerDelivers() {
@@ -393,7 +425,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.getConsumerRef()}`)
+      this.logger.debug(`on deliver -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -402,7 +434,9 @@ export class Connection {
 }
 
 export type ListenersParams = {
-  metadata_update: MetadataUpdateListener
+  metadata_update?: MetadataUpdateListener
+  publish_confirm?: PublishConfirmListener
+  publish_error?: PublishErrorListener
 }
 
 export interface ConnectionParams {
@@ -435,6 +469,17 @@ export interface SubscribeParams {
   offset: Offset
 }
 
+export interface StoreOffsetParams {
+  reference: string
+  stream: string
+  offsetValue: bigint
+}
+
+export interface QueryOffsetParams {
+  reference: string
+  stream: string
+}
+
 export function connect(params: ConnectionParams): Promise<Connection> {
   return Connection.connect(params)
 }
@@ -443,6 +488,8 @@ function errorMessageOf(code: number): string {
   switch (code) {
     case 0x02:
       return "Stream does not exist"
+    case 0x12:
+      return "Publisher does not exist"
 
     default:
       return "Unknown error"
