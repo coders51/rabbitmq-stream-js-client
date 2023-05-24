@@ -37,6 +37,7 @@ import { Message, MessageApplicationProperties, MessageProperties } from "./prod
 import { ApplicationProperties } from "./amqp10/applicationProperties"
 import { TuneResponse } from "./responses/tune_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
+import { StoreOffsetResponse } from "./responses/store_offset_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -52,7 +53,8 @@ export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
 export type PublishErrorListener = (confirm: PublishErrorResponse) => void
-type MessageAndSubId = {
+
+type DeliveryResponseDecoded = {
   subscriptionId: number
   messages: Message[]
 }
@@ -138,7 +140,7 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
   return { size, key, version, correlationId, code, payload }
 }
 
-function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): MessageAndSubId {
+function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
   const magicVersion = dataResponse.readInt8()
   const chunkType = dataResponse.readInt8()
@@ -171,7 +173,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
   logger.debug(inspect(data))
   const messages: Message[] = []
   for (let i = 0; i < numEntries; i++) {
-    messages.push(decodeMessage(dataResponse))
+    messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
   }
 
   return { subscriptionId, messages }
@@ -179,7 +181,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Messag
 
 const EmptyBuffer = Buffer.from("")
 
-function decodeMessage(dataResponse: DataReader): Message {
+function decodeMessage(dataResponse: DataReader, offset: BigInt): Message {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 
@@ -206,7 +208,7 @@ function decodeMessage(dataResponse: DataReader): Message {
     }
   }
 
-  return { content, messageProperties, applicationProperties }
+  return { content, messageProperties, applicationProperties, offset }
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
@@ -471,6 +473,7 @@ export class ResponseDecoder {
     this.addFactoryFor(QueryPublisherResponse)
     this.addFactoryFor(SubscribeResponse)
     this.addFactoryFor(UnsubscribeResponse)
+    this.addFactoryFor(StoreOffsetResponse)
   }
 
   add(data: Buffer) {
