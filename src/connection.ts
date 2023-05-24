@@ -20,7 +20,6 @@ import { DeclarePublisherResponse } from "./responses/declare_publisher_response
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeliverResponse } from "./responses/deliver_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { OpenResponse } from "./responses/open_response"
@@ -44,7 +43,8 @@ import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
-
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+import { DeliverResponse } from "./responses/deliver_response"
 export class Connection {
   private readonly socket = new Socket()
   private readonly logger = createConsoleLog()
@@ -166,7 +166,12 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle, consumerId)
+    const consumer = new Consumer(handle, {
+      connection: this,
+      stream: params.stream,
+      consumerId,
+      consumerRef: params.consumerRef,
+    })
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
@@ -303,6 +308,10 @@ export class Connection {
 
   private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
+  }
+
+  public storeOffset(params: StoreOffsetParams): Promise<void> {
+    return this.send(new StoreOffsetRequest(params))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
@@ -445,6 +454,7 @@ export interface DeclarePublisherParams {
 
 export interface DeclareConsumerParams {
   stream: string
+  consumerRef?: string
   offset: Offset
 }
 
@@ -453,6 +463,12 @@ export interface SubscribeParams {
   stream: string
   credit: number
   offset: Offset
+}
+
+export interface StoreOffsetParams {
+  reference: string
+  stream: string
+  offsetValue: bigint
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
