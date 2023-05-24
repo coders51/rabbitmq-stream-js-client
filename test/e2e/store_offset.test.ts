@@ -30,10 +30,14 @@ describe("declare consumer", () => {
       (message: Message) => messages.push(message.content)
     )
 
-    await consumer.storeOffset(Offset.offset(1n).value!)
+    await consumer.storeOffset(1n)
 
     // TODO - change expect, similar to the credit one
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+    await eventually(async () => {
+      const offset = await consumer.queryOffset()
+      expect(offset).eql(1n)
+    })
   }).timeout(10000)
 
   it("declaring a consumer without consumerRef and saving the store offset should rise an error", async () => {

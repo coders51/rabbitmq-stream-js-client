@@ -266,7 +266,7 @@ export class Connection {
     return res.sequence
   }
 
-  public async queryOffset(params: { reference: string; stream: string }): Promise<bigint> {
+  public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
 
@@ -473,6 +473,11 @@ export interface StoreOffsetParams {
   reference: string
   stream: string
   offsetValue: bigint
+}
+
+export interface QueryOffsetParams {
+  reference: string
+  stream: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
