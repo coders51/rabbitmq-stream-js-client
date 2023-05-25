@@ -31,12 +31,13 @@ describe("offset", () => {
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
-          console.log(offset)
         }
       )
       const publisher = await connection.declarePublisher({ stream: testStreamName })
+
       await publisher.send(Buffer.from("hello"))
       await publisher.send(Buffer.from("world"))
+
       await eventually(async () => {
         const result = await consumer.queryOffset()
         expect(result).eql(offset)
@@ -46,8 +47,8 @@ describe("offset", () => {
     it("declaring a consumer without consumerRef and saving the store offset should rise an error", async () => {
       const consumer = await connection.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
-        (message: Message) => {
-          console.log(message.content)
+        (_message: Message) => {
+          return
         }
       )
       await expectToThrowAsync(
@@ -66,12 +67,13 @@ describe("offset", () => {
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
-          console.log(offset)
         }
       )
       const publisher = await connection.declarePublisher({ stream: testStreamName })
+
       await publisher.send(Buffer.from("hello"))
       await publisher.send(Buffer.from("world"))
+
       await eventually(async () => {
         const result = await consumer.queryOffset()
         expect(result).eql(offset)
@@ -81,8 +83,8 @@ describe("offset", () => {
     it("declaring a consumer without consumerRef and querying for the offset should rise an error", async () => {
       const consumer = await connection.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
-        (message: Message) => {
-          console.log(message.content)
+        (_message: Message) => {
+          return
         }
       )
       await expectToThrowAsync(
@@ -95,8 +97,8 @@ describe("offset", () => {
     it("query offset is able to raise an error if the stream is closed", async () => {
       const consumer = await connection.declareConsumer(
         { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
-        (message: Message) => {
-          console.log(message.content)
+        (_message: Message) => {
+          return
         }
       )
       await rabbit.deleteStream(testStreamName)
