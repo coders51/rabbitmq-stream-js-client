@@ -43,7 +43,6 @@ import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { DeliverResponse } from "./responses/deliver_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
@@ -268,7 +267,6 @@ export class Connection {
     )
     return res.sequence
   }
-
 
   public async streamStatsRequest(streamName: string) {
     const res = await this.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
