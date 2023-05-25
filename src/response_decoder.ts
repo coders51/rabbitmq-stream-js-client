@@ -39,6 +39,7 @@ import { TuneResponse } from "./responses/tune_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -182,7 +183,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
 
 const EmptyBuffer = Buffer.from("")
 
-function decodeMessage(dataResponse: DataReader, offset: BigInt): Message {
+function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 
@@ -476,6 +477,7 @@ export class ResponseDecoder {
     this.addFactoryFor(UnsubscribeResponse)
     this.addFactoryFor(StreamStatsResponse)
     this.addFactoryFor(StoreOffsetResponse)
+    this.addFactoryFor(QueryOffsetResponse)
   }
 
   add(data: Buffer) {

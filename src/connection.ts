@@ -45,6 +45,10 @@ import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { DeliverResponse } from "./responses/deliver_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+
 export class Connection {
   private readonly socket = new Socket()
   private readonly logger = createConsoleLog()
@@ -265,6 +269,7 @@ export class Connection {
     return res.sequence
   }
 
+
   public async streamStatsRequest(streamName: string) {
     const res = await this.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
     if (!res.ok) {
@@ -272,6 +277,16 @@ export class Connection {
     }
     this.logger.info(`Statistics for stream name ${streamName}, ${res.statistics}`)
     return res.statistics
+  }
+
+  public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
+    this.logger.debug(`Query Offset...`)
+    const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
+    if (!res.ok) {
+      throw new Error(`Query offset command returned error with code ${res.code}`)
+    }
+    this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
+    return res.offsetValue
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -421,7 +436,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+      this.logger.debug(`on deliver -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -469,6 +484,11 @@ export interface StoreOffsetParams {
   reference: string
   stream: string
   offsetValue: bigint
+}
+
+export interface QueryOffsetParams {
+  reference: string
+  stream: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {
