@@ -312,8 +312,8 @@ export class Connection {
     return this.send(new CreditRequest({ ...params }))
   }
 
-  public storeOffset(params: StoreOffsetParams): Promise<void> {
-    return this.send(new StoreOffsetRequest(params))
+  public async storeOffset(params: StoreOffsetParams): Promise<void> {
+    return await this.send(new StoreOffsetRequest(params))
   }
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {

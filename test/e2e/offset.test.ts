@@ -26,17 +26,17 @@ describe("offset", () => {
   describe("store", () => {
     it("saving the store offset of a stream correctly", async () => {
       let offset: bigint = 0n
-      const publisher = await connection.declarePublisher({ stream: testStreamName })
-      await publisher.send(Buffer.from("hello"))
-      await publisher.send(Buffer.from("world"))
       const consumer = await connection.declareConsumer(
-        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.first() },
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.next() },
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
           console.log(offset)
         }
       )
+      const publisher = await connection.declarePublisher({ stream: testStreamName })
+      await publisher.send(Buffer.from("hello"))
+      await publisher.send(Buffer.from("world"))
       await eventually(async () => {
         const result = await consumer.queryOffset()
         expect(result).eql(offset)
@@ -61,17 +61,17 @@ describe("offset", () => {
   describe("query", () => {
     it("the consumer is able to track the offset of the stream through queryOffset method", async () => {
       let offset: bigint = 0n
-      const publisher = await connection.declarePublisher({ stream: testStreamName })
-      await publisher.send(Buffer.from("hello"))
-      await publisher.send(Buffer.from("world"))
       const consumer = await connection.declareConsumer(
-        { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
+        { stream: testStreamName, offset: Offset.next(), consumerRef: "my_consumer" },
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
           console.log(offset)
         }
       )
+      const publisher = await connection.declarePublisher({ stream: testStreamName })
+      await publisher.send(Buffer.from("hello"))
+      await publisher.send(Buffer.from("world"))
       await eventually(async () => {
         const result = await consumer.queryOffset()
         expect(result).eql(offset)
