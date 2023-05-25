@@ -41,8 +41,11 @@ import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { DeliverResponse } from "./responses/deliver_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+
 export class Connection {
   private readonly socket = new Socket()
   private readonly logger = createConsoleLog()
@@ -263,6 +266,16 @@ export class Connection {
     return res.sequence
   }
 
+  public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
+    this.logger.debug(`Query Offset...`)
+    const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
+    if (!res.ok) {
+      throw new Error(`Query offset command returned error with code ${res.code}`)
+    }
+    this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
+    return res.offsetValue
+  }
+
   private responseReceived<T extends Response>(response: T) {
     const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
     return wr ? wr.resolve(response) : this.receivedResponses.push(response)
@@ -410,7 +423,7 @@ export class Connection {
         this.logger.error(`On deliver no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerId}`)
+      this.logger.debug(`on deliver -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -458,6 +471,11 @@ export interface StoreOffsetParams {
   reference: string
   stream: string
   offsetValue: bigint
+}
+
+export interface QueryOffsetParams {
+  reference: string
+  stream: string
 }
 
 export function connect(params: ConnectionParams): Promise<Connection> {

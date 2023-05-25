@@ -32,4 +32,9 @@ export class Consumer {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
     return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
   }
+
+  public queryOffset(): Promise<bigint> {
+    if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
+    return this.connection.queryOffset({ stream: this.stream, reference: this.consumerRef })
+  }
 }
