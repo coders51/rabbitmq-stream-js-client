@@ -4,6 +4,7 @@ import { Message, MessageApplicationProperties, MessageProperties } from "../pro
 import { DataWriter } from "../requests/data_writer"
 
 const FormatCodeType = {
+  Annotations: 0x72,
   MessageProperties: 0x73,
   ApplicationProperties: 0x74,
   ApplicationData: 0x75,
@@ -34,14 +35,21 @@ const PropertySizeDescription =
 
 type MessageApplicationPropertiesList = [string, string | number][]
 
-export function amqpEncode(writer: DataWriter, { content, messageProperties, applicationProperties }: Message): void {
+type MessageAnnotationsList = [string, string | number][]
+
+export function amqpEncode(
+  writer: DataWriter,
+  { content, messageProperties, applicationProperties, messageAnnotations }: Message
+): void {
+  const messageAnnotationsList = toList(messageAnnotations)
   const applicationPropertiesList = toList(applicationProperties)
   writer.writeUInt32(
     lengthOfContent(content) +
       lengthOfProperties(messageProperties) +
-      lengthOfApplicationProperties(applicationPropertiesList)
+      lengthOfApplicationProperties(applicationPropertiesList) +
+      lengthOfMessageAnnotations(messageAnnotationsList)
   )
-
+  writeMessageAnnotations(writer, messageAnnotationsList)
   writeProperties(writer, messageProperties)
   writeApplicationProperties(writer, applicationPropertiesList)
   writeContent(writer, content)
@@ -62,7 +70,15 @@ function lengthOfApplicationProperties(applicationProperties: MessageApplication
     return 0
   }
 
-  return PropertySizeDescription + getApplicationPropertySize(applicationProperties)
+  return PropertySizeDescription + getListSize(applicationProperties)
+}
+
+function lengthOfMessageAnnotations(messageAnnotations: MessageAnnotationsList) {
+  if (!messageAnnotations.length) {
+    return 0
+  }
+
+  return PropertySizeDescription + getListSize(messageAnnotations)
 }
 
 function writeApplicationProperties(writer: DataWriter, applicationPropertiesList: MessageApplicationPropertiesList) {
@@ -76,9 +92,30 @@ function writeApplicationProperties(writer: DataWriter, applicationPropertiesLis
   writer.writeByte(FormatCodeType.ApplicationProperties)
 
   writer.writeByte(FormatCode.Map32)
-  writer.writeUInt32(getApplicationPropertySize(applicationPropertiesList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
+  writer.writeUInt32(getListSize(applicationPropertiesList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
   writer.writeUInt32(applicationPropertiesList.length * 2)
   applicationPropertiesList
+    .filter(([key]) => key)
+    .forEach(([k, v]) => {
+      amqpWriteString(writer, k)
+      typeof v === "string" ? amqpWriteString(writer, v) : amqpWriteIntNumber(writer, v)
+    })
+}
+
+function writeMessageAnnotations(writer: DataWriter, messageAnnotationsList: MessageAnnotationsList) {
+  if (!messageAnnotationsList.length) {
+    return
+  }
+
+  // write applicationData header
+  writer.writeByte(FormatCode.Described)
+  writer.writeByte(FormatCode.SmallUlong)
+  writer.writeByte(FormatCodeType.Annotations)
+
+  writer.writeByte(FormatCode.Map32)
+  writer.writeUInt32(getListSize(messageAnnotationsList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
+  writer.writeUInt32(messageAnnotationsList.length * 2)
+  messageAnnotationsList
     .filter(([key]) => key)
     .forEach(([k, v]) => {
       amqpWriteString(writer, k)
@@ -149,8 +186,8 @@ function getPropertySize(properties: MessageProperties): number {
   )
 }
 
-function getApplicationPropertySize(applicationProperties: MessageApplicationPropertiesList): number {
-  return applicationProperties.reduce((sum, [k, v]) => sum + getSizeOf(k) + getSizeOf(v), 0)
+function getListSize(list: MessageApplicationPropertiesList | MessageAnnotationsList): number {
+  return list.reduce((sum, [k, v]) => sum + getSizeOf(k) + getSizeOf(v), 0)
 }
 
 function amqpWriteString(writer: DataWriter, data?: string): void {

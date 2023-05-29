@@ -1,6 +1,12 @@
 import { expect } from "chai"
 import { Connection } from "../../src"
-import { Message, MessageApplicationProperties, MessageProperties, Producer } from "../../src/producer"
+import {
+  Message,
+  MessageAnnotations,
+  MessageApplicationProperties,
+  MessageProperties,
+  Producer,
+} from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
@@ -111,6 +117,22 @@ describe("declare consumer", () => {
       expect(messageApplicationProperties).eql([applicationProperties])
     })
   }).timeout(10000)
+
+  it("declaring a consumer on an existing stream - the consumer should read message annotations", async () => {
+    const messageAnnotations: MessageAnnotations[] = []
+    const messages: string[] = []
+    const annotations = createAnnotations()
+    await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageAnnotations.push(message.messageAnnotations || {})
+      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+    })
+
+    await eventually(async () => {
+      expect(messageAnnotations).eql([annotations])
+    })
+  }).timeout(10000)
 })
 
 function createProperties(): MessageProperties {
@@ -135,5 +157,13 @@ function createApplicationProperties(): MessageApplicationProperties {
   return {
     application1: "application1",
     application2: 666,
+  }
+}
+
+function createAnnotations(): MessageAnnotations {
+  return {
+    akey1: "value1",
+    akey2: "value2",
+    akey3: 3,
   }
 }

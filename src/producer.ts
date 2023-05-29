@@ -4,6 +4,9 @@ import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 
 export type MessageApplicationProperties = Record<string, string | number>
+
+export type MessageAnnotations = Record<string, string | number>
+
 export interface MessageProperties {
   contentType?: string
   contentEncoding?: string
@@ -24,12 +27,14 @@ export interface Message {
   content: Buffer
   messageProperties?: MessageProperties
   applicationProperties?: MessageApplicationProperties
+  messageAnnotations?: MessageAnnotations
   offset?: bigint
 }
 
 interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
+  messageAnnotations?: Record<string, string | number>
 }
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class Producer {
@@ -95,6 +100,7 @@ export class Producer {
               content: message,
               messageProperties: opts.messageProperties,
               applicationProperties: opts.applicationProperties,
+              messageAnnotations: opts.messageAnnotations,
             },
           },
         ],
