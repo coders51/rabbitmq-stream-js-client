@@ -6,12 +6,15 @@ import {
   MessageApplicationProperties,
   MessageProperties,
   Producer,
+  MessageHeader,
 } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
 import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
+import { BufferDataReader, decodeMessage, decodeMessageHeader } from "../../src/response_decoder"
+import { readFileSync } from "fs"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -154,6 +157,18 @@ describe("declare consumer", () => {
       await classicPublisher.conn.close()
     })
   }).timeout(10000)
+
+  it.only("testing if messageHeader is decoded correctly using dataReader", async () => {
+    const dataReader = new BufferDataReader(
+      readFileSync("/home/coders51/Desktop/Coders51/rabbitmq-stream-js-client/test/support/header_amqpvalue_message")
+    )
+    const testMessageHeader = decodeMessageHeader(dataReader)
+    const header = createMessageHeader()
+
+    await eventually(async () => {
+      expect(testMessageHeader).eql(header)
+    })
+  })
 })
 
 function createProperties(): MessageProperties {
@@ -186,5 +201,15 @@ function createAnnotations(): MessageAnnotations {
     akey1: "value1",
     akey2: "value2",
     akey3: 3,
+  }
+}
+
+function createMessageHeader(): MessageHeader {
+  return {
+    deliveryCount: 300,
+    durable: true,
+    ttl: 0,
+    firstAcquirer: true,
+    priority: 100,
   }
 }
