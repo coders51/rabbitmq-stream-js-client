@@ -37,6 +37,7 @@ import { Message, MessageApplicationProperties, MessageProperties } from "./prod
 import { ApplicationProperties } from "./amqp10/applicationProperties"
 import { TuneResponse } from "./responses/tune_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 
@@ -474,6 +475,7 @@ export class ResponseDecoder {
     this.addFactoryFor(QueryPublisherResponse)
     this.addFactoryFor(SubscribeResponse)
     this.addFactoryFor(UnsubscribeResponse)
+    this.addFactoryFor(StreamStatsResponse)
     this.addFactoryFor(StoreOffsetResponse)
     this.addFactoryFor(QueryOffsetResponse)
   }
