@@ -214,9 +214,7 @@ export function decodeMessage(dataResponse: DataReader, offset: bigint): Message
         messageHeader = decodeMessageHeader(dataResponse)
         break
       case FormatCodeType.AmqpValue:
-        const amqpFormatCode = dataResponse.readUInt8()
-        dataResponse.rewind(1)
-        amqpValue = decodeFormatCode(dataResponse, amqpFormatCode) as string
+        amqpValue = decodeAmqpValue(dataResponse)
         break
       default:
         throw new Error(`Not supported format code ${formatCode}`)
@@ -224,6 +222,38 @@ export function decodeMessage(dataResponse: DataReader, offset: bigint): Message
   }
 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, messageAnnotations, offset }
+}
+
+export function decodeMessageTesting(dataResponse: DataReader, length: number): Message {
+  let content = EmptyBuffer
+  let messageProperties: MessageProperties = {}
+  let messageHeader: MessageHeader = {}
+  let amqpValue: string = ""
+  let applicationProperties: MessageApplicationProperties = {}
+  while (dataResponse.position() < length) {
+    const formatCode = readFormatCodeType(dataResponse)
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        content = decodeApplicationData(dataResponse)
+        break
+      case FormatCodeType.MessageProperties:
+        messageProperties = decodeMessageProperties(dataResponse)
+        break
+      case FormatCodeType.ApplicationProperties:
+        applicationProperties = decodeApplicationProperties(dataResponse)
+        break
+      case FormatCodeType.MessageHeader:
+        messageHeader = decodeMessageHeader(dataResponse)
+        break
+      case FormatCodeType.AmqpValue:
+        amqpValue = decodeAmqpValue(dataResponse)
+        break
+      default:
+        throw new Error(`Not supported format code ${formatCode}`)
+    }
+  }
+
+  return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
@@ -260,7 +290,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
 }
 
 export function decodeMessageHeader(dataResponse: DataReader) {
-  //dataResponse.rewind(3)
+  dataResponse.rewind(3)
   const type = dataResponse.readInt8()
   if (type !== 0) {
     throw new Error(`invalid composite header %#02x: ${type}`)
@@ -284,6 +314,12 @@ function decodeApplicationData(dataResponse: DataReader) {
   return dataResponse.readBufferOf(length as number)
 }
 
+export function decodeAmqpValue(dataResponse: DataReader) {
+  const amqpFormatCode = dataResponse.readUInt8()
+  dataResponse.rewind(1)
+  return decodeFormatCode(dataResponse, amqpFormatCode, true) as string
+}
+
 function readFormatCodeType(dataResponse: DataReader) {
   dataResponse.readUInt8()
   dataResponse.readUInt8()
@@ -299,7 +335,7 @@ export function readUTF8String(dataResponse: DataReader) {
   return decodedString as string
 }
 
-export function decodeBooleanType(dataResponse: DataReader) {
+export function decodeBooleanType(dataResponse: DataReader, defaultValue: boolean) {
   const boolType = dataResponse.readInt8()
   switch (boolType) {
     case FormatCode.Bool:
@@ -310,7 +346,7 @@ export function decodeBooleanType(dataResponse: DataReader) {
     case FormatCode.BoolFalse:
       return false
     default:
-      return true // Not sure
+      return defaultValue
   }
 }
 
@@ -366,7 +402,7 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
     case FormatCode.Bool:
     case FormatCode.BoolTrue:
     case FormatCode.BoolFalse:
-      return decodeBooleanType(dataResponse)
+      return decodeBooleanType(dataResponse, true)
     case FormatCode.Null:
       dataResponse.forward(1) // Skipping formatCode
       return 0

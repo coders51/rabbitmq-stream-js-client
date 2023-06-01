@@ -12,9 +12,10 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
+import { BufferDataReader, decodeMessageTesting } from "../../src/response_decoder"
 import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
-import { BufferDataReader, decodeMessage, decodeMessageHeader } from "../../src/response_decoder"
 import { readFileSync } from "fs"
+import path from "path"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -158,15 +159,17 @@ describe("declare consumer", () => {
     })
   }).timeout(10000)
 
-  it.only("testing if messageHeader is decoded correctly using dataReader", async () => {
-    const dataReader = new BufferDataReader(
-      readFileSync("/home/coders51/Desktop/Coders51/rabbitmq-stream-js-client/test/support/header_amqpvalue_message")
-    )
-    const testMessageHeader = decodeMessageHeader(dataReader)
+  it("testing if messageHeader and amqpValue is decoded correctly using dataReader", async () => {
+    const bufferedInput = readFileSync(path.join(...["test", "data", "header_amqpvalue_message"]))
+    const dataReader = new BufferDataReader(bufferedInput)
     const header = createMessageHeader()
+    const amqpValue = "amqpValue"
+
+    const message = decodeMessageTesting(dataReader, bufferedInput.length)
 
     await eventually(async () => {
-      expect(testMessageHeader).eql(header)
+      expect(message.messageHeader).eql(header)
+      expect(message.amqpValue).eql(amqpValue)
     })
   })
 })

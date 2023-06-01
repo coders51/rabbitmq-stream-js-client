@@ -24,7 +24,7 @@ export class Header {
           acc.ttl = decodeFormatCode(dataResponse, type) as number
           break
         case 3:
-          acc.firstAcquirer = decodeBooleanType(dataResponse)
+          acc.firstAcquirer = decodeBooleanType(dataResponse, true)
           break
         case 4:
           acc.deliveryCount = dataResponse.readUInt32()
