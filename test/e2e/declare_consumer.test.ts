@@ -88,13 +88,11 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should read message properties", async () => {
     const messageProperties: MessageProperties[] = []
-    const messages: string[] = []
     const properties = createProperties()
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      messageProperties.push(message.messageProperties || {})
-      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+      if (message.messageProperties) messageProperties.push(message.messageProperties)
     })
 
     await eventually(async () => {
@@ -104,13 +102,11 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should read application properties", async () => {
     const messageApplicationProperties: MessageApplicationProperties[] = []
-    const messages: string[] = []
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      messageApplicationProperties.push(message.applicationProperties || {})
-      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+      if (message.applicationProperties) messageApplicationProperties.push(message.applicationProperties)
     })
 
     await eventually(async () => {
@@ -120,13 +116,11 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should read message annotations", async () => {
     const messageAnnotations: MessageAnnotations[] = []
-    const messages: string[] = []
     const annotations = createAnnotations()
     await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      messageAnnotations.push(message.messageAnnotations || {})
-      messages.push("JSON.stringify(message.properties?.correlationId) ||")
+      if (message.messageAnnotations) messageAnnotations.push(message.messageAnnotations)
     })
 
     await eventually(async () => {
@@ -137,19 +131,19 @@ describe("declare consumer", () => {
 
 function createProperties(): MessageProperties {
   return {
-    contentType: `contentType`,
-    contentEncoding: `contentEncoding`,
-    replyTo: `replyTo`,
-    to: `to`,
-    subject: `subject`,
-    correlationId: `correlationIdAAA`,
-    messageId: `messageId`,
-    userId: Buffer.from(`userId`),
+    contentType: "contentType",
+    contentEncoding: "contentEncoding",
+    replyTo: "replyTo",
+    to: "to",
+    subject: "subject",
+    correlationId: "correlationIdAAA",
+    messageId: "messageId",
+    userId: Buffer.from("userId"),
     absoluteExpiryTime: new Date(),
     creationTime: new Date(),
-    groupId: `groupId`,
+    groupId: "groupId",
     groupSequence: 666,
-    replyToGroupId: `replyToGroupId`,
+    replyToGroupId: "replyToGroupId",
   }
 }
 
