@@ -3,12 +3,13 @@ import { AssertionError, expect } from "chai"
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
 import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
+import { exec } from "child_process"
+import { DataReader } from "../../src/responses/raw_response"
 import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
 import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Producer } from "../../src/producer"
 import { decodeFormatCode } from "../../src/response_decoder"
-import { DataReader } from "../../src/responses/raw_response"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
   return createLogger({
@@ -226,6 +227,41 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
     const [host, port] = n.split(":")
     return { host: host ?? "localhost", port: parseInt(port) ?? 5552 }
   })
+}
+
+// block until the exec is finished, so that our test doesn't assert before the superstream is created
+export function startSuperStream(superStream: string) {
+  console.log("start superStream")
+  return new Promise((resolve, _reject) => {
+    exec(
+      `docker-compose exec rabbitmq-stream rabbitmq-streams add_super_stream ${superStream} --partitions 3`,
+      (error, stdout, stderr) => {
+        if (error) {
+          console.log(`error: ${error.message}`)
+        }
+        resolve(stdout ? stdout : stderr)
+      }
+    )
+  })
+}
+
+export async function stopSuperStream(superStream: string) {
+  // docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream js-stream
+  console.log("stop superstream")
+  exec(
+    `docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream ${superStream}`,
+    (error, stdout, stderr) => {
+      if (error) {
+        console.log(`error: ${error.message}`)
+        return
+      }
+      if (stderr) {
+        console.log(`stderr: ${stderr}`)
+        return
+      }
+      console.log(`stdout: ${stdout}`)
+    }
+  )
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"
