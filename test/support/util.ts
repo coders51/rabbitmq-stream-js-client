@@ -229,10 +229,10 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
   })
 }
 
-// block until the exec is finished, so that our test doesn't assert before the superstream is created
+// block until the exec is finished, so that our test doesn't assert before the super stream is created
 export function startSuperStream(superStream: string) {
-  console.log("start superStream")
-  return new Promise((resolve, _reject) => {
+  console.log("start super stream")
+  return new Promise((resolve) => {
     exec(
       `docker-compose exec rabbitmq-stream rabbitmq-streams add_super_stream ${superStream} --partitions 3`,
       (error, stdout, stderr) => {
@@ -247,7 +247,7 @@ export function startSuperStream(superStream: string) {
 
 export async function stopSuperStream(superStream: string) {
   // docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream js-stream
-  console.log("stop superstream")
+  console.log("stop super stream")
   exec(
     `docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream ${superStream}`,
     (error, stdout, stderr) => {

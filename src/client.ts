@@ -453,7 +453,7 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Route Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    this.logger.info(`Route Response for superstream ${params.superStream}, ${res.streams}`)
+    this.logger.info(`Route Response for super stream ${params.superStream}, ${res.streams}`)
     return res.streams
   }
 
