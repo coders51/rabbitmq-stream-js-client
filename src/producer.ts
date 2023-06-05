@@ -43,7 +43,6 @@ export interface Message {
 
 interface MessageOptions {
   messageProperties?: MessageProperties
-  messageHeader?: MessageHeader
   applicationProperties?: Record<string, string | number>
   messageAnnotations?: Record<string, string | number>
 }
@@ -110,7 +109,6 @@ export class Producer {
             message: {
               content: message,
               messageProperties: opts.messageProperties,
-              messageHeader: opts.messageHeader,
               applicationProperties: opts.applicationProperties,
               messageAnnotations: opts.messageAnnotations,
             },

@@ -12,8 +12,15 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
-import { BufferDataReader, decodeMessageTesting } from "../../src/response_decoder"
-import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
+import { BufferDataReader } from "../../src/response_decoder"
+import {
+  eventually,
+  expectToThrowAsync,
+  username,
+  password,
+  createClassicPublisher,
+  decodeMessageTesting,
+} from "../support/util"
 import { readFileSync } from "fs"
 import path from "path"
 

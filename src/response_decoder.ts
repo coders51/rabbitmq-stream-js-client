@@ -185,7 +185,7 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
 
 const EmptyBuffer = Buffer.from("")
 
-export function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
+function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   const messageLength = dataResponse.readUInt32()
   const startFrom = dataResponse.position()
 
@@ -224,38 +224,6 @@ export function decodeMessage(dataResponse: DataReader, offset: bigint): Message
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, messageAnnotations, offset }
 }
 
-export function decodeMessageTesting(dataResponse: DataReader, length: number): Message {
-  let content = EmptyBuffer
-  let messageProperties: MessageProperties = {}
-  let messageHeader: MessageHeader = {}
-  let amqpValue: string = ""
-  let applicationProperties: MessageApplicationProperties = {}
-  while (dataResponse.position() < length) {
-    const formatCode = readFormatCodeType(dataResponse)
-    switch (formatCode) {
-      case FormatCodeType.ApplicationData:
-        content = decodeApplicationData(dataResponse)
-        break
-      case FormatCodeType.MessageProperties:
-        messageProperties = decodeMessageProperties(dataResponse)
-        break
-      case FormatCodeType.ApplicationProperties:
-        applicationProperties = decodeApplicationProperties(dataResponse)
-        break
-      case FormatCodeType.MessageHeader:
-        messageHeader = decodeMessageHeader(dataResponse)
-        break
-      case FormatCodeType.AmqpValue:
-        amqpValue = decodeAmqpValue(dataResponse)
-        break
-      default:
-        throw new Error(`Not supported format code ${formatCode}`)
-    }
-  }
-
-  return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
-}
-
 function decodeApplicationProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
@@ -289,7 +257,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
   return Properties.parse(dataResponse, propertiesLength as number)
 }
 
-export function decodeMessageHeader(dataResponse: DataReader) {
+function decodeMessageHeader(dataResponse: DataReader) {
   dataResponse.rewind(3)
   const type = dataResponse.readInt8()
   if (type !== 0) {
@@ -314,7 +282,7 @@ function decodeApplicationData(dataResponse: DataReader) {
   return dataResponse.readBufferOf(length as number)
 }
 
-export function decodeAmqpValue(dataResponse: DataReader) {
+function decodeAmqpValue(dataResponse: DataReader) {
   const amqpFormatCode = dataResponse.readUInt8()
   dataResponse.rewind(1)
   return decodeFormatCode(dataResponse, amqpFormatCode, true) as string

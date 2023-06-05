@@ -1,5 +1,12 @@
 import { AssertionError, expect } from "chai"
 import * as ampq from "amqplib"
+import { DataReader } from "../../src/responses/raw_response"
+import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
+import { FormatCodeType } from "../../src/amqp10/decoder"
+import { decodeFormatCode } from "../../src/response_decoder"
+import { Header } from "../../src/amqp10/messageHeader"
+import { Properties } from "../../src/amqp10/properties"
+import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
 
 export function elapsedFrom(from: number): number {
   return Date.now() - from
@@ -94,6 +101,69 @@ export async function createClassicPublisher(): Promise<{ conn: ampq.Connection;
   const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
   const ch = await conn.createChannel()
   return { conn, ch }
+}
+
+export function decodeMessageTesting(dataResponse: DataReader, length: number): Message {
+  let content = Buffer.from("")
+  let messageProperties: MessageProperties = {}
+  let messageHeader: MessageHeader = {}
+  let amqpValue: string = ""
+  let applicationProperties: MessageApplicationProperties = {}
+  while (dataResponse.position() < length) {
+    dataResponse.readUInt8()
+    dataResponse.readUInt8()
+    const formatCode = dataResponse.readUInt8()
+    switch (formatCode) {
+      case FormatCodeType.ApplicationData:
+        const formatCodeApplicationData = dataResponse.readUInt8()
+        const lenApplicationData = decodeFormatCode(dataResponse, formatCodeApplicationData)
+        if (!length) throw new Error(`invalid formatCode %#02x: ${formatCodeApplicationData}`)
+        content = dataResponse.readBufferOf(lenApplicationData as number)
+        break
+      case FormatCodeType.MessageProperties:
+        dataResponse.rewind(3)
+        const typeMessageProperties = dataResponse.readInt8()
+        if (typeMessageProperties !== 0) {
+          throw new Error(`invalid composite header %#02x: ${typeMessageProperties}`)
+        }
+        const nextTypeMessageProperties = dataResponse.readInt8()
+        decodeFormatCode(dataResponse, nextTypeMessageProperties)
+        const formatCodeMessageProperties = dataResponse.readUInt8()
+        const propertiesLength = decodeFormatCode(dataResponse, formatCodeMessageProperties)
+        if (!propertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCodeMessageProperties}`)
+        messageProperties = Properties.parse(dataResponse, propertiesLength as number)
+        break
+      case FormatCodeType.ApplicationProperties:
+        const formatCodeApplicationProperties = dataResponse.readUInt8()
+        const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCodeApplicationProperties)
+        if (!applicationPropertiesLength)
+          throw new Error(`invalid formatCode %#02x: ${formatCodeApplicationProperties}`)
+        applicationProperties = ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
+        break
+      case FormatCodeType.MessageHeader:
+        dataResponse.rewind(3)
+        const typeMessageHeader = dataResponse.readInt8()
+        if (typeMessageHeader !== 0) {
+          throw new Error(`invalid composite header %#02x: ${typeMessageHeader}`)
+        }
+        const nextMessageHeaderType = dataResponse.readInt8()
+        decodeFormatCode(dataResponse, nextMessageHeaderType)
+        const formatCodeHeader = dataResponse.readUInt8()
+        const headerLength = decodeFormatCode(dataResponse, formatCodeHeader)
+        if (!headerLength) throw new Error(`invalid formatCode %#02x: ${formatCodeHeader}`)
+        messageHeader = Header.parse(dataResponse, headerLength as number)
+        break
+      case FormatCodeType.AmqpValue:
+        const amqpFormatCode = dataResponse.readUInt8()
+        dataResponse.rewind(1)
+        amqpValue = decodeFormatCode(dataResponse, amqpFormatCode, true) as string
+        break
+      default:
+        throw new Error(`Not supported format code ${formatCode}`)
+    }
+  }
+
+  return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"
