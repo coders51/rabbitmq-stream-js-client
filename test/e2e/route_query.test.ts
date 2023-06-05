@@ -5,7 +5,7 @@ import { startSuperStream, stopSuperStream, username, password } from "../suppor
 
 describe("RouteQuery command", () => {
   let connection: Connection
-  const superStream = "superStream"
+  const superStream = "super-stream-test"
 
   beforeEach(async () => {
     connection = await createConnection(username, password)
@@ -16,9 +16,9 @@ describe("RouteQuery command", () => {
     await stopSuperStream(superStream)
   })
 
-  it("is true", async () => {
+  it("returns a list of stream names", async () => {
     await startSuperStream(superStream)
     const route = await connection.routeQuery({ routingKey: "0", superStream: superStream })
-    expect(route).contains("superStream-0")
+    expect(route).contains("super-stream-test-0")
   }).timeout(10000)
 })

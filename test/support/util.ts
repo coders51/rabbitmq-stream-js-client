@@ -229,12 +229,13 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
   })
 }
 
-// block until the exec is finished, so that our test doesn't assert before the super stream is created
+// Block until the exec is finished, so that our test doesn't assert before the super stream is created.
+// Does not do anything in CI, since CI creates super stream using `docker exec` in github action.
 export function startSuperStream(superStream: string) {
   console.log("start super stream")
   return new Promise((resolve) => {
     exec(
-      `docker-compose exec rabbitmq-stream rabbitmq-streams add_super_stream ${superStream} --partitions 3`,
+      `docker-compose exec rabbitmq-stream rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
       (error, stdout, stderr) => {
         if (error) {
           console.log(`error: ${error.message}`)
@@ -246,7 +247,6 @@ export function startSuperStream(superStream: string) {
 }
 
 export async function stopSuperStream(superStream: string) {
-  // docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream js-stream
   console.log("stop super stream")
   exec(
     `docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream ${superStream}`,
