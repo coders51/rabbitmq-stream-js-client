@@ -228,7 +228,6 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
     return { host: host ?? "localhost", port: parseInt(port) ?? 5552 }
   })
 }
-
 function getRabbitServiceName() {
   const nodes = getTestNodesFromEnv()
   if (nodes.length > 1) return { path: "./cluster", service: "rabbit_node0" }
@@ -243,6 +242,7 @@ export function startSuperStream(superStream: string) {
   return new Promise((res, rej) => {
     exec(
       `cd ${path} && docker-compose exec ${service} rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
+
       (error, stdout, stderr) => {
         if (error) {
           rej(`${error.message}`)
