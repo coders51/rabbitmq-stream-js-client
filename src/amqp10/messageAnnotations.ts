@@ -12,7 +12,7 @@ export class Annotations {
       const nextByteType = dataReader.readUInt8()
       dataReader.rewind(1)
       const propertyValue = decodeFormatCode(dataReader, nextByteType, true)
-      if (!propertyValue) throw new Error(`invalid nextByteType %#02x: ${nextByteType}`)
+      if (propertyValue === undefined) throw new Error(`invalid nextByteType %#02x: ${nextByteType}`)
       acc[propertyKey] = propertyValue as string | number
       return acc
     }, {})

@@ -33,9 +33,9 @@ const PropertySizeDescription =
   4 + // sizeOf field numbers (uint)
   4 // sizeof propertySize (uint)
 
-type MessageApplicationPropertiesList = [string, string | number][]
+type MessageApplicationPropertiesList = { key: string; value: string | number }[]
 
-type MessageAnnotationsList = [string, string | number][]
+type MessageAnnotationsList = { key: string; value: string | number }[]
 
 export function amqpEncode(
   writer: DataWriter,
@@ -95,10 +95,10 @@ function writeApplicationProperties(writer: DataWriter, applicationPropertiesLis
   writer.writeUInt32(getListSize(applicationPropertiesList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
   writer.writeUInt32(applicationPropertiesList.length * 2)
   applicationPropertiesList
-    .filter(([key]) => key)
-    .forEach(([k, v]) => {
-      amqpWriteString(writer, k)
-      typeof v === "string" ? amqpWriteString(writer, v) : amqpWriteIntNumber(writer, v)
+    .filter((elem) => elem.key)
+    .forEach((elem) => {
+      amqpWriteString(writer, elem.key)
+      typeof elem.value === "string" ? amqpWriteString(writer, elem.value) : amqpWriteIntNumber(writer, elem.value)
     })
 }
 
@@ -116,10 +116,10 @@ function writeMessageAnnotations(writer: DataWriter, messageAnnotationsList: Mes
   writer.writeUInt32(getListSize(messageAnnotationsList) + 3 + 1) // MapSize  + DescribedFormatCode + FormatCode
   writer.writeUInt32(messageAnnotationsList.length * 2)
   messageAnnotationsList
-    .filter(([key]) => key)
-    .forEach(([k, v]) => {
-      amqpWriteString(writer, k)
-      typeof v === "string" ? amqpWriteString(writer, v) : amqpWriteIntNumber(writer, v)
+    .filter((elem) => elem.key)
+    .forEach((elem) => {
+      amqpWriteString(writer, elem.key)
+      typeof elem.value === "string" ? amqpWriteString(writer, elem.value) : amqpWriteIntNumber(writer, elem.value)
     })
 }
 
@@ -187,7 +187,7 @@ function getPropertySize(properties: MessageProperties): number {
 }
 
 function getListSize(list: MessageApplicationPropertiesList | MessageAnnotationsList): number {
-  return list.reduce((sum, [k, v]) => sum + getSizeOf(k) + getSizeOf(v), 0)
+  return list.reduce((sum, elem) => sum + getSizeOf(elem.key) + getSizeOf(elem.value), 0)
 }
 
 function amqpWriteString(writer: DataWriter, data?: string): void {
@@ -294,5 +294,7 @@ function getSizeOf(value?: string | Date | number | Buffer): number {
 
 function toList(applicationProperties?: MessageApplicationProperties): MessageApplicationPropertiesList {
   if (!applicationProperties) return []
-  return Object.entries(applicationProperties)
+  return Object.entries(applicationProperties).map((elem) => {
+    return { key: elem[0], value: elem[1] }
+  })
 }

@@ -11,7 +11,7 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
-import { eventually, expectToThrowAsync, username, password } from "../support/util"
+import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -92,7 +92,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      if (message.messageProperties) messageProperties.push(message.messageProperties)
+      messageProperties.push(message.messageProperties || {})
     })
 
     await eventually(async () => {
@@ -106,7 +106,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      if (message.applicationProperties) messageApplicationProperties.push(message.applicationProperties)
+      messageApplicationProperties.push(message.applicationProperties || {})
     })
 
     await eventually(async () => {
@@ -120,11 +120,38 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
-      if (message.messageAnnotations) messageAnnotations.push(message.messageAnnotations)
+      messageAnnotations.push(message.messageAnnotations || {})
+    })
+
+    await eventually(async () => expect(messageAnnotations).eql([annotations]))
+  }).timeout(10000)
+
+  it("messageAnnotations are ignored by a classic driver", async () => {
+    const messageAnnotations: MessageAnnotations[] = []
+    const annotations = createAnnotations()
+    const classicPublisher = await createClassicPublisher()
+    await classicPublisher.ch.assertQueue("testQ", {
+      exclusive: false,
+      durable: true,
+      autoDelete: false,
+      arguments: {
+        "x-queue-type": "stream", // Mandatory to define stream queue
+      },
+    })
+    classicPublisher.ch.sendToQueue("testQ", Buffer.from("Hello"), {
+      headers: {
+        messageAnnotations: annotations,
+      },
+    })
+
+    await connection.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
+      messageAnnotations.push(message.messageAnnotations || {})
     })
 
     await eventually(async () => {
-      expect(messageAnnotations).eql([annotations])
+      expect(messageAnnotations).not.eql([annotations])
+      await classicPublisher.ch.close()
+      await classicPublisher.conn.close()
     })
   }).timeout(10000)
 })
