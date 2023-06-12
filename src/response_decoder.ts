@@ -24,6 +24,7 @@ import {
   RawResponse,
   RawTuneResponse,
   RawPublishErrorResponse,
+  RawMetadataResponse,
 } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
@@ -40,6 +41,7 @@ import { PublishErrorResponse } from "./responses/publish_error_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { MetadataResponse } from "./responses/metadata_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -97,6 +99,36 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
   }
   if (key === HeartbeatResponse.key) {
     return { key, version } as RawHeartbeatResponse
+  }
+  if (key === MetadataResponse.key) {
+    const metadataCorrelationId = dataResponse.readUInt32()
+    const broker = {
+      reference: dataResponse.readUInt16(),
+      host: dataResponse.readString(),
+      port: dataResponse.readUInt16(),
+    }
+    const replicasReferences: number[] = []
+    const streamMetadata = {
+      streamName: dataResponse.readString(),
+      responseCode: dataResponse.readUInt16(),
+      leaderReference: dataResponse.readUInt16(),
+      replicasReferences: replicasReferences,
+    }
+    const lenRefs = dataResponse.readUInt32()
+    for (let i = 0; i < lenRefs; i++) {
+      const reference = dataResponse.readUInt16()
+      replicasReferences.push(reference)
+    }
+    // streamMetadata.replicasReferences = replicasReferences
+    const response: RawMetadataResponse = {
+      size,
+      key: key as MetadataResponse["key"],
+      version,
+      correlationId: metadataCorrelationId,
+      broker,
+      streamMetadata,
+    }
+    return response
   }
   if (key === MetadataUpdateResponse.key) {
     const metadataInfo = {

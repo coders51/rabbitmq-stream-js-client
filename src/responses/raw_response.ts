@@ -45,6 +45,27 @@ export interface RawDeliverResponse {
   messages: Message[]
 }
 
+export interface RawMetadataResponse {
+  size: number
+  key: 0x800f
+  version: number
+  correlationId: number
+  broker: Broker
+  streamMetadata: StreamMetadata
+}
+
+export interface Broker {
+  reference: number
+  host: string
+  port: number
+}
+export interface StreamMetadata {
+  streamName: string
+  responseCode: number
+  leaderReference: number
+  replicasReferences: number[]
+}
+
 export interface RawMetadataUpdateResponse {
   size: number
   key: 0x0010
