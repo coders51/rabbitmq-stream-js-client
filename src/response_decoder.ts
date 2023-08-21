@@ -33,13 +33,14 @@ import { FormatCodeType, FormatCode } from "./amqp10/decoder"
 import { CreditResponse } from "./responses/credit_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { Properties } from "./amqp10/properties"
-import { Message, MessageApplicationProperties, MessageProperties } from "./producer"
+import { Message, MessageAnnotations, MessageApplicationProperties, MessageProperties } from "./producer"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
 import { TuneResponse } from "./responses/tune_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { Annotations } from "./amqp10/messageAnnotations"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -188,6 +189,7 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   const startFrom = dataResponse.position()
 
   let content = EmptyBuffer
+  let messageAnnotations: MessageAnnotations = {}
   let messageProperties: MessageProperties = {}
   let applicationProperties: MessageApplicationProperties = {}
   while (dataResponse.position() - startFrom !== messageLength) {
@@ -195,6 +197,9 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
     switch (formatCode) {
       case FormatCodeType.ApplicationData:
         content = decodeApplicationData(dataResponse)
+        break
+      case FormatCodeType.MessageAnnotations:
+        messageAnnotations = decodeMessageAnnotations(dataResponse)
         break
       case FormatCodeType.MessageProperties:
         messageProperties = decodeMessageProperties(dataResponse)
@@ -210,7 +215,7 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
     }
   }
 
-  return { content, messageProperties, applicationProperties, offset }
+  return { content, messageProperties, applicationProperties, messageAnnotations, offset }
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
@@ -219,6 +224,14 @@ function decodeApplicationProperties(dataResponse: DataReader) {
   if (!applicationPropertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
+}
+
+function decodeMessageAnnotations(dataResponse: DataReader) {
+  const formatCode = dataResponse.readUInt8()
+  const messageAnnotationsLength = decodeFormatCode(dataResponse, formatCode)
+  if (!messageAnnotationsLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+
+  return Annotations.parse(dataResponse, messageAnnotationsLength as number)
 }
 
 function decodeMessageProperties(dataResponse: DataReader) {

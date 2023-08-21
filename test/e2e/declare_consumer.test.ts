@@ -1,11 +1,17 @@
 import { expect } from "chai"
 import { Connection } from "../../src"
-import { Message, MessageApplicationProperties, MessageProperties, Producer } from "../../src/producer"
+import {
+  Message,
+  MessageAnnotations,
+  MessageApplicationProperties,
+  MessageProperties,
+  Producer,
+} from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
-import { eventually, expectToThrowAsync, username, password } from "../support/util"
+import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -82,13 +88,11 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should read message properties", async () => {
     const messageProperties: MessageProperties[] = []
-    const messages: string[] = []
     const properties = createProperties()
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageProperties.push(message.messageProperties || {})
-      messages.push("JSON.stringify(message.properties?.correlationId) ||")
     })
 
     await eventually(async () => {
@@ -98,36 +102,75 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on an existing stream - the consumer should read application properties", async () => {
     const messageApplicationProperties: MessageApplicationProperties[] = []
-    const messages: string[] = []
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageApplicationProperties.push(message.applicationProperties || {})
-      messages.push("JSON.stringify(message.properties?.correlationId) ||")
     })
 
     await eventually(async () => {
       expect(messageApplicationProperties).eql([applicationProperties])
     })
   }).timeout(10000)
+
+  it("declaring a consumer on an existing stream - the consumer should read message annotations", async () => {
+    const messageAnnotations: MessageAnnotations[] = []
+    const annotations = createAnnotations()
+    await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
+
+    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messageAnnotations.push(message.messageAnnotations || {})
+    })
+
+    await eventually(async () => expect(messageAnnotations).eql([annotations]))
+  }).timeout(10000)
+
+  it("messageAnnotations are ignored by a classic driver", async () => {
+    const messageAnnotations: MessageAnnotations[] = []
+    const annotations = createAnnotations()
+    const classicPublisher = await createClassicPublisher()
+    await classicPublisher.ch.assertQueue("testQ", {
+      exclusive: false,
+      durable: true,
+      autoDelete: false,
+      arguments: {
+        "x-queue-type": "stream", // Mandatory to define stream queue
+      },
+    })
+    classicPublisher.ch.sendToQueue("testQ", Buffer.from("Hello"), {
+      headers: {
+        messageAnnotations: annotations,
+      },
+    })
+
+    await connection.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
+      messageAnnotations.push(message.messageAnnotations || {})
+    })
+
+    await eventually(async () => {
+      expect(messageAnnotations).not.eql([annotations])
+      await classicPublisher.ch.close()
+      await classicPublisher.conn.close()
+    })
+  }).timeout(10000)
 })
 
 function createProperties(): MessageProperties {
   return {
-    contentType: `contentType`,
-    contentEncoding: `contentEncoding`,
-    replyTo: `replyTo`,
-    to: `to`,
-    subject: `subject`,
-    correlationId: `correlationIdAAA`,
-    messageId: `messageId`,
-    userId: Buffer.from(`userId`),
+    contentType: "contentType",
+    contentEncoding: "contentEncoding",
+    replyTo: "replyTo",
+    to: "to",
+    subject: "subject",
+    correlationId: "correlationIdAAA",
+    messageId: "messageId",
+    userId: Buffer.from("userId"),
     absoluteExpiryTime: new Date(),
     creationTime: new Date(),
-    groupId: `groupId`,
+    groupId: "groupId",
     groupSequence: 666,
-    replyToGroupId: `replyToGroupId`,
+    replyToGroupId: "replyToGroupId",
   }
 }
 
@@ -135,5 +178,13 @@ function createApplicationProperties(): MessageApplicationProperties {
   return {
     application1: "application1",
     application2: 666,
+  }
+}
+
+function createAnnotations(): MessageAnnotations {
+  return {
+    akey1: "value1",
+    akey2: "value2",
+    akey3: 3,
   }
 }

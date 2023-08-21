@@ -89,5 +89,12 @@ export async function createClassicConsumer(
 
   return { conn, ch }
 }
+
+export async function createClassicPublisher(): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
+  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
+  const ch = await conn.createChannel()
+  return { conn, ch }
+}
+
 export const username = process.env.RABBITMQ_USER || "rabbit"
 export const password = process.env.RABBITMQ_PASSWORD || "rabbit"
