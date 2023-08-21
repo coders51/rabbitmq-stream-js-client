@@ -31,6 +31,9 @@ export const FormatCode = {
   SmallUint: 0x52,
   SmallInt: 0x54,
   Timestamp: 0x83,
+  Bool: 0x56,
+  BoolTrue: 0x41,
+  BoolFalse: 0x42,
 } as const
 
 export const PropertySizeDescription =

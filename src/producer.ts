@@ -23,11 +23,21 @@ export interface MessageProperties {
   replyToGroupId?: string
 }
 
+export interface MessageHeader {
+  durable?: boolean
+  priority?: number
+  ttl?: number
+  firstAcquirer?: boolean
+  deliveryCount?: number
+}
+
 export interface Message {
   content: Buffer
   messageProperties?: MessageProperties
+  messageHeader?: MessageHeader
   applicationProperties?: MessageApplicationProperties
   messageAnnotations?: MessageAnnotations
+  amqpValue?: string
   offset?: bigint
 }
 

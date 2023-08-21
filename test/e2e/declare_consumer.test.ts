@@ -6,12 +6,23 @@ import {
   MessageApplicationProperties,
   MessageProperties,
   Producer,
+  MessageHeader,
 } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
-import { eventually, expectToThrowAsync, username, password, createClassicPublisher } from "../support/util"
+import { BufferDataReader } from "../../src/response_decoder"
+import {
+  eventually,
+  expectToThrowAsync,
+  username,
+  password,
+  createClassicPublisher,
+  decodeMessageTesting,
+} from "../support/util"
+import { readFileSync } from "fs"
+import path from "path"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -154,6 +165,20 @@ describe("declare consumer", () => {
       await classicPublisher.conn.close()
     })
   }).timeout(10000)
+
+  it("testing if messageHeader and amqpValue is decoded correctly using dataReader", async () => {
+    const bufferedInput = readFileSync(path.join(...["test", "data", "header_amqpvalue_message"]))
+    const dataReader = new BufferDataReader(bufferedInput)
+    const header = createMessageHeader()
+    const amqpValue = "amqpValue"
+
+    const message = decodeMessageTesting(dataReader, bufferedInput.length)
+
+    await eventually(async () => {
+      expect(message.messageHeader).eql(header)
+      expect(message.amqpValue).eql(amqpValue)
+    })
+  })
 })
 
 function createProperties(): MessageProperties {
@@ -186,5 +211,15 @@ function createAnnotations(): MessageAnnotations {
     akey1: "value1",
     akey2: "value2",
     akey3: 3,
+  }
+}
+
+function createMessageHeader(): MessageHeader {
+  return {
+    deliveryCount: 300,
+    durable: true,
+    ttl: 0,
+    firstAcquirer: true,
+    priority: 100,
   }
 }
