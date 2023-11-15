@@ -9,10 +9,11 @@
 - [Overview](#overview)
 - [Installing via NPM](#installing-via-npm)
 - [Getting started](#getting-started)
-  - [Usage](#usage)
-    - [Connect](#connect)
-    - [Basic Publish](#basic-publish)
-    - [Basic Consuming](#basic-consuming)
+- [Usage](#usage)
+  - [Connect](#connect)
+  - [Basic Publish](#basic-publish)
+  - [Basic Consuming](#basic-consuming)
+- [Running Examples](#running-examples)
 - [Build from source](#build-from-source)
 - [Project Status](#project-status)
 - [Release Process](#release-process)
@@ -116,6 +117,30 @@ const consumer = await connection.declareConsumer(consumerOptions, (message: Mes
 
 await connection.close()
 ```
+
+## Running Examples
+
+the folder /example contains a project that shows some examples on how to use the lib, to run it follow this steps
+
+move to the example folder and install the dependencies
+
+```shell
+cd example
+npm i
+```
+
+run the docker-compose to launch a rabbit instance already stream enabled
+
+```shell
+docker-compose up -d 
+```
+
+then launch the examples
+
+```shell
+npm start
+```
+
 
 ## Build from source
 
