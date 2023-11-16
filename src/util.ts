@@ -1,5 +1,6 @@
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
+import { LoggerParams } from "."
 
 export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefined {
   const i = l.findIndex(predicate)
@@ -8,7 +9,11 @@ export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefin
   return e
 }
 
-export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
+export function createConsoleLog(loggerParams?: LoggerParams) {
+  const { silent, level } = loggerParams
+    ? { silent: loggerParams === "none", level: loggerParams }
+    : { silent: false, level: "info" }
+
   return createLogger({
     silent,
     level,

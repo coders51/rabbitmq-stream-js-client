@@ -47,10 +47,11 @@ import { DeliverResponse } from "./responses/deliver_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
+import { Logger } from "winston"
 
 export class Connection {
   private readonly socket = new Socket()
-  private readonly logger = createConsoleLog()
+  private readonly logger: Logger
   private correlationId = 100
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
@@ -60,13 +61,14 @@ export class Connection {
   private consumerId = 0
   private consumers = new Map<number, Consumer>()
 
-  constructor() {
+  constructor(loggerParams?: LoggerParams) {
+    this.logger = createConsoleLog(loggerParams)
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
   static connect(params: ConnectionParams): Promise<Connection> {
-    return new Connection().start(params)
+    return new Connection(params.logger).start(params)
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -448,6 +450,8 @@ export type ListenersParams = {
   publish_error?: PublishErrorListener
 }
 
+export type LoggerParams = "error" | "warn" | "info" | "http" | "verbose" | "debug" | "silly" | "none"
+
 export interface ConnectionParams {
   hostname: string
   port: number
@@ -457,6 +461,7 @@ export interface ConnectionParams {
   frameMax?: number // not used
   heartbeat?: number
   listeners?: ListenersParams
+  logger?: LoggerParams
 }
 
 export interface DeclarePublisherParams {
