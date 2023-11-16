@@ -39,7 +39,7 @@ describe("StreamStats", () => {
     await expectToThrowAsync(
       () => connection.streamStatsRequest("stream-does-not-exist"),
       Error,
-      "Stream Stats command returned error with code 2 - Stream does not exist"
+      "Stream Stats command returned error with code 2 - Stream does not exist",
     )
   }).timeout(10000)
 })

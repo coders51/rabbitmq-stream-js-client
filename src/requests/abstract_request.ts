@@ -4,7 +4,10 @@ import { Request } from "./request"
 export class BufferDataWriter implements DataWriter {
   private _offset = 0
 
-  constructor(private buffer: Buffer, startFrom: number) {
+  constructor(
+    private buffer: Buffer,
+    startFrom: number,
+  ) {
     this._offset = startFrom
   }
 
@@ -62,7 +65,7 @@ export class BufferDataWriter implements DataWriter {
   }
 
   toBuffer(): Buffer {
-    return this.buffer.slice(0, this._offset)
+    return this.buffer.subarray(0, this._offset)
   }
 }
 export abstract class AbstractRequest implements Request {

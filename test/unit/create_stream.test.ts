@@ -54,7 +54,7 @@ describe("Stream", () => {
       await expectToThrowAsync(
         () => connection.createStream({ stream: "", arguments: payload }),
         Error,
-        "Create Stream command returned error with code 17"
+        "Create Stream command returned error with code 17",
       )
     })
   })

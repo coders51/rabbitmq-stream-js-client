@@ -38,7 +38,7 @@ describe("DeletePublisher command", () => {
     await expectToThrowAsync(
       () => connection.deletePublisher(Number(nonExistentPublisherId)),
       Error,
-      "Delete Publisher command returned error with code 18 - Publisher does not exist"
+      "Delete Publisher command returned error with code 18 - Publisher does not exist",
     )
   }).timeout(10000)
 })

@@ -31,7 +31,7 @@ export async function eventually(fn: Function, timeout = 1500) {
 export async function expectToThrowAsync(
   method: () => Promise<unknown>,
   expectedError: Function | Error,
-  errorMessage: string | RegExp | null = null
+  errorMessage: string | RegExp | null = null,
 ): Promise<void> {
   let error = null
   try {
@@ -55,7 +55,7 @@ export function wait(timeout: number) {
 export async function getMessageFrom(
   stream: string,
   user: string,
-  pwd: string
+  pwd: string,
 ): Promise<{ content: string; properties: ampq.MessageProperties }> {
   return new Promise(async (res, rej) => {
     const con = await ampq.connect(`amqp://${user}:${pwd}@localhost`)
@@ -72,14 +72,14 @@ export async function getMessageFrom(
         await con.close()
         res({ content: msg.content.toString(), properties: msg.properties })
       },
-      { arguments: { "x-stream-offset": "first" } }
+      { arguments: { "x-stream-offset": "first" } },
     )
   })
 }
 
 export async function createClassicConsumer(
   stream: string,
-  cb: (msg: ampq.Message) => void
+  cb: (msg: ampq.Message) => void,
 ): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
   const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
   const ch = await conn.createChannel()
@@ -91,7 +91,7 @@ export async function createClassicConsumer(
       cb(msg)
       ch.ack(msg)
     },
-    { arguments: { "x-stream-offset": "first" } }
+    { arguments: { "x-stream-offset": "first" } },
   )
 
   return { conn, ch }

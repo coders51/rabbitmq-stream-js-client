@@ -16,7 +16,7 @@ export class Consumer {
       stream: string
       consumerId: number
       consumerRef?: string
-    }
+    },
   ) {
     this.connection = params.connection
     this.stream = params.stream

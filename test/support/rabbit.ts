@@ -58,7 +58,10 @@ interface RabbitQueueResponse {
 }
 
 export class Rabbit {
-  constructor(private username: string, private password: string) {}
+  constructor(
+    private username: string,
+    private password: string,
+  ) {}
 
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
@@ -125,7 +128,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
     return resp.body.map((p) => p.reference)
   }
@@ -155,7 +158,7 @@ export class Rabbit {
           username: "rabbit",
           password: "rabbit",
           responseType: "json",
-        }
+        },
       )
       allConsumerCredits.push({ connectionName, allCredits: resp.body.map((rcd) => rcd.credits) })
     }

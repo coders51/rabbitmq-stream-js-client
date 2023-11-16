@@ -83,14 +83,14 @@ export class Producer {
       new PublishRequest({
         publisherId: this.publisherId,
         messages: [{ publishingId: args0, message: { content: arg1, ...opts } }],
-      })
+      }),
     )
   }
 
   public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
     this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
     this.connection.on("publish_error", (error: PublishErrorResponse) =>
-      cb(error.publishingError.code, [error.publishingError.publishingId])
+      cb(error.publishingError.code, [error.publishingError.publishingId]),
     )
   }
 
@@ -114,7 +114,7 @@ export class Producer {
             },
           },
         ],
-      })
+      }),
     )
   }
 

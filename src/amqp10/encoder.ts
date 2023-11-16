@@ -39,7 +39,7 @@ type MessageAnnotationsList = { key: string; value: string | number }[]
 
 export function amqpEncode(
   writer: DataWriter,
-  { content, messageProperties, applicationProperties, messageAnnotations }: Message
+  { content, messageProperties, applicationProperties, messageAnnotations }: Message,
 ): void {
   const messageAnnotationsList = toList(messageAnnotations)
   const applicationPropertiesList = toList(applicationProperties)
@@ -47,7 +47,7 @@ export function amqpEncode(
     lengthOfContent(content) +
       lengthOfProperties(messageProperties) +
       lengthOfApplicationProperties(applicationPropertiesList) +
-      lengthOfMessageAnnotations(messageAnnotationsList)
+      lengthOfMessageAnnotations(messageAnnotationsList),
   )
   writeMessageAnnotations(writer, messageAnnotationsList)
   writeProperties(writer, messageProperties)

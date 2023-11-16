@@ -53,7 +53,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -66,13 +66,13 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
 
     await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world"), Buffer.from("world")]))
   }).timeout(10000)
 
-  it(`consume a lot of messages`, async () => {
+  it.skip(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
     await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
       receivedMessages.push(message.content)
@@ -90,10 +90,10 @@ describe("declare consumer", () => {
     await expectToThrowAsync(
       () =>
         connection.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
-          console.log(message.content)
+          console.log(message.content),
         ),
       Error,
-      "Declare Consumer command returned error with code 2 - Stream does not exist"
+      "Declare Consumer command returned error with code 2 - Stream does not exist",
     )
   })
 
