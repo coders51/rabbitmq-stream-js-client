@@ -1,57 +1,77 @@
 import { Socket } from "net"
 import { inspect } from "util"
+import { Consumer, ConsumerFunc } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
 import { Producer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+import { StreamStatsRequest } from "./requests/stream_stats_request"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
-import { CloseResponse } from "./responses/close_response"
-import { CreateStreamResponse } from "./responses/create_stream_response"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
-import { DeletePublisherRequest } from "./requests/delete_publisher_request"
-import { DeletePublisherResponse } from "./responses/delete_publisher_response"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { OpenResponse } from "./responses/open_response"
-import { Response } from "./responses/response"
+import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import {
   MetadataUpdateListener,
   PublishConfirmListener,
   PublishErrorListener,
   ResponseDecoder,
 } from "./response_decoder"
-import { createConsoleLog, removeFrom } from "./util"
-import { WaitingResponse } from "./waiting_response"
+import { CloseResponse } from "./responses/close_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { OpenResponse } from "./responses/open_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { Response } from "./responses/response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { Consumer, ConsumerFunc } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StreamStatsRequest } from "./requests/stream_stats_request"
-import { StreamStatsResponse } from "./responses/stream_stats_response"
-import { DeliverResponse } from "./responses/deliver_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
-import { QueryOffsetRequest } from "./requests/query_offset_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
-import { Logger } from "winston"
+import { removeFrom } from "./util"
+import { WaitingResponse } from "./waiting_response"
+
+export interface Logger {
+  debug(message: string): void
+  info(message: string): void
+  error(message: string): void
+  warn(message: string): void
+}
+
+export class NullLogger implements Logger {
+  debug(_message: string): void {
+    // do nothing
+  }
+  info(_message: string): void {
+    // do nothing
+  }
+  error(_message: string): void {
+    // do nothing
+  }
+  warn(_message: string): void {
+    // do nothing
+  }
+}
 
 export class Connection {
   private readonly socket = new Socket()
-  private readonly logger: Logger
   private correlationId = 100
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
@@ -61,14 +81,13 @@ export class Connection {
   private consumerId = 0
   private consumers = new Map<number, Consumer>()
 
-  constructor(loggerParams?: LoggerParams) {
-    this.logger = createConsoleLog(loggerParams)
+  constructor(private readonly logger: Logger) {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
-  static connect(params: ConnectionParams): Promise<Connection> {
-    return new Connection(params.logger).start(params)
+  static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
+    return new Connection(logger ?? new NullLogger()).start(params)
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -108,7 +127,7 @@ export class Connection {
   public on(event: "publish_error", listener: PublishErrorListener): void
   public on(
     event: "metadata_update" | "publish_confirm" | "publish_error",
-    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener,
   ) {
     switch (event) {
       case "metadata_update":
@@ -126,7 +145,7 @@ export class Connection {
   }
 
   public async close(
-    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
+    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" },
   ): Promise<void> {
     this.logger.info(`Closing connection ...`)
     this.heartbeat.stop()
@@ -140,7 +159,7 @@ export class Connection {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
     const res = await this.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
+      new DeclarePublisherRequest({ stream, publisherRef, publisherId }),
     )
     if (!res.ok) {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
@@ -154,7 +173,7 @@ export class Connection {
       boot: params.boot,
     })
     this.logger.info(
-      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`,
     )
 
     return producer
@@ -180,7 +199,7 @@ export class Connection {
     this.consumers.set(consumerId, consumer)
 
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 }),
     )
     if (!res.ok) {
       this.consumers.delete(consumerId)
@@ -190,7 +209,7 @@ export class Connection {
     this.logger.info(
       `New consumer created with stream name ${
         params.stream
-      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
+      }, consumer id ${consumerId} and offset ${params.offset.toString()}`,
     )
     return consumer
   }
@@ -220,7 +239,7 @@ export class Connection {
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
           body.byteLength
-        }`
+        }`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
@@ -260,12 +279,12 @@ export class Connection {
     const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
     if (!res.ok) {
       throw new Error(
-        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`
+        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`,
       )
     }
 
     this.logger.info(
-      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
+      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`,
     )
     return res.sequence
   }
@@ -350,7 +369,7 @@ export class Connection {
 
     this.logger.debug(`Start SASL PLAIN authentication ...`)
     const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
-      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
+      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" }),
     )
     this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
     if (!authResponse.ok) {
@@ -373,12 +392,12 @@ export class Connection {
       const body = cmd.toBuffer(correlationId)
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
-          body.toJSON()
-        )} length: ${body.byteLength}`
+          body.toJSON(),
+        )} length: ${body.byteLength}`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(
-          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`
+          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`,
         )
         if (err) {
           return rej(err)
@@ -395,8 +414,8 @@ export class Connection {
       if (response.key !== key) {
         throw new Error(
           `Error con correlationId: ${correlationId} waiting key: ${key.toString(
-            16
-          )} found key: ${response.key.toString(16)} `
+            16,
+          )} found key: ${response.key.toString(16)} `,
         )
       }
       return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
@@ -450,8 +469,6 @@ export type ListenersParams = {
   publish_error?: PublishErrorListener
 }
 
-export type LoggerParams = "error" | "warn" | "info" | "http" | "verbose" | "debug" | "silly" | "none"
-
 export interface ConnectionParams {
   hostname: string
   port: number
@@ -461,7 +478,6 @@ export interface ConnectionParams {
   frameMax?: number // not used
   heartbeat?: number
   listeners?: ListenersParams
-  logger?: LoggerParams
 }
 
 export interface DeclarePublisherParams {
@@ -494,8 +510,8 @@ export interface QueryOffsetParams {
   stream: string
 }
 
-export function connect(params: ConnectionParams): Promise<Connection> {
-  return Connection.connect(params)
+export function connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
+  return Connection.connect(params, logger)
 }
 
 function errorMessageOf(code: number): string {

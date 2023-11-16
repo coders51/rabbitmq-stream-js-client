@@ -1,6 +1,5 @@
 import { EventEmitter } from "events"
 import { inspect } from "util"
-import { Logger } from "winston"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { CloseResponse } from "./responses/close_response"
@@ -42,6 +41,7 @@ import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
+import { Logger } from "./connection"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -385,19 +385,19 @@ export class BufferDataReader implements DataReader {
   constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
-    const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    const ret = new BufferDataReader(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
 
   readBufferOf(size: number): Buffer {
-    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
+    const ret = Buffer.from(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
 
   readToEnd(): DataReader {
-    const ret = new BufferDataReader(this.data.slice(this.offset))
+    const ret = new BufferDataReader(this.data.subarray(this.offset))
     this.offset = this.data.length
     return ret
   }
@@ -526,7 +526,10 @@ export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
   private emitter = new EventEmitter()
 
-  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
+  constructor(
+    private listener: DecoderListenerFunc,
+    private logger: Logger,
+  ) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -581,7 +584,7 @@ export class ResponseDecoder {
   public on(event: "deliver", listener: DeliverListener): void
   public on(
     event: "metadata_update" | "credit_response" | "publish_confirm" | "publish_error" | "deliver",
-    listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener
+    listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener,
   ) {
     this.emitter.on(event, listener)
   }

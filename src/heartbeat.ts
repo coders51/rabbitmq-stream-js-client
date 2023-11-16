@@ -1,4 +1,4 @@
-import { Logger } from "winston"
+import { Logger } from "./connection"
 import { HeartbeatRequest } from "./requests/heartbeat_request"
 import { Request } from "./requests/request"
 
@@ -15,7 +15,10 @@ export class Heartbeat {
   private idleCounter: number = 0
   private timeout: NodeJS.Timeout | null = null
 
-  constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
+  constructor(
+    private readonly connection: HeartbeatConnection,
+    private readonly logger: Logger,
+  ) {}
 
   start(secondsInterval: number) {
     if (secondsInterval <= 0) return
@@ -65,7 +68,7 @@ export class Heartbeat {
     const lastMessageReceived = this.lastMessageReceived.getTime()
     const noMessagesReceivedFor = Math.abs(new Date().getTime() - lastMessageReceived)
     this.logger.debug(
-      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`
+      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`,
     )
     const lastMessageSent = this.lastMessageSent.getTime()
     const noMessagesSentFor = Math.abs(new Date().getTime() - lastMessageSent)
