@@ -42,5 +42,6 @@ export async function createConnection(username: string, password: string, liste
     frameMax: 0, // not used
     heartbeat: 0,
     listeners: listeners,
+    logger: "debug",
   })
 }
