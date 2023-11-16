@@ -1,5 +1,5 @@
 {
-  "extends": "@tsconfig/node16/tsconfig.json",
+  "extends": "@tsconfig/node20/tsconfig.json",
   "compilerOptions": {
     "preserveConstEnums": true,
     "noImplicitReturns": true,
@@ -10,7 +10,8 @@
     "noUnusedParameters": true,
     "sourceMap": true,
     "outDir": "dist",
-    "declaration": true
+    "declaration": true,
+    "esModuleInterop": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.spec.ts"]
