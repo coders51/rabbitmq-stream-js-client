@@ -1,6 +1,5 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { connect } from "../../src"
 import { createConnection } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { password, username } from "../support/util"
