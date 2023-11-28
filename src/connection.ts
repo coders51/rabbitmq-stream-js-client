@@ -489,7 +489,7 @@ export interface QueryOffsetParams {
   stream: string
 }
 
-export function connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
+export function connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
   return Connection.connect(params, logger)
 }
 
