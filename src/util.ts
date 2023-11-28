@@ -10,7 +10,7 @@ export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefin
 
 export function createConsoleLog() {
   return createLogger({
-    level: "debug",
+    level: "info",
     format: format.combine(
       format.colorize(),
       format.timestamp(),
