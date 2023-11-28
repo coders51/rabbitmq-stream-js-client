@@ -41,7 +41,7 @@ import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
-import { Logger } from "./connection"
+import { Logger } from "./logger"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
