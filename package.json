@@ -4,7 +4,7 @@
   "description": "Rabbit stream client for JS/TS application",
   "main": "dist/index.js",
   "scripts": {
-    "test": "mocha test --timeout 5000",
+    "test": "mocha test",
     "build": "tsc",
     "check": "npm run check-ts && npm run check-lint && npm run check-format && npm run check-spell",
     "check-ts": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
