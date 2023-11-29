@@ -1,6 +1,5 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
-import { createConnection } from "../support/fake_data"
+import { Connection, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync, password, username } from "../support/util"
 
@@ -10,7 +9,15 @@ describe("Delete command", () => {
   const queue_name = `queue_${(Math.random() * 10) | 0}`
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    connection = await connect({
+      hostname: "localhost",
+      port: 5552,
+      username,
+      password,
+      vhost: "/",
+      frameMax: 0,
+      heartbeat: 0,
+    })
   })
 
   afterEach(async () => {
