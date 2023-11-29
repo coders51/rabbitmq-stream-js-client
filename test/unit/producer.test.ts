@@ -3,6 +3,7 @@ import { randomUUID } from "crypto"
 import { connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { password, username } from "../support/util"
+import { NullLogger } from "../../src/logger"
 
 describe("Producer", () => {
   const rabbit = new Rabbit(username, password)
@@ -17,28 +18,34 @@ describe("Producer", () => {
   afterEach(() => rabbit.deleteStream(testStreamName))
 
   it("increase publishing id from server when boot is true", async () => {
-    const oldConnection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const oldConnection = await connect(
+      {
+        hostname: "localhost",
+        port: 5552,
+        username,
+        password,
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      },
+      new NullLogger(),
+    )
     const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldConnection.close()
-    const newConnection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const newConnection = await connect(
+      {
+        hostname: "localhost",
+        port: 5552,
+        username,
+        password,
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      },
+      new NullLogger(),
+    )
 
     const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
@@ -48,28 +55,34 @@ describe("Producer", () => {
   }).timeout(10000)
 
   it("do not increase publishing id from server when boot is false", async () => {
-    const oldConnection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const oldConnection = await connect(
+      {
+        hostname: "localhost",
+        port: 5552,
+        username,
+        password,
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      },
+      new NullLogger(),
+    )
     const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldConnection.close()
-    const newConnection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const newConnection = await connect(
+      {
+        hostname: "localhost",
+        port: 5552,
+        username,
+        password,
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      },
+      new NullLogger(),
+    )
 
     const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))

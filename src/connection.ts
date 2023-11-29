@@ -3,6 +3,7 @@ import { inspect } from "util"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
+import { Logger } from "./logger"
 import { Producer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
@@ -47,7 +48,6 @@ import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
-import { Logger, NullLogger } from "./logger"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -65,8 +65,8 @@ export class Connection {
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
-  static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
-    return new Connection(logger ?? new NullLogger()).start(params)
+  static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
+    return new Connection(logger).start(params)
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -489,7 +489,7 @@ export interface QueryOffsetParams {
   stream: string
 }
 
-export function connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
+export function connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
   return Connection.connect(params, logger)
 }
 

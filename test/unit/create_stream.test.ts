@@ -3,6 +3,7 @@ import { randomUUID } from "crypto"
 import { Connection, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync, password, username } from "../support/util"
+import { NullLogger } from "../../src/logger"
 
 describe("Stream", () => {
   const rabbit = new Rabbit(username, password)
@@ -17,15 +18,18 @@ describe("Stream", () => {
   let connection: Connection
 
   beforeEach(async () => {
-    connection = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    connection = await connect(
+      {
+        hostname: "localhost",
+        port: 5552,
+        username,
+        password,
+        vhost: "/",
+        frameMax: 0,
+        heartbeat: 0,
+      },
+      new NullLogger(),
+    )
   })
 
   afterEach(async () => {
