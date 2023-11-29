@@ -8,7 +8,7 @@ export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefin
   return e
 }
 
-export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
+export function createConsoleLog({ silent, level } = { silent: false, level: "warn" }) {
   return createLogger({
     silent,
     level,

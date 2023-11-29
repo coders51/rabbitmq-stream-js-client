@@ -18,6 +18,9 @@ export interface DataReader {
   forward(count: number): void
   position(): number
   isAtEnd(): boolean
+  available(): number
+  getId(): string
+  length(): number
 }
 
 export interface RawResponse {

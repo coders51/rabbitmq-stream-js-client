@@ -42,6 +42,8 @@ import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
+import { writeFileSync } from "fs"
+import { randomUUID } from "crypto"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -73,9 +75,19 @@ type PossibleRawResponses =
   | RawPublishConfirmResponse
   | RawPublishErrorResponse
 
-function decode(data: DataReader, logger: Logger): PossibleRawResponses {
+function decode(
+  data: DataReader,
+  logger: Logger
+): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
   const size = data.readUInt32()
-  return decodeResponse(data.readTo(size), size, logger)
+  console.log(`${data.getId()} decoded size ${size} - ${data.available()} - ${data.length()}`)
+
+  if (size > data.available()) {
+    data.rewind(4)
+    return { completed: false, response: data.readBufferOf(data.available()) }
+  }
+
+  return { completed: true, response: decodeResponse(data.readTo(size), size, logger) }
 }
 
 function decodeResponse(dataResponse: DataReader, size: number, logger: Logger): PossibleRawResponses {
@@ -380,108 +392,159 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
 }
 
 export class BufferDataReader implements DataReader {
-  private offset = 0
+  private offset: number
+  private id: string
 
-  constructor(private data: Buffer) {}
+  constructor(private data: Buffer) {
+    this.id = randomUUID()
+    //console.log(`${this.id} - buffer length: ${data.length}`)
+    this.offset = 0
+    //console.log(`${this.id} - init offset: ${this.offset}`)
+  }
+
+  getId(): string {
+    return this.id
+  }
+
+  available(): number {
+    return this.data.length - this.offset
+  }
+
+  length(): number {
+    return this.data.length
+  }
 
   readTo(size: number): DataReader {
+    //console.log(`${this.id} - offset readTo: ${this.offset} for ${size}`)
     const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+
     this.offset += size
+
     return ret
   }
 
   readBufferOf(size: number): Buffer {
+    //console.log(`${this.id} - offset readBufferOf: ${this.offset}`)
     const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
+
     this.offset += size
     return ret
   }
 
   readToEnd(): DataReader {
+    //console.log(`${this.id} - offset readToEnd: ${this.offset}`)
     const ret = new BufferDataReader(this.data.slice(this.offset))
+
     this.offset = this.data.length
     return ret
   }
 
   readInt8(): number {
+    //console.log(`${this.id} - offset readInt8: ${this.offset}`)
     const ret = this.data.readInt8(this.offset)
+
     this.offset += 1
     return ret
   }
 
   readInt64(): bigint {
+    //console.log(`${this.id} - offset readInt64: ${this.offset}`)
     const ret = this.data.readBigInt64BE(this.offset)
+
     this.offset += 8
     return ret
   }
 
   readUInt8(): number {
+    //console.log(`${this.id} - offset readUInt8: ${this.offset}`)
     const ret = this.data.readUInt8(this.offset)
+
     this.offset += 1
     return ret
   }
 
   readUInt16(): number {
+    //console.log(`${this.id} - offset readUInt16: ${this.offset}`)
     const ret = this.data.readUInt16BE(this.offset)
+
     this.offset += 2
     return ret
   }
 
   readUInt32(): number {
+    //console.log(`${this.id} - offset readUInt32: ${this.offset}`)
     const ret = this.data.readUInt32BE(this.offset)
+
     this.offset += 4
     return ret
   }
 
   readUInt64(): bigint {
+    //console.log(`${this.id} - offset readUInt64: ${this.offset}`)
     const ret = this.data.readBigUInt64BE(this.offset)
+
     this.offset += 8
     return ret
   }
 
   readDouble(): number {
+    //console.log(`${this.id} - offset readDouble: ${this.offset}`)
     const ret = this.data.readDoubleBE(this.offset)
+
     this.offset += 8
     return ret
   }
 
   readFloat(): number {
+    //console.log(`${this.id} - offset readFloat: ${this.offset}`)
     const ret = this.data.readFloatBE(this.offset)
+
     this.offset += 4
     return ret
   }
 
   readInt32(): number {
+    //console.log(`${this.id} - offset readInt32: ${this.offset}`)
     const ret = this.data.readInt32BE(this.offset)
+
     this.offset += 4
     return ret
   }
 
   readString(): string {
+    //console.log(`${this.id} - offset readString: ${this.offset}`)
     const size = this.readUInt16()
     const value = this.data.toString("utf8", this.offset, this.offset + size)
+
     this.offset += size
     return value
   }
 
   readString8(): string {
+    //console.log(`${this.id} - offset readString8: ${this.offset}`)
     const sizeStr8 = this.readUInt8()
     const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
+
     this.offset += sizeStr8
     return valueStr8
   }
 
   readString32(): string {
+    //console.log(`${this.id} - offset readString32: ${this.offset}`)
     const sizeStr32 = this.readUInt32()
     const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
+
     this.offset += sizeStr32
     return valueStr32
   }
 
   rewind(count: number): void {
+    //console.log(`${this.id} - offset rewind: ${this.offset}`)
     this.offset -= count
   }
 
   forward(count: number): void {
+    //console.log(`${this.id} - offset forward: ${this.offset}`)
     this.offset += count
   }
 
@@ -525,6 +588,7 @@ function isPublishErrorResponse(params: PossibleRawResponses): params is RawPubl
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
   private emitter = new EventEmitter()
+  private lastData = Buffer.from("")
 
   constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
@@ -545,31 +609,46 @@ export class ResponseDecoder {
   }
 
   add(data: Buffer) {
-    const dataReader = new BufferDataReader(data)
+    const concatenated = Buffer.concat([this.lastData, data])
+    const dataReader = new BufferDataReader(concatenated)
     while (!dataReader.isAtEnd()) {
-      const response = decode(dataReader, this.logger)
-      if (isHeartbeatResponse(response)) {
-        this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
-      } else if (isTuneResponse(response)) {
-        this.emitTuneResponseReceived(response)
-        this.logger.debug(`tune received from the server: ${inspect(response)}`)
-      } else if (isMetadataUpdateResponse(response)) {
-        this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
-        this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
-      } else if (isDeliverResponse(response)) {
-        this.emitter.emit("deliver", new DeliverResponse(response))
-        this.logger.debug(`deliver received from the server: ${inspect(response)}`)
-      } else if (isCreditResponse(response)) {
-        this.logger.debug(`credit received from the server: ${inspect(response)}`)
-        this.emitter.emit("credit_response", new CreditResponse(response))
-      } else if (isPublishConfirmResponse(response)) {
-        this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
-        this.logger.debug(`publish confirm received from the server: ${inspect(response)}`)
-      } else if (isPublishErrorResponse(response)) {
-        this.emitter.emit("publish_error", new PublishErrorResponse(response))
-        this.logger.debug(`publish error received from the server: ${inspect(response)}`)
-      } else {
-        this.emitResponseReceived(response)
+      try {
+        const { completed, response } = decode(dataReader, this.logger)
+
+        if (!completed) {
+          this.lastData = response
+          continue
+        }
+
+        if (isHeartbeatResponse(response)) {
+          this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
+        } else if (isTuneResponse(response)) {
+          this.emitTuneResponseReceived(response)
+          this.logger.debug(`tune received from the server: ${inspect(response)}`)
+        } else if (isMetadataUpdateResponse(response)) {
+          this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
+          this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
+        } else if (isDeliverResponse(response)) {
+          this.emitter.emit("deliver", new DeliverResponse(response))
+          this.logger.debug(`deliver received from the server: ${inspect(response)}`)
+        } else if (isCreditResponse(response)) {
+          this.logger.debug(`credit received from the server: ${inspect(response)}`)
+          this.emitter.emit("credit_response", new CreditResponse(response))
+        } else if (isPublishConfirmResponse(response)) {
+          this.emitter.emit("publish_confirm", new PublishConfirmResponse(response))
+          this.logger.debug(`publish confirm received from the server: ${inspect(response)}`)
+        } else if (isPublishErrorResponse(response)) {
+          this.emitter.emit("publish_error", new PublishErrorResponse(response))
+          this.logger.debug(`publish error received from the server: ${inspect(response)}`)
+        } else {
+          this.emitResponseReceived(response)
+        }
+      } catch (exc) {
+        const dtnow = new Date()
+        console.log("error: " + inspect(exc) + " when decoding " + inspect(concatenated))
+        writeFileSync(`./${dtnow.toISOString()}_error_buffer.bin`, concatenated, "binary")
+        writeFileSync(`./${dtnow.toISOString()}_error_description.txt`, inspect(exc), "ascii")
+        throw exc
       }
     }
   }

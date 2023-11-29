@@ -11,7 +11,8 @@
     "check-lint": "tsc --noEmit && eslint 'src/**/*.ts' 'test/**/*.ts'",
     "check-format": "prettier -c 'src/**/*.ts' 'test/**/*.ts'",
     "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'",
-    "format": "prettier -w './**/*.ts'"
+    "format": "prettier -w './**/*.ts'",
+    "perftest": "npx ts-node src/perftest/tester.ts"
   },
   "repository": {
     "type": "git",
