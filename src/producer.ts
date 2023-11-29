@@ -1,5 +1,7 @@
+import { Compression } from "./compression"
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
+import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 
@@ -114,6 +116,17 @@ export class Producer {
             },
           },
         ],
+      })
+    )
+  }
+
+  async sendSubEntries(messages: Message[], compression: Compression) {
+    return this.connection.send(
+      new SubEntryBatchPublishRequest({
+        publisherId: this.publisherId,
+        publishingId: this.publishingId,
+        compression: compression,
+        messages: messages,
       })
     )
   }
