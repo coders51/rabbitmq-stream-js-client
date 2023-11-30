@@ -14,17 +14,20 @@ export class PerfTestProducer {
   ) {
     this.payload = Buffer.alloc(byte_length, Math.random().toString())
     console.log("in perf test constructor. Payload " + inspect(this.payload))
-    const dtnow = new Date()
-    writeFile(`./${dtnow.toISOString()}_input_payload.bin`, this.payload, "binary", (_err) => {
-      null
+    const now = new Date()
+    writeFile(`./${now.toISOString()}_input_payload.bin`, this.payload, "binary", (err) => {
+      console.log(err)
     })
   }
 
   public async cycle() {
     console.log("init cycle")
     const publisher = await this.connection.declarePublisher(this.publisherParams)
-    publisher.on("publish_confirm", (_err, _confirmedIds) => {
-      //this.metrics.addCounter("confirmed", confirmedIds.length)
+    publisher.on("publish_confirm", (err, confirmedIds) => {
+      if (err) {
+        console.log(err)
+      }
+      this.metrics.addCounter("confirmed", confirmedIds.length)
     })
 
     this.metrics.setStart()
