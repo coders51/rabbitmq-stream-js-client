@@ -79,9 +79,9 @@ function decode(
   data: DataReader,
   logger: Logger
 ): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
-  const size = data.readUInt32()
-  console.log(`${data.getId()} decoded size ${size} - ${data.available()} - ${data.length()}`)
+  if (data.available() < 4) return { completed: false, response: data.readBufferOf(data.available()) }
 
+  const size = data.readUInt32()
   if (size > data.available()) {
     data.rewind(4)
     return { completed: false, response: data.readBufferOf(data.available()) }
@@ -319,8 +319,7 @@ export function decodeBooleanType(dataResponse: DataReader, defaultValue: boolea
   const boolType = dataResponse.readInt8()
   switch (boolType) {
     case FormatCode.Bool:
-      const boolValue = dataResponse.readInt8()
-      return boolValue !== 0
+      return dataResponse.readInt8() !== 0
     case FormatCode.BoolTrue:
       return true
     case FormatCode.BoolFalse:
@@ -397,9 +396,7 @@ export class BufferDataReader implements DataReader {
 
   constructor(private data: Buffer) {
     this.id = randomUUID()
-    //console.log(`${this.id} - buffer length: ${data.length}`)
     this.offset = 0
-    //console.log(`${this.id} - init offset: ${this.offset}`)
   }
 
   getId(): string {
@@ -407,144 +404,111 @@ export class BufferDataReader implements DataReader {
   }
 
   available(): number {
-    return this.data.length - this.offset
+    return Buffer.byteLength(this.data) - this.offset
   }
 
   length(): number {
-    return this.data.length
+    return Buffer.byteLength(this.data)
   }
 
   readTo(size: number): DataReader {
-    //console.log(`${this.id} - offset readTo: ${this.offset} for ${size}`)
-    const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
-
+    const ret = new BufferDataReader(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
-
     return ret
   }
 
   readBufferOf(size: number): Buffer {
-    //console.log(`${this.id} - offset readBufferOf: ${this.offset}`)
-    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
-
+    const ret = Buffer.from(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
 
   readToEnd(): DataReader {
-    //console.log(`${this.id} - offset readToEnd: ${this.offset}`)
-    const ret = new BufferDataReader(this.data.slice(this.offset))
-
+    const ret = new BufferDataReader(this.data.subarray(this.offset))
     this.offset = this.data.length
     return ret
   }
 
   readInt8(): number {
-    //console.log(`${this.id} - offset readInt8: ${this.offset}`)
     const ret = this.data.readInt8(this.offset)
-
     this.offset += 1
     return ret
   }
 
   readInt64(): bigint {
-    //console.log(`${this.id} - offset readInt64: ${this.offset}`)
     const ret = this.data.readBigInt64BE(this.offset)
-
     this.offset += 8
     return ret
   }
 
   readUInt8(): number {
-    //console.log(`${this.id} - offset readUInt8: ${this.offset}`)
     const ret = this.data.readUInt8(this.offset)
-
     this.offset += 1
     return ret
   }
 
   readUInt16(): number {
-    //console.log(`${this.id} - offset readUInt16: ${this.offset}`)
     const ret = this.data.readUInt16BE(this.offset)
-
     this.offset += 2
     return ret
   }
 
   readUInt32(): number {
-    //console.log(`${this.id} - offset readUInt32: ${this.offset}`)
     const ret = this.data.readUInt32BE(this.offset)
-
     this.offset += 4
     return ret
   }
 
   readUInt64(): bigint {
-    //console.log(`${this.id} - offset readUInt64: ${this.offset}`)
     const ret = this.data.readBigUInt64BE(this.offset)
-
     this.offset += 8
     return ret
   }
 
   readDouble(): number {
-    //console.log(`${this.id} - offset readDouble: ${this.offset}`)
     const ret = this.data.readDoubleBE(this.offset)
-
     this.offset += 8
     return ret
   }
 
   readFloat(): number {
-    //console.log(`${this.id} - offset readFloat: ${this.offset}`)
     const ret = this.data.readFloatBE(this.offset)
-
     this.offset += 4
     return ret
   }
 
   readInt32(): number {
-    //console.log(`${this.id} - offset readInt32: ${this.offset}`)
     const ret = this.data.readInt32BE(this.offset)
-
     this.offset += 4
     return ret
   }
 
   readString(): string {
-    //console.log(`${this.id} - offset readString: ${this.offset}`)
     const size = this.readUInt16()
     const value = this.data.toString("utf8", this.offset, this.offset + size)
-
     this.offset += size
     return value
   }
 
   readString8(): string {
-    //console.log(`${this.id} - offset readString8: ${this.offset}`)
     const sizeStr8 = this.readUInt8()
     const valueStr8 = this.data.toString("utf8", this.offset, this.offset + sizeStr8)
-
     this.offset += sizeStr8
     return valueStr8
   }
 
   readString32(): string {
-    //console.log(`${this.id} - offset readString32: ${this.offset}`)
     const sizeStr32 = this.readUInt32()
     const valueStr32 = this.data.toString("utf8", this.offset, this.offset + sizeStr32)
-
     this.offset += sizeStr32
     return valueStr32
   }
 
   rewind(count: number): void {
-    //console.log(`${this.id} - offset rewind: ${this.offset}`)
     this.offset -= count
   }
 
   forward(count: number): void {
-    //console.log(`${this.id} - offset forward: ${this.offset}`)
     this.offset += count
   }
 
@@ -611,6 +575,7 @@ export class ResponseDecoder {
   add(data: Buffer) {
     const concatenated = Buffer.concat([this.lastData, data])
     const dataReader = new BufferDataReader(concatenated)
+    this.lastData = Buffer.from("")
     while (!dataReader.isAtEnd()) {
       try {
         const { completed, response } = decode(dataReader, this.logger)
@@ -644,10 +609,10 @@ export class ResponseDecoder {
           this.emitResponseReceived(response)
         }
       } catch (exc) {
-        const dtnow = new Date()
-        console.log("error: " + inspect(exc) + " when decoding " + inspect(concatenated))
-        writeFileSync(`./${dtnow.toISOString()}_error_buffer.bin`, concatenated, "binary")
-        writeFileSync(`./${dtnow.toISOString()}_error_description.txt`, inspect(exc), "ascii")
+        const now = new Date()
+        this.logger.error("error: " + inspect(exc) + " when decoding " + inspect(concatenated))
+        writeFileSync(`./${now.toISOString()}_error_buffer.bin`, concatenated, "binary")
+        writeFileSync(`./${now.toISOString()}_error_description.txt`, inspect(exc), "ascii")
         throw exc
       }
     }
