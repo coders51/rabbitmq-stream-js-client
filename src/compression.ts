@@ -6,8 +6,8 @@ export interface Compression {
   type: number
   messages: Message[]
 
-  CompressedSize(): number
-  UnCompressedSize(): number
+  compressedSize(): number
+  unCompressedSize(): number
   messageCount(): number
   writeContent(writer: DataWriter): void
   compress(messages: Message[]): void
@@ -25,11 +25,11 @@ export class NoneCompression implements Compression {
     this.messages = messages
   }
 
-  CompressedSize(): number {
+  compressedSize(): number {
     return this.messages.reduce((sum, message) => sum + 4 + message.content.length, 0)
   }
 
-  UnCompressedSize(): number {
+  unCompressedSize(): number {
     return this.messages.reduce((sum, message) => sum + 4 + message.content.length, 0)
   }
 

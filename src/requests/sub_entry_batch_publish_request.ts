@@ -16,6 +16,7 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
 
   constructor(private params: SubEntryBatchPublishRequestParams) {
     super()
+    this.params.compression.compress(this.params.messages)
   }
 
   protected writeContent(writer: DataWriter): void {
@@ -25,8 +26,8 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
     writer.writeUInt64(this.params.publishingId)
     writer.writeByte(0x80 | (1 << this.params.compression.type))
     writer.writeUInt16(this.params.compression.messageCount())
-    writer.writeUInt32(this.params.compression.UnCompressedSize())
-    writer.writeUInt32(this.params.compression.CompressedSize())
+    writer.writeUInt32(this.params.compression.unCompressedSize())
+    writer.writeUInt32(this.params.compression.compressedSize())
     this.params.compression.writeContent(writer)
   }
 }
