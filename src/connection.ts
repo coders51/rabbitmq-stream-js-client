@@ -61,7 +61,6 @@ export class Connection {
   private consumers = new Map<number, Consumer>()
 
   constructor(private readonly logger: Logger) {
-    this.logger = logger
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
