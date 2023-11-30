@@ -42,4 +42,18 @@ describe("publish a batch of messages", () => {
       expect(info.messages).eql(messages.length)
     }, 10000)
   }).timeout(10000)
+
+  it.skip("publish a batch of messages with compression", async () => {
+    await publisher.sendSubEntries([
+      { content: Buffer.from("Ciao") },
+      { content: Buffer.from("Ciao1") },
+      { content: Buffer.from("Ciao2") },
+      { content: Buffer.from("Ciao3") },
+    ])
+
+    await eventually(async () => {
+      const info = await rabbit.getQueueInfo(streamName)
+      expect(info.messages).eql(1)
+    }, 10000)
+  }).timeout(10000)
 })

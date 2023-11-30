@@ -1,6 +1,6 @@
 export enum CompressionType {
   None = 0,
-  GZip = 1,
+  Gzip = 1,
   // Not implemented by default.
   // It is possible to add custom codec with StreamCompressionCodecs
   Snappy = 2,
