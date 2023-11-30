@@ -1,9 +1,19 @@
-import { amqpEncode } from "./amqp10/encoder"
+import { amqpEncode, messageSize } from "./amqp10/encoder"
 import { Message } from "./producer"
 import { DataWriter } from "./requests/data_writer"
 
+export enum CompressionType {
+  None = 0,
+  GZip = 1,
+  // Not implemented by default.
+  // It is possible to add custom codec with StreamCompressionCodecs
+  Snappy = 2,
+  Lz4 = 3,
+  Zstd = 4,
+}
+
 export interface Compression {
-  type: number
+  type: CompressionType
   messages: Message[]
 
   compressedSize(): number
@@ -14,7 +24,7 @@ export interface Compression {
 }
 
 export class NoneCompression implements Compression {
-  type = 0
+  type = CompressionType.None
   messages: Message[] = []
 
   static create(): NoneCompression {
@@ -26,11 +36,11 @@ export class NoneCompression implements Compression {
   }
 
   compressedSize(): number {
-    return this.messages.reduce((sum, message) => sum + 4 + message.content.length, 0)
+    return this.messages.reduce((sum, message) => sum + 4 + messageSize(message), 0)
   }
 
   unCompressedSize(): number {
-    return this.messages.reduce((sum, message) => sum + 4 + message.content.length, 0)
+    return this.messages.reduce((sum, message) => sum + 4 + messageSize(message), 0)
   }
 
   messageCount(): number {

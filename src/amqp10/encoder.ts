@@ -41,18 +41,20 @@ export function amqpEncode(
   writer: DataWriter,
   { content, messageProperties, applicationProperties, messageAnnotations }: Message
 ): void {
-  const messageAnnotationsList = toList(messageAnnotations)
-  const applicationPropertiesList = toList(applicationProperties)
-  writer.writeUInt32(
-    lengthOfContent(content) +
-      lengthOfProperties(messageProperties) +
-      lengthOfApplicationProperties(applicationPropertiesList) +
-      lengthOfMessageAnnotations(messageAnnotationsList)
-  )
-  writeMessageAnnotations(writer, messageAnnotationsList)
+  writer.writeUInt32(messageSize({ content, messageProperties, applicationProperties, messageAnnotations }))
+  writeMessageAnnotations(writer, toList(messageAnnotations))
   writeProperties(writer, messageProperties)
-  writeApplicationProperties(writer, applicationPropertiesList)
+  writeApplicationProperties(writer, toList(applicationProperties))
   writeContent(writer, content)
+}
+
+export function messageSize({ content, messageProperties, applicationProperties, messageAnnotations }: Message) {
+  return (
+    lengthOfContent(content) +
+    lengthOfProperties(messageProperties) +
+    lengthOfApplicationProperties(toList(applicationProperties)) +
+    lengthOfMessageAnnotations(toList(messageAnnotations))
+  )
 }
 
 function lengthOfContent(content: Buffer) {

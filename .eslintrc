@@ -38,14 +38,15 @@
     "no-param-reassign": "error",
     "no-redeclare": "error",
     "no-sequences": "error",
-    "no-shadow": ["error", { "hoist": "all" }],
     "no-throw-literal": "error",
     "no-unsafe-finally": "error",
     "no-unused-labels": "error",
     "no-var": "warn",
     "no-void": "error",
     "prefer-const": "warn",
-    "no-only-tests/no-only-tests": "error"
+    "no-only-tests/no-only-tests": "error",
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "error"
   },
   "settings": {
     "jsdoc": {

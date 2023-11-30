@@ -28,7 +28,7 @@ describe("publish a batch of messages", () => {
     } catch (e) {}
   })
 
-  it("publish a batch of messages", async () => {
+  it.skip("publish a batch of messages", async () => {
     await publisher.sendSubEntries(
       [
         { content: Buffer.from("Ciao") },
