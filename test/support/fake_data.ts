@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto"
 import { Connection, ListenersParams, connect } from "../../src/connection"
 import { MessageProperties } from "../../src/producer"
+import { NullLogger } from "../../src/logger"
 
 export function createProperties(): MessageProperties {
   return {
@@ -33,7 +34,7 @@ export async function createPublisher(streamName: string, connection: Connection
 }
 
 export async function createConnection(username: string, password: string, listeners?: ListenersParams) {
-  return await connect({
+  const params = {
     hostname: "localhost",
     port: 5552,
     username,
@@ -42,5 +43,8 @@ export async function createConnection(username: string, password: string, liste
     frameMax: 0, // not used
     heartbeat: 0,
     listeners: listeners,
-  })
+  }
+
+  const logger = new NullLogger()
+  return await connect(params, logger)
 }

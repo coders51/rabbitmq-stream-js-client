@@ -1,6 +1,6 @@
 import { EventEmitter } from "events"
 import { inspect } from "util"
-import { Logger } from "winston"
+import { Logger } from "./logger"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { CloseResponse } from "./responses/close_response"
