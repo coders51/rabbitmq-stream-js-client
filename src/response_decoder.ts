@@ -264,12 +264,12 @@ function decodeMessageHeader(dataResponse: DataReader) {
     throw new Error(`invalid composite header %#02x: ${type}`)
   }
 
-  const nextType = dataResponse.readInt8()
-  decodeFormatCode(dataResponse, nextType)
+  // next, the composite type is encoded as an AMQP uint8
+  dataResponse.readUInt64()
 
   const formatCode = dataResponse.readUInt8()
   const headerLength = decodeFormatCode(dataResponse, formatCode)
-  if (!headerLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+  if (headerLength === undefined) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return Header.parse(dataResponse, headerLength as number)
 }
@@ -333,11 +333,10 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
     case FormatCode.ULong:
       return dataResponse.readUInt64() // Read an ULong
     case FormatCode.List0:
-      return undefined
+      return 0
     case FormatCode.List8:
       dataResponse.forward(1)
-      dataResponse.readInt8() // Read length of List8
-      return undefined
+      return dataResponse.readInt8() // Read length of List8
     case FormatCode.List32:
       dataResponse.forward(4)
       return dataResponse.readInt32()
