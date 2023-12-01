@@ -169,8 +169,8 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
   const trailerLength = dataResponse.readUInt32()
   const reserved = dataResponse.readUInt32()
   const messageType = dataResponse.readUInt8()
-  dataResponse.rewind(1)
 
+  const messages: Message[] = []
   const data = {
     magicVersion,
     chunkType,
@@ -186,9 +186,14 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
     messageType, // indicate if it contains subentries
   }
   logger.debug(inspect(data))
-  const messages: Message[] = []
-  for (let i = 0; i < numEntries; i++) {
-    messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
+
+  if (messageType === 0) {
+    dataResponse.rewind(1) // if not a sub entry, the messageType is part of the message
+    for (let i = 0; i < numEntries; i++) {
+      messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
+    }
+  } else {
+    messages.push(...decodeSubEntries(dataResponse, logger))
   }
 
   return { subscriptionId, messages }
@@ -233,6 +238,19 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   }
 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, messageAnnotations, offset }
+}
+
+function decodeSubEntries(dataResponse: DataReader, logger: Logger): Message[] {
+  const retVal: Message[] = []
+  const noOfRecords = dataResponse.readUInt16()
+  const uncompressedLength = dataResponse.readUInt32()
+  const length = dataResponse.readUInt32()
+  logger.debug(`Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${length}`)
+  for (let i = 0; i < noOfRecords; i++) {
+    const entry: Message = decodeMessage(dataResponse, BigInt(i))
+    retVal.push(entry)
+  }
+  return retVal
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
