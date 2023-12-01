@@ -19,7 +19,6 @@ export interface DataReader {
   position(): number
   isAtEnd(): boolean
   available(): number
-  length(): number
 }
 
 export interface RawResponse {

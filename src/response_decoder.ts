@@ -51,6 +51,7 @@ import { Header } from "./amqp10/messageHeader"
 //   Version => uint16
 //   CorrelationId => uint32
 //   ResponseCode => uint16
+const UINT32_SIZE = 4
 
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
@@ -77,11 +78,11 @@ function decode(
   data: DataReader,
   logger: Logger
 ): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
-  if (data.available() < 4) return { completed: false, response: data.readBufferOf(data.available()) }
+  if (data.available() < UINT32_SIZE) return { completed: false, response: data.readBufferOf(data.available()) }
 
   const size = data.readUInt32()
   if (size > data.available()) {
-    data.rewind(4)
+    data.rewind(UINT32_SIZE)
     return { completed: false, response: data.readBufferOf(data.available()) }
   }
 
@@ -505,10 +506,6 @@ export class BufferDataReader implements DataReader {
   available(): number {
     return Buffer.byteLength(this.data) - this.offset
   }
-
-  length(): number {
-    return Buffer.byteLength(this.data)
-  }
 }
 
 function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
@@ -563,8 +560,7 @@ export class ResponseDecoder {
   }
 
   add(data: Buffer) {
-    const concatenated = Buffer.concat([this.lastData, data])
-    const dataReader = new BufferDataReader(concatenated)
+    const dataReader = new BufferDataReader(Buffer.concat([this.lastData, data]))
     this.lastData = Buffer.from("")
 
     while (!dataReader.isAtEnd()) {
