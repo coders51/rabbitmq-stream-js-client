@@ -1,8 +1,8 @@
 import { expect } from "chai"
 import { Heartbeat, HeartbeatConnection } from "../../src/heartbeat"
 import { Request } from "../../src/requests/request"
-import { createConsoleLog } from "../../src/util"
 import { eventually, wait } from "../support/util"
+import { NullLogger } from "../../src/logger"
 
 class ConnectionMock implements HeartbeatConnection {
   private sendCount = 0
@@ -22,9 +22,11 @@ class ConnectionMock implements HeartbeatConnection {
 }
 
 describe("heartbeat", () => {
+  const logger = new NullLogger()
+
   it("sent heartbeat every seconds", async () => {
     const connectionMock = new ConnectionMock()
-    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    const hb = new Heartbeat(connectionMock, logger)
 
     hb.start(1)
 
@@ -34,7 +36,7 @@ describe("heartbeat", () => {
 
   it("stop check", async () => {
     const connectionMock = new ConnectionMock()
-    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    const hb = new Heartbeat(connectionMock, logger)
     hb.start(1)
     hb.stop()
 
@@ -44,7 +46,7 @@ describe("heartbeat", () => {
 
   it("stop current timeout so we could exit immediately", () => {
     const connectionMock = new ConnectionMock()
-    const hb = new Heartbeat(connectionMock, createConsoleLog())
+    const hb = new Heartbeat(connectionMock, logger)
     hb.start(200)
 
     hb.stop()
