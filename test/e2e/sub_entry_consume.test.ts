@@ -9,8 +9,7 @@ import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
 import { range } from "../../src/util"
 
-// eslint-disable-next-line no-only-tests/no-only-tests
-describe.only("consume a batch of messages", () => {
+describe("consume a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
   let connection: Connection
   let streamName: string
