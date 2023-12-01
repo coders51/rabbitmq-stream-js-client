@@ -1,7 +1,8 @@
-import { inspect } from "node:util"
-
 export class Metrics {
-  private metrics: { [key: string]: number | undefined } = {}
+  private metrics: { [key: string]: number | undefined } = {
+    published: 0,
+    confirmed: 0,
+  }
   private ts_start: number = 0
   private ts_end: number = 0
 
@@ -10,7 +11,7 @@ export class Metrics {
   }
 
   public reset(metricName: string) {
-    delete this.metrics[metricName]
+    this.metrics[metricName] = 0
   }
 
   public setStart() {
@@ -20,12 +21,12 @@ export class Metrics {
   public getMetrics() {
     this.ts_end = Date.now()
     const delta = this.ts_end - this.ts_start
-    console.log(inspect(this.metrics))
-    const result = { ...this.metrics, delta: delta }
+    const timedMetrics = Object.fromEntries(
+      this.getMetricsNames().map((k) => [`${k}/s`, this.getTimedMetric(k, delta)])
+    )
+    const result = { ...this.metrics, ...timedMetrics, delta }
 
     this.resetAll()
-
-    console.log(`after reset ${inspect(this.metrics)}`)
 
     return result
   }
@@ -37,8 +38,20 @@ export class Metrics {
   }
 
   private resetAll() {
-    Object.keys(this.metrics).forEach((k) => this.reset(k))
+    this.getMetricsNames().forEach((k) => this.reset(k))
     this.ts_start = 0
     this.ts_end = 0
+  }
+
+  private getMetricsNames() {
+    return Object.keys(this.metrics)
+  }
+
+  private getTimedMetric(metricName: string, delta: number) {
+    if (delta < 1) return 0
+
+    const v = this.metrics[metricName] || 0
+
+    return +((v / delta) * 1000).toFixed(0)
   }
 }

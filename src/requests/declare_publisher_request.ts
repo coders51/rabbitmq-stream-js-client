@@ -6,7 +6,9 @@ export class DeclarePublisherRequest extends AbstractRequest {
   readonly responseKey = DeclarePublisherResponse.key
   readonly key = 0x0001
 
-  constructor(private params: { stream: string; publisherId: number; publisherRef?: string }) {
+  constructor(
+    private params: { stream: string; publisherId: number; publisherRef?: string; maxBufferLength?: number }
+  ) {
     super()
   }
 

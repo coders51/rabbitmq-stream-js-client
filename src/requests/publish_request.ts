@@ -3,9 +3,14 @@ import { Message } from "../producer"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
+export type PublishableMessage = {
+  publishingId: bigint
+  message: Message
+}
+
 interface PublishRequestParams {
   publisherId: number
-  messages: Array<{ publishingId: bigint; message: Message }>
+  messages: Array<PublishableMessage>
 }
 
 export class PublishRequest extends AbstractRequest {

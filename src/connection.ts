@@ -135,7 +135,7 @@ export class Connection {
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
-    const { stream, publisherRef } = params
+    const { stream, publisherRef, maxBufferLength, chunkSize, sendDuration } = params
     const publisherId = this.incPublisherId()
     const res = await this.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
@@ -149,6 +149,9 @@ export class Connection {
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
+      maxBufferLength: maxBufferLength,
+      chunkSize: chunkSize,
+      sendDuration: sendDuration,
       boot: params.boot,
     })
     this.logger.info(
@@ -463,6 +466,9 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
   boot?: boolean
+  maxBufferLength?: number
+  chunkSize?: number
+  sendDuration?: number
 }
 
 export interface DeclareConsumerParams {
