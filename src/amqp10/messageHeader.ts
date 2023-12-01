@@ -12,7 +12,7 @@ export class Header {
           const formatCode = dataResponse.readUInt8()
           dataResponse.rewind(1)
           const decodedBoolean = decodeFormatCode(dataResponse, formatCode)
-          if (decodedBoolean === undefined) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+          if (!decodedBoolean) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
           acc.durable = decodedBoolean as boolean
           break
         case 1:
