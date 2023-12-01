@@ -30,7 +30,7 @@ import {
   PublishErrorListener,
   ResponseDecoder,
 } from "./response_decoder"
-import { createConsoleLog, removeFrom } from "./util"
+import { removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -47,10 +47,10 @@ import { DeliverResponse } from "./responses/deliver_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
+import { Logger, NullLogger } from "./logger"
 
 export class Connection {
   private readonly socket = new Socket()
-  private readonly logger = createConsoleLog()
   private correlationId = 100
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
@@ -60,13 +60,13 @@ export class Connection {
   private consumerId = 0
   private consumers = new Map<number, Consumer>()
 
-  constructor() {
+  constructor(private readonly logger: Logger) {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
-  static connect(params: ConnectionParams): Promise<Connection> {
-    return new Connection().start(params)
+  static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
+    return new Connection(logger ?? new NullLogger()).start(params)
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -489,8 +489,8 @@ export interface QueryOffsetParams {
   stream: string
 }
 
-export function connect(params: ConnectionParams): Promise<Connection> {
-  return Connection.connect(params)
+export function connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
+  return Connection.connect(params, logger)
 }
 
 function errorMessageOf(code: number): string {

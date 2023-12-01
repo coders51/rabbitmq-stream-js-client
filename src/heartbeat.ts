@@ -1,4 +1,4 @@
-import { Logger } from "winston"
+import { Logger } from "./logger"
 import { HeartbeatRequest } from "./requests/heartbeat_request"
 import { Request } from "./requests/request"
 

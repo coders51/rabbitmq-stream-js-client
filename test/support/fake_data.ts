@@ -32,8 +32,8 @@ export async function createPublisher(streamName: string, connection: Connection
   return publisher
 }
 
-export async function createConnection(username: string, password: string, listeners?: ListenersParams) {
-  return await connect({
+export function createConnection(username: string, password: string, listeners?: ListenersParams) {
+  return connect({
     hostname: "localhost",
     port: 5552,
     username,
