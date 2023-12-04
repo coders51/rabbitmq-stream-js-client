@@ -480,6 +480,7 @@ export interface ConnectionParams {
   frameMax?: number // not used
   heartbeat?: number
   listeners?: ListenersParams
+  compressors?: Compression[]
 }
 
 export interface DeclarePublisherParams {
