@@ -1,4 +1,4 @@
-import { Compression } from "./compression"
+import { CompressionType } from "./compression"
 import { Connection } from "./connection"
 import { PublishRequest } from "./requests/publish_request"
 import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
@@ -120,7 +120,9 @@ export class Producer {
     )
   }
 
-  async sendSubEntries(messages: Message[], compression: Compression) {
+  async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
+    const compression = this.connection.getCompression(compressionType)
+
     return this.connection.send(
       new SubEntryBatchPublishRequest({
         publisherId: this.publisherId,

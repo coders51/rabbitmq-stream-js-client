@@ -48,6 +48,7 @@ import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { Logger, NullLogger } from "./logger"
+import { Compression, CompressionType, NoneCompression } from "./compression"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -59,10 +60,28 @@ export class Connection {
   private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, Consumer>()
+  private compressions = new Map<CompressionType, Compression>()
 
   constructor(private readonly logger: Logger) {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
+    this.compressions.set(CompressionType.None, NoneCompression.create())
+  }
+
+  getCompression(compressionType: CompressionType) {
+    const compression = this.compressions.get(compressionType)
+    if (!compression)
+      throw new Error(
+        "invalid compression or compression not yet implemented, to add a new compression use the specific api"
+      )
+
+    return compression
+  }
+
+  addCompression(compression: Compression) {
+    const c = this.compressions.get(compression.getType())
+    if (c) throw new Error("compression already implemented")
+    this.compressions.set(compression.getType(), compression)
   }
 
   static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {

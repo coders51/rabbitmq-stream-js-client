@@ -1,6 +1,7 @@
+import { amqpEncode, messageSize } from "../amqp10/encoder"
 import { Compression } from "../compression"
 import { Message } from "../producer"
-import { AbstractRequest } from "./abstract_request"
+import { AbstractRequest, BufferDataWriter } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 interface SubEntryBatchPublishRequestParams {
@@ -16,18 +17,24 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
 
   constructor(private params: SubEntryBatchPublishRequestParams) {
     super()
-    this.params.compression.compress(this.params.messages)
   }
 
   protected writeContent(writer: DataWriter): void {
-    writer.writeUInt8(this.params.publisherId)
+    const { compression, messages, publishingId, publisherId } = this.params
+    writer.writeUInt8(publisherId)
     // number of root messages. In this case will be always 1
     writer.writeUInt32(1)
-    writer.writeUInt64(this.params.publishingId)
-    writer.writeByte(0x80 | (1 << this.params.compression.type))
-    writer.writeUInt16(this.params.compression.messageCount())
-    writer.writeUInt32(this.params.compression.unCompressedSize())
-    writer.writeUInt32(this.params.compression.compressedSize())
-    this.params.compression.writeContent(writer)
+    writer.writeUInt64(publishingId)
+    writer.writeByte(0x80 | (compression.getType() << 4))
+    writer.writeUInt16(messages.length)
+    writer.writeUInt32(messages.reduce((sum, message) => sum + 4 + messageSize(message), 0))
+
+    const data = new BufferDataWriter(Buffer.alloc(1024), 0)
+    messages.forEach((m) => amqpEncode(data, m))
+
+    const compressedData = compression.compress(data.toBuffer())
+
+    writer.writeUInt32(compressedData.length)
+    writer.writeData(compressedData)
   }
 }

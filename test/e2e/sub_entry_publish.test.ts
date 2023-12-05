@@ -4,7 +4,6 @@ import { Producer } from "../../src/producer"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
-import { NoneCompression } from "../../src/compression"
 
 describe("publish a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
@@ -35,7 +34,7 @@ describe("publish a batch of messages", () => {
       { content: Buffer.from("Ciao2") },
       { content: Buffer.from("Ciao3") },
     ]
-    await publisher.sendSubEntries(messages, NoneCompression.create())
+    await publisher.sendSubEntries(messages)
 
     await eventually(async () => {
       const info = await rabbit.getQueueInfo(streamName)
