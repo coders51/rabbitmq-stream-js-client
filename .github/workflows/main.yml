@@ -41,6 +41,8 @@ jobs:
           cache: "npm"
       - name: Enable RabbitMQ Plugins
         run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
+      - name: Restart RabbitMQ
+        run: docker restart ${{ job.services.rabbitmq.id }}
       - run: npm ci
       - run: npm run check
       - run: npm run build --if-present

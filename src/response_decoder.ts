@@ -51,6 +51,7 @@ import { Header } from "./amqp10/messageHeader"
 //   Version => uint16
 //   CorrelationId => uint32
 //   ResponseCode => uint16
+const UINT32_SIZE = 4
 
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
@@ -73,9 +74,19 @@ type PossibleRawResponses =
   | RawPublishConfirmResponse
   | RawPublishErrorResponse
 
-function decode(data: DataReader, logger: Logger): PossibleRawResponses {
+function decode(
+  data: DataReader,
+  logger: Logger
+): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
+  if (data.available() < UINT32_SIZE) return { completed: false, response: data.readBufferOf(data.available()) }
+
   const size = data.readUInt32()
-  return decodeResponse(data.readTo(size), size, logger)
+  if (size > data.available()) {
+    data.rewind(UINT32_SIZE)
+    return { completed: false, response: data.readBufferOf(data.available()) }
+  }
+
+  return { completed: true, response: decodeResponse(data.readTo(size), size, logger) }
 }
 
 function decodeResponse(dataResponse: DataReader, size: number, logger: Logger): PossibleRawResponses {
@@ -384,19 +395,19 @@ export class BufferDataReader implements DataReader {
   constructor(private data: Buffer) {}
 
   readTo(size: number): DataReader {
-    const ret = new BufferDataReader(this.data.slice(this.offset, this.offset + size))
+    const ret = new BufferDataReader(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
 
   readBufferOf(size: number): Buffer {
-    const ret = Buffer.from(this.data.slice(this.offset, this.offset + size))
+    const ret = Buffer.from(this.data.subarray(this.offset, this.offset + size))
     this.offset += size
     return ret
   }
 
   readToEnd(): DataReader {
-    const ret = new BufferDataReader(this.data.slice(this.offset))
+    const ret = new BufferDataReader(this.data.subarray(this.offset))
     this.offset = this.data.length
     return ret
   }
@@ -491,6 +502,10 @@ export class BufferDataReader implements DataReader {
   isAtEnd(): boolean {
     return this.offset === this.data.length
   }
+
+  available(): number {
+    return Buffer.byteLength(this.data) - this.offset
+  }
 }
 
 function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse {
@@ -524,6 +539,7 @@ function isPublishErrorResponse(params: PossibleRawResponses): params is RawPubl
 export class ResponseDecoder {
   private responseFactories = new Map<number, AbstractTypeClass>()
   private emitter = new EventEmitter()
+  private lastData = Buffer.from("")
 
   constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
@@ -544,9 +560,17 @@ export class ResponseDecoder {
   }
 
   add(data: Buffer) {
-    const dataReader = new BufferDataReader(data)
+    const dataReader = new BufferDataReader(Buffer.concat([this.lastData, data]))
+    this.lastData = Buffer.from("")
+
     while (!dataReader.isAtEnd()) {
-      const response = decode(dataReader, this.logger)
+      const { completed, response } = decode(dataReader, this.logger)
+
+      if (!completed) {
+        this.lastData = response
+        continue
+      }
+
       if (isHeartbeatResponse(response)) {
         this.logger.debug(`heartbeat received from the server: ${inspect(response)}`)
       } else if (isTuneResponse(response)) {
