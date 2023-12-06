@@ -30,12 +30,14 @@ function parseArgs(args) {
 }
 
 async function main() {
+  const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
+  const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
   const connection = await connect(
     {
       hostname: "localhost",
       port: 5552,
-      username: "rabbit",
-      password: "rabbit",
+      username: rabbitUser,
+      password: rabbitPassword,
       vhost: "/",
     },
     logger
