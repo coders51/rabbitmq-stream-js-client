@@ -1,4 +1,4 @@
-import { gunzipSync, gzipSync } from "zlib"
+import { gunzipSync, gzipSync } from "node:zlib"
 
 export enum CompressionType {
   None = 0,
