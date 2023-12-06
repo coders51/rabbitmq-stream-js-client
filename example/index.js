@@ -20,7 +20,7 @@ async function main() {
   await connection.createStream({ stream: streamName, arguments: {} })
   const producer = await connection.declarePublisher({ stream: streamName })
 
-  await producer.send(BigInt(1), Buffer.from("ciao"))
+  await producer.send(Buffer.from("ciao"))
 
   await createClassicConsumer(streamName)
 
