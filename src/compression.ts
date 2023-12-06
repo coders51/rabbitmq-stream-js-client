@@ -1,6 +1,8 @@
+import { gunzipSync, gzipSync } from "node:zlib"
+
 export enum CompressionType {
   None = 0,
-  GZip = 1,
+  Gzip = 1,
   // Not implemented by default.
   // It is possible to add custom codec with StreamCompressionCodecs
   Snappy = 2,
@@ -29,5 +31,23 @@ export class NoneCompression implements Compression {
 
   decompress(data: Buffer): Buffer {
     return data
+  }
+}
+
+export class GzipCompression implements Compression {
+  static create(): GzipCompression {
+    return new GzipCompression()
+  }
+
+  getType(): CompressionType {
+    return CompressionType.Gzip
+  }
+
+  compress(data: Buffer): Buffer {
+    return gzipSync(data)
+  }
+
+  decompress(data: Buffer): Buffer {
+    return gunzipSync(data)
   }
 }
