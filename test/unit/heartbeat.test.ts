@@ -3,7 +3,6 @@ import { Heartbeat, HeartbeatConnection } from "../../src/heartbeat"
 import { NullLogger } from "../../src/logger"
 import { Request } from "../../src/requests/request"
 import { eventually, wait } from "../support/util"
-import { NullLogger } from "../../src/logger"
 
 class ConnectionMock implements HeartbeatConnection {
   private sendCount = 0

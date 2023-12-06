@@ -1,6 +1,5 @@
 import { expect } from "chai"
 import { Connection } from "../../src"
-import { NoneCompression } from "../../src/compression"
 import { Consumer } from "../../src/consumer"
 import { Message, Producer } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
@@ -42,7 +41,7 @@ describe("consume a batch of messages", () => {
       { content: Buffer.from("Ciao4") },
     ]
 
-    await publisher.sendSubEntries(messages, NoneCompression.create())
+    await publisher.sendSubEntries(messages)
   }).timeout(10000)
 
   it("consume a batch of messages - receive the same number of messages", async () => {
@@ -58,7 +57,7 @@ describe("consume a batch of messages", () => {
       { content: Buffer.from("Ciao4") },
     ]
 
-    await publisher.sendSubEntries(messages, NoneCompression.create())
+    await publisher.sendSubEntries(messages)
 
     await eventually(async () => {
       expect(receivedMessages.length).eql(messages.length)
@@ -73,7 +72,7 @@ describe("consume a batch of messages", () => {
     const messageContents = range(5).map((_, i) => `Ciao${i}`)
     const messages = messageContents.map((m) => ({ content: Buffer.from(m) }))
 
-    await publisher.sendSubEntries(messages, NoneCompression.create())
+    await publisher.sendSubEntries(messages)
 
     await eventually(async () => {
       const receivedContent = receivedMessages.map((rm) => rm.content.toString("utf-8"))

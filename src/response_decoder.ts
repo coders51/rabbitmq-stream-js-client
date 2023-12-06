@@ -42,6 +42,7 @@ import { StoreOffsetResponse } from "./responses/store_offset_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
+import { CompressionType, NoneCompression } from "./compression"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -193,7 +194,8 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
       messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
     }
   } else {
-    messages.push(...decodeSubEntries(dataResponse, logger))
+    const compressionType = (messageType & 0x70) >> 4
+    messages.push(...decodeSubEntries(dataResponse, compressionType, logger))
   }
 
   return { subscriptionId, messages }
@@ -240,17 +242,21 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, messageAnnotations, offset }
 }
 
-function decodeSubEntries(dataResponse: DataReader, logger: Logger): Message[] {
-  const retVal: Message[] = []
+function decodeSubEntries(dataResponse: DataReader, compressionType: number, logger: Logger): Message[] {
+  const decodedMessages: Message[] = []
+  const compression = createCompression(compressionType)
   const noOfRecords = dataResponse.readUInt16()
   const uncompressedLength = dataResponse.readUInt32()
-  const length = dataResponse.readUInt32()
-  logger.debug(`Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${length}`)
+  const compressedLength = dataResponse.readUInt32()
+  const decompressedData = new BufferDataReader(compression.decompress(dataResponse.readBufferOf(compressedLength)))
+  logger.debug(
+    `Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${compressedLength}`
+  )
   for (let i = 0; i < noOfRecords; i++) {
-    const entry: Message = decodeMessage(dataResponse, BigInt(i))
-    retVal.push(entry)
+    const entry: Message = decodeMessage(decompressedData, BigInt(i))
+    decodedMessages.push(entry)
   }
-  return retVal
+  return decodedMessages
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
@@ -404,6 +410,15 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
       return 0
     default:
       throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
+  }
+}
+
+function createCompression(compressionType: number) {
+  switch (compressionType) {
+    case CompressionType.None:
+      return NoneCompression.create()
+    default:
+      throw new Error(`invalid compressionType or compression not yet implemented %#02x: ${compressionType}`)
   }
 }
 
