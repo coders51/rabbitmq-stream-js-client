@@ -1,3 +1,3 @@
 export * from "./connection"
-export { IProducer } from "./producer"
-export { IConsumer } from "./consumer"
+export { Producer } from "./producer"
+export { Consumer } from "./consumer"
