@@ -46,7 +46,7 @@ jobs:
       - name: Restart RabbitMQ
         run: docker restart ${{ job.services.rabbitmq.id }}
       - name: Create SuperStream
-        run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-stream rabbitmq-streams add_super_stream super-stream-test --partitions 2
+        run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-streams add_super_stream super-stream-test --partitions 2
       - run: npm ci
       - run: npm run check
       - run: npm run build --if-present
