@@ -70,17 +70,20 @@ export class Connection {
 
   getCompression(compressionType: CompressionType) {
     const compression = this.compressions.get(compressionType)
-    if (!compression)
+    if (!compression) {
       throw new Error(
         "invalid compression or compression not yet implemented, to add a new compression use the specific api"
       )
+    }
 
     return compression
   }
 
-  addCompression(compression: Compression) {
+  registerCompression(compression: Compression) {
     const c = this.compressions.get(compression.getType())
-    if (c) throw new Error("compression already implemented")
+    if (c) {
+      throw new Error("compression already implemented")
+    }
     this.compressions.set(compression.getType(), compression)
   }
 

@@ -89,6 +89,19 @@ export class Producer {
     )
   }
 
+  async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
+    const compression = this.connection.getCompression(compressionType)
+
+    return this.connection.send(
+      new SubEntryBatchPublishRequest({
+        publisherId: this.publisherId,
+        publishingId: this.publishingId,
+        compression: compression,
+        messages: messages,
+      })
+    )
+  }
+
   public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
     this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
     this.connection.on("publish_error", (error: PublishErrorResponse) =>
@@ -116,19 +129,6 @@ export class Producer {
             },
           },
         ],
-      })
-    )
-  }
-
-  async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
-    const compression = this.connection.getCompression(compressionType)
-
-    return this.connection.send(
-      new SubEntryBatchPublishRequest({
-        publisherId: this.publisherId,
-        publishingId: this.publishingId,
-        compression: compression,
-        messages: messages,
       })
     )
   }

@@ -34,6 +34,7 @@ describe("publish a batch of messages", () => {
       { content: Buffer.from("Ciao2") },
       { content: Buffer.from("Ciao3") },
     ]
+
     await publisher.sendSubEntries(messages)
 
     await eventually(async () => {
