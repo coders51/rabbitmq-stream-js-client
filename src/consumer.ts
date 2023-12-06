@@ -3,7 +3,13 @@ import { Message } from "./producer"
 
 export type ConsumerFunc = (message: Message) => void
 
-export class Consumer {
+export interface IConsumer {
+  close(): Promise<void>
+  storeOffset(offsetValue: bigint): Promise<void>
+  queryOffset(): Promise<bigint>
+}
+
+export class Consumer implements IConsumer {
   private connection: Connection
   private stream: string
   public consumerId: number

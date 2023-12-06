@@ -54,3 +54,7 @@ jobs:
         env:
           RABBITMQ_USER: "test-user"
           RABBITMQ_PASSWORD: "test-password"
+      - run: cd performance_test && npm install && npm run perftest 100000
+        env:
+          RABBITMQ_USER: "test-user"
+          RABBITMQ_PASSWORD: "test-password"

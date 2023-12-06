@@ -1,0 +1,20 @@
+{
+  // "extends": "@tsconfig/node16/tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "preserveConstEnums": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "noEmit": true,
+    "declaration": true,
+    "allowJs": true
+  },
+  "include": ["./*.js", "index.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}

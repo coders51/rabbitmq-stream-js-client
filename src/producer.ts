@@ -48,12 +48,20 @@ interface MessageOptions {
   applicationProperties?: Record<string, string | number>
   messageAnnotations?: Record<string, string | number>
 }
+
+export interface IProducer {
+  send(args0: bigint | Buffer, arg1: Buffer | MessageOptions, opts?: MessageOptions): Promise<void>
+  sendSubEntries(messages: Message[], compressionType: CompressionType): Promise<void>
+  on(eventName: "publish_confirm", cb: PublishConfirmCallback): void
+  getLastPublishingId(): Promise<bigint>
+}
+
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
-export class Producer {
+export class Producer implements IProducer {
   private connection: Connection
   private stream: string
   readonly publisherId: number
-  private publisherRef: string
+  protected publisherRef: string
   private boot: boolean
   private publishingId: bigint
 
