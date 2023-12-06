@@ -29,10 +29,10 @@ describe("query publisher sequence", () => {
 
   it("asking for the last sequence read from a publisher returns the last sequence id", async () => {
     const publisher = await connection.declarePublisher({ stream: streamName, publisherRef })
-    await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
-    await publisher.send(2n, Buffer.from(`test${randomUUID()}`))
-    await publisher.send(3n, Buffer.from(`test${randomUUID()}`))
-    await publisher.send(4n, Buffer.from(`test${randomUUID()}`))
+    await publisher.basicSend(1n, Buffer.from(`test${randomUUID()}`))
+    await publisher.basicSend(2n, Buffer.from(`test${randomUUID()}`))
+    await publisher.basicSend(3n, Buffer.from(`test${randomUUID()}`))
+    await publisher.basicSend(4n, Buffer.from(`test${randomUUID()}`))
 
     const lastPublishingId = await publisher.getLastPublishingId()
 

@@ -72,44 +72,7 @@ export class Producer {
     this.publishingId = params.boot ? -1n : 0n
   }
 
-  send(args0: bigint | Buffer, arg1: Buffer | MessageOptions = {}, opts: MessageOptions = {}) {
-    if (Buffer.isBuffer(args0) && !Buffer.isBuffer(arg1)) {
-      return this.sendWithPublisherSequence(args0, arg1)
-    }
-
-    if (typeof args0 !== "bigint" || !Buffer.isBuffer(arg1)) {
-      throw new Error("Message should be a Buffer")
-    }
-
-    return this.connection.send(
-      new PublishRequest({
-        publisherId: this.publisherId,
-        messages: [{ publishingId: args0, message: { content: arg1, ...opts } }],
-      })
-    )
-  }
-
-  async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
-    const compression = this.connection.getCompression(compressionType)
-
-    return this.connection.send(
-      new SubEntryBatchPublishRequest({
-        publisherId: this.publisherId,
-        publishingId: this.publishingId,
-        compression: compression,
-        messages: messages,
-      })
-    )
-  }
-
-  public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
-    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
-    this.connection.on("publish_error", (error: PublishErrorResponse) =>
-      cb(error.publishingError.code, [error.publishingError.publishingId])
-    )
-  }
-
-  private async sendWithPublisherSequence(message: Buffer, opts: MessageOptions) {
+  async send(message: Buffer, opts: MessageOptions = {}) {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
@@ -130,6 +93,33 @@ export class Producer {
           },
         ],
       })
+    )
+  }
+
+  basicSend(publishingId: bigint, content: Buffer, opts: MessageOptions = {}) {
+    return this.connection.send(
+      new PublishRequest({
+        publisherId: this.publisherId,
+        messages: [{ publishingId: publishingId, message: { content: content, ...opts } }],
+      })
+    )
+  }
+
+  async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
+    return this.connection.send(
+      new SubEntryBatchPublishRequest({
+        publisherId: this.publisherId,
+        publishingId: this.publishingId,
+        compression: this.connection.getCompression(compressionType),
+        messages: messages,
+      })
+    )
+  }
+
+  public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
+    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+    this.connection.on("publish_error", (error: PublishErrorResponse) =>
+      cb(error.publishingError.code, [error.publishingError.publishingId])
     )
   }
 

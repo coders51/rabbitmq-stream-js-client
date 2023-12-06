@@ -26,7 +26,7 @@ describe("publish a message and get confirmation", () => {
     const publishingId = 1n
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
 
-    await publisher.send(publishingId, Buffer.from(`test${randomUUID()}`))
+    await publisher.basicSend(publishingId, Buffer.from(`test${randomUUID()}`))
 
     await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(1), 10000)
     expect(publishResponses).eql([{ error: null, ids: [publishingId] }])
@@ -36,7 +36,7 @@ describe("publish a message and get confirmation", () => {
     const publisher = await connection.declarePublisher({ stream, publisherRef })
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
 
-    await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
 
     await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(1), 10000)
     const lastPublishingId = await publisher.getLastPublishingId()
@@ -48,7 +48,7 @@ describe("publish a message and get confirmation", () => {
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
     await rabbit.deleteStream(stream)
 
-    await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
 
     await eventually(() => expect(publishResponses).eql([{ error: 256, ids: [undefined] }]))
   }).timeout(10000)

@@ -29,7 +29,7 @@ describe("publish a message", () => {
   })
 
   it("is seen by rabbit", async () => {
-    await publisher.send(1n, Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(streamName)).messages).eql(1)
@@ -38,7 +38,7 @@ describe("publish a message", () => {
 
   it("and a lot more are all seen by rabbit", async () => {
     for (let index = 0; index < 100; index++) {
-      await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+      await publisher.send(Buffer.from(`test${randomUUID()}`))
     }
 
     await eventually(async () => {
@@ -49,7 +49,7 @@ describe("publish a message", () => {
   it("can be read using classic client", async () => {
     const message = `test${randomUUID()}`
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message))
+    await publisher.send(Buffer.from(message))
 
     const { content } = await getMessageFrom(streamName, username, password)
     expect(message).eql(content)
@@ -59,7 +59,7 @@ describe("publish a message", () => {
     const message = `test${randomUUID()}`
     const messageProperties = createProperties()
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { messageProperties })
+    await publisher.send(Buffer.from(message), { messageProperties })
 
     const msg = await getMessageFrom(streamName, username, password)
     const { content, properties: classicProperties } = msg
@@ -77,7 +77,7 @@ describe("publish a message", () => {
     const message = `test${randomUUID()}`
     const applicationProperties = { "my-key": "my-value", key: "value", k: 100000 }
 
-    await publisher.send(BigInt(Date.now() + 1), Buffer.from(message), { applicationProperties })
+    await publisher.send(Buffer.from(message), { applicationProperties })
 
     const msg = await getMessageFrom(streamName, username, password)
     const { content, properties } = msg
@@ -89,10 +89,10 @@ describe("publish a message", () => {
     it("is active if create a publisher with publishRef", async () => {
       const howMany = 100
       for (let index = 0; index < howMany; index++) {
-        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisher.basicSend(BigInt(index), Buffer.from(`test${randomUUID()}`))
       }
       for (let index = 0; index < howMany; index++) {
-        await publisher.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisher.basicSend(BigInt(index), Buffer.from(`test${randomUUID()}`))
       }
 
       await eventually(async () => expect((await rabbit.getQueueInfo(streamName)).messages).eql(howMany), 10000)
@@ -103,10 +103,10 @@ describe("publish a message", () => {
 
       const howMany = 100
       for (let index = 0; index < howMany; index++) {
-        await publisherEmptyRef.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisherEmptyRef.send(Buffer.from(`test${randomUUID()}`))
       }
       for (let index = 0; index < howMany; index++) {
-        await publisherEmptyRef.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisherEmptyRef.send(Buffer.from(`test${randomUUID()}`))
       }
 
       await eventually(async () => expect((await rabbit.getQueueInfo(streamName)).messages).eql(howMany * 2), 10000)
@@ -117,10 +117,10 @@ describe("publish a message", () => {
 
       const howMany = 100
       for (let index = 0; index < howMany; index++) {
-        await publisherNoRef.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisherNoRef.send(Buffer.from(`test${randomUUID()}`))
       }
       for (let index = 0; index < howMany; index++) {
-        await publisherNoRef.send(BigInt(index), Buffer.from(`test${randomUUID()}`))
+        await publisherNoRef.send(Buffer.from(`test${randomUUID()}`))
       }
 
       await eventually(async () => expect((await rabbit.getQueueInfo(streamName)).messages).eql(howMany * 2), 10000)
