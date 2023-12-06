@@ -50,7 +50,7 @@ interface MessageOptions {
 }
 
 export interface IProducer {
-  send(args0: bigint | Buffer, arg1: Buffer | MessageOptions, opts?: MessageOptions): Promise<void>
+  send(message: Buffer, opts?: MessageOptions): Promise<void>
   sendSubEntries(messages: Message[], compressionType: CompressionType): Promise<void>
   on(eventName: "publish_confirm", cb: PublishConfirmCallback): void
   getLastPublishingId(): Promise<bigint>
