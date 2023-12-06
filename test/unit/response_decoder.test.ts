@@ -5,6 +5,7 @@ import { expect } from "chai"
 import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { createConsoleLog } from "../../src/util"
 import { DecoderListenerFunc } from "../../src/decoder_listener"
+import { Compression, CompressionType } from "../../src/compression"
 
 class MockDecoderListener {
   readonly responses: Response[] = []
@@ -28,7 +29,8 @@ describe("ResponseDecoder", () => {
   const mockListener = new MockDecoderListener()
 
   beforeEach(() => {
-    decoder = new ResponseDecoder(mockListener.buildListener(), createConsoleLog())
+    const compressions = new Map<CompressionType, Compression>()
+    decoder = new ResponseDecoder(mockListener.buildListener(), compressions, createConsoleLog())
   })
 
   it("decode a buffer that contains a single response", () => {

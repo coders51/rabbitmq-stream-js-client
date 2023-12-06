@@ -64,9 +64,9 @@ export class Connection {
 
   constructor(private readonly logger: Logger) {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.compressions, this.logger)
   }
 
   getCompression(compressionType: CompressionType) {
@@ -86,6 +86,7 @@ export class Connection {
       throw new Error("compression already implemented")
     }
     this.compressions.set(compression.getType(), compression)
+    this.decoder.registerCompression(compression)
   }
 
   static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
