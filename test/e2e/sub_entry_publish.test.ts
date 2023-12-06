@@ -28,7 +28,7 @@ describe("publish a batch of messages", () => {
     } catch (e) {}
   })
 
-  it("publish a batch of messages", async () => {
+  it("publish a batch of messages - without compression", async () => {
     const messages = [
       { content: Buffer.from("Ciao") },
       { content: Buffer.from("Ciao1") },

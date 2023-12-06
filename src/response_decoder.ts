@@ -1,47 +1,48 @@
 import { EventEmitter } from "events"
 import { inspect } from "util"
-import { Logger } from "./logger"
+import { ApplicationProperties } from "./amqp10/applicationProperties"
+import { FormatCode, FormatCodeType } from "./amqp10/decoder"
+import { Annotations } from "./amqp10/messageAnnotations"
+import { Header } from "./amqp10/messageHeader"
+import { Properties } from "./amqp10/properties"
+import { Compression, CompressionType } from "./compression"
 import { DecoderListenerFunc } from "./decoder_listener"
+import { Logger } from "./logger"
+import { Message, MessageAnnotations, MessageApplicationProperties, MessageHeader, MessageProperties } from "./producer"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { CloseResponse } from "./responses/close_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { CreditResponse } from "./responses/credit_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
-import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
 import { HeartbeatResponse } from "./responses/heartbeat_response"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import {
   DataReader,
-  RawDeliverResponse,
   RawCreditResponse,
+  RawDeliverResponse,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawPublishConfirmResponse,
+  RawPublishErrorResponse,
   RawResponse,
   RawTuneResponse,
-  RawPublishErrorResponse,
 } from "./responses/raw_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SubscribeResponse } from "./responses/subscribe_response"
-import { DeliverResponse } from "./responses/deliver_response"
-import { FormatCodeType, FormatCode } from "./amqp10/decoder"
-import { CreditResponse } from "./responses/credit_response"
-import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { Properties } from "./amqp10/properties"
-import { Message, MessageAnnotations, MessageHeader, MessageApplicationProperties, MessageProperties } from "./producer"
-import { ApplicationProperties } from "./amqp10/applicationProperties"
-import { TuneResponse } from "./responses/tune_response"
-import { PublishErrorResponse } from "./responses/publish_error_response"
-import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { StoreOffsetResponse } from "./responses/store_offset_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
-import { Annotations } from "./amqp10/messageAnnotations"
-import { Header } from "./amqp10/messageHeader"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
+import { SubscribeResponse } from "./responses/subscribe_response"
+import { TuneResponse } from "./responses/tune_response"
+import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -76,6 +77,7 @@ type PossibleRawResponses =
 
 function decode(
   data: DataReader,
+  getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger
 ): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
   if (data.available() < UINT32_SIZE) return { completed: false, response: data.readBufferOf(data.available()) }
@@ -86,14 +88,19 @@ function decode(
     return { completed: false, response: data.readBufferOf(data.available()) }
   }
 
-  return { completed: true, response: decodeResponse(data.readTo(size), size, logger) }
+  return { completed: true, response: decodeResponse(data.readTo(size), size, getCompressionBy, logger) }
 }
 
-function decodeResponse(dataResponse: DataReader, size: number, logger: Logger): PossibleRawResponses {
+function decodeResponse(
+  dataResponse: DataReader,
+  size: number,
+  getCompressionBy: (type: CompressionType) => Compression,
+  logger: Logger
+): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
-    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, logger)
+    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, getCompressionBy, logger)
     const response: RawDeliverResponse = {
       size,
       key: key as DeliverResponse["key"],
@@ -155,7 +162,11 @@ function decodeResponse(dataResponse: DataReader, size: number, logger: Logger):
   return { size, key, version, correlationId, code, payload }
 }
 
-function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): DeliveryResponseDecoded {
+function decodeDeliverResponse(
+  dataResponse: DataReader,
+  getCompressionBy: (type: CompressionType) => Compression,
+  logger: Logger
+): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
   const magicVersion = dataResponse.readInt8()
   const chunkType = dataResponse.readInt8()
@@ -169,8 +180,8 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
   const trailerLength = dataResponse.readUInt32()
   const reserved = dataResponse.readUInt32()
   const messageType = dataResponse.readUInt8()
-  dataResponse.rewind(1)
 
+  const messages: Message[] = []
   const data = {
     magicVersion,
     chunkType,
@@ -186,9 +197,16 @@ function decodeDeliverResponse(dataResponse: DataReader, logger: Logger): Delive
     messageType, // indicate if it contains subentries
   }
   logger.debug(inspect(data))
-  const messages: Message[] = []
-  for (let i = 0; i < numEntries; i++) {
-    messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
+
+  if (messageType === 0) {
+    dataResponse.rewind(1) // if not a sub entry, the messageType is part of the message
+    for (let i = 0; i < numEntries; i++) {
+      messages.push(decodeMessage(dataResponse, chunkFirstOffset + BigInt(i)))
+    }
+  } else {
+    const compressionType = (messageType & 0x70) >> 4
+    const compression = getCompressionBy(compressionType)
+    messages.push(...decodeSubEntries(dataResponse, compression, logger))
   }
 
   return { subscriptionId, messages }
@@ -233,6 +251,22 @@ function decodeMessage(dataResponse: DataReader, offset: bigint): Message {
   }
 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, messageAnnotations, offset }
+}
+
+function decodeSubEntries(dataResponse: DataReader, compression: Compression, logger: Logger): Message[] {
+  const decodedMessages: Message[] = []
+  const noOfRecords = dataResponse.readUInt16()
+  const uncompressedLength = dataResponse.readUInt32()
+  const compressedLength = dataResponse.readUInt32()
+  const decompressedData = new BufferDataReader(compression.decompress(dataResponse.readBufferOf(compressedLength)))
+  logger.debug(
+    `Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${compressedLength}`
+  )
+  for (let i = 0; i < noOfRecords; i++) {
+    const entry: Message = decodeMessage(decompressedData, BigInt(i))
+    decodedMessages.push(entry)
+  }
+  return decodedMessages
 }
 
 function decodeApplicationProperties(dataResponse: DataReader) {
@@ -559,12 +593,12 @@ export class ResponseDecoder {
     this.addFactoryFor(QueryOffsetResponse)
   }
 
-  add(data: Buffer) {
+  add(data: Buffer, getCompressionBy: (type: CompressionType) => Compression) {
     const dataReader = new BufferDataReader(Buffer.concat([this.lastData, data]))
     this.lastData = Buffer.from("")
 
     while (!dataReader.isAtEnd()) {
-      const { completed, response } = decode(dataReader, this.logger)
+      const { completed, response } = decode(dataReader, getCompressionBy, this.logger)
 
       if (!completed) {
         this.lastData = response

@@ -64,9 +64,9 @@ export class Connection {
 
   constructor(private readonly logger: Logger) {
     this.heartbeat = new Heartbeat(this, this.logger)
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
+    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
   }
 
   getCompression(compressionType: CompressionType) {
@@ -317,7 +317,7 @@ export class Connection {
 
   private received(data: Buffer) {
     this.logger.debug(`Receiving ${data.length} (${data.readUInt32BE()}) bytes ... ${inspect(data)}`)
-    this.decoder.add(data)
+    this.decoder.add(data, (ct) => this.getCompression(ct))
   }
 
   private async tune(heartbeatInterval: number): Promise<{ heartbeat: number }> {
