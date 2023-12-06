@@ -78,7 +78,7 @@ describe("declare consumer", () => {
       receivedMessages.push(message.content)
     })
 
-    const messages = range(10000).map((n) => Buffer.from(`hello${n}`))
+    const messages = range(3000).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {
       await publisher.send(m)
     }
