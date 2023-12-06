@@ -77,7 +77,7 @@ type PossibleRawResponses =
 
 function decode(
   data: DataReader,
-  compressions: Map<CompressionType, Compression>,
+  getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger
 ): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
   if (data.available() < UINT32_SIZE) return { completed: false, response: data.readBufferOf(data.available()) }
@@ -88,19 +88,19 @@ function decode(
     return { completed: false, response: data.readBufferOf(data.available()) }
   }
 
-  return { completed: true, response: decodeResponse(data.readTo(size), size, compressions, logger) }
+  return { completed: true, response: decodeResponse(data.readTo(size), size, getCompressionBy, logger) }
 }
 
 function decodeResponse(
   dataResponse: DataReader,
   size: number,
-  compressions: Map<CompressionType, Compression>,
+  getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger
 ): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
   if (key === DeliverResponse.key) {
-    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, compressions, logger)
+    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, getCompressionBy, logger)
     const response: RawDeliverResponse = {
       size,
       key: key as DeliverResponse["key"],
@@ -164,7 +164,7 @@ function decodeResponse(
 
 function decodeDeliverResponse(
   dataResponse: DataReader,
-  compressions: Map<CompressionType, Compression>,
+  getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger
 ): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
@@ -205,12 +205,7 @@ function decodeDeliverResponse(
     }
   } else {
     const compressionType = (messageType & 0x70) >> 4
-    const compression = compressions.get(compressionType)
-    if (!compression) {
-      throw new Error(
-        "invalid compression or compression not yet implemented, to add a new compression use the specific api"
-      )
-    }
+    const compression = getCompressionBy(compressionType)
     messages.push(...decodeSubEntries(dataResponse, compression, logger))
   }
 
@@ -580,11 +575,7 @@ export class ResponseDecoder {
   private emitter = new EventEmitter()
   private lastData = Buffer.from("")
 
-  constructor(
-    private listener: DecoderListenerFunc,
-    private compressions: Map<CompressionType, Compression>,
-    private logger: Logger
-  ) {
+  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)
@@ -602,16 +593,12 @@ export class ResponseDecoder {
     this.addFactoryFor(QueryOffsetResponse)
   }
 
-  registerCompression(compression: Compression) {
-    this.compressions.set(compression.getType(), compression)
-  }
-
-  add(data: Buffer) {
+  add(data: Buffer, getCompressionBy: (type: CompressionType) => Compression) {
     const dataReader = new BufferDataReader(Buffer.concat([this.lastData, data]))
     this.lastData = Buffer.from("")
 
     while (!dataReader.isAtEnd()) {
-      const { completed, response } = decode(dataReader, this.compressions, this.logger)
+      const { completed, response } = decode(dataReader, getCompressionBy, this.logger)
 
       if (!completed) {
         this.lastData = response

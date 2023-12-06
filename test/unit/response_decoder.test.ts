@@ -1,11 +1,11 @@
-import { Response } from "../../src/responses/response"
+import { expect } from "chai"
+import { NoneCompression } from "../../src/compression"
+import { DecoderListenerFunc } from "../../src/decoder_listener"
+import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { ResponseDecoder } from "../../src/response_decoder"
 import { PeerPropertiesResponse } from "../../src/responses/peer_properties_response"
-import { expect } from "chai"
-import { BufferDataWriter } from "../../src/requests/abstract_request"
+import { Response } from "../../src/responses/response"
 import { createConsoleLog } from "../../src/util"
-import { DecoderListenerFunc } from "../../src/decoder_listener"
-import { Compression, CompressionType } from "../../src/compression"
 
 class MockDecoderListener {
   readonly responses: Response[] = []
@@ -27,16 +27,16 @@ class MockDecoderListener {
 describe("ResponseDecoder", () => {
   let decoder: ResponseDecoder
   const mockListener = new MockDecoderListener()
+  const getCompressionBy = () => NoneCompression.create()
 
   beforeEach(() => {
-    const compressions = new Map<CompressionType, Compression>()
-    decoder = new ResponseDecoder(mockListener.buildListener(), compressions, createConsoleLog())
+    decoder = new ResponseDecoder(mockListener.buildListener(), createConsoleLog())
   })
 
   it("decode a buffer that contains a single response", () => {
     const data = createResponse({ key: PeerPropertiesResponse.key })
 
-    decoder.add(data)
+    decoder.add(data, getCompressionBy)
 
     expect(mockListener.responses).lengthOf(1)
   })
@@ -47,7 +47,7 @@ describe("ResponseDecoder", () => {
       createResponse({ key: PeerPropertiesResponse.key }),
     ]
 
-    decoder.add(Buffer.concat(data))
+    decoder.add(Buffer.concat(data), getCompressionBy)
 
     expect(mockListener.responses).lengthOf(2)
   })
