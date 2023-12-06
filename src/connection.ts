@@ -48,7 +48,7 @@ import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { Logger, NullLogger } from "./logger"
-import { Compression, CompressionType, NoneCompression } from "./compression"
+import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 
 export class Connection {
   private readonly socket = new Socket()
@@ -66,6 +66,7 @@ export class Connection {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
+    this.compressions.set(CompressionType.Gzip, GzipCompression.create())
   }
 
   getCompression(compressionType: CompressionType) {

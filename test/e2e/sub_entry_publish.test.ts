@@ -4,6 +4,7 @@ import { Producer } from "../../src/producer"
 import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
+import { CompressionType } from "../../src/compression"
 
 describe("publish a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
@@ -43,17 +44,19 @@ describe("publish a batch of messages", () => {
     }, 10000)
   }).timeout(10000)
 
-  it.skip("publish a batch of messages with compression", async () => {
-    await publisher.sendSubEntries([
+  it("publish a batch of messages with compression", async () => {
+    const messages = [
       { content: Buffer.from("Ciao") },
       { content: Buffer.from("Ciao1") },
       { content: Buffer.from("Ciao2") },
       { content: Buffer.from("Ciao3") },
-    ])
+    ]
+
+    await publisher.sendSubEntries(messages, CompressionType.Gzip)
 
     await eventually(async () => {
       const info = await rabbit.getQueueInfo(streamName)
-      expect(info.messages).eql(1)
+      expect(info.messages).eql(messages.length)
     }, 10000)
   }).timeout(10000)
 })

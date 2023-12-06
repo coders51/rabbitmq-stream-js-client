@@ -1,3 +1,5 @@
+import { gunzipSync, gzipSync } from "zlib"
+
 export enum CompressionType {
   None = 0,
   Gzip = 1,
@@ -29,5 +31,23 @@ export class NoneCompression implements Compression {
 
   decompress(data: Buffer): Buffer {
     return data
+  }
+}
+
+export class GzipCompression implements Compression {
+  static create(): GzipCompression {
+    return new GzipCompression()
+  }
+
+  getType(): CompressionType {
+    return CompressionType.Gzip
+  }
+
+  compress(data: Buffer): Buffer {
+    return gzipSync(data)
+  }
+
+  decompress(data: Buffer): Buffer {
+    return gunzipSync(data)
   }
 }
