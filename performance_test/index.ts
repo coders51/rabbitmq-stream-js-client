@@ -67,8 +67,5 @@ async function main() {
 }
 
 main()
-  .then((_v) => {
-    logger.info(`Ending...`)
-    setTimeout(() => process.exit(0), 1000)
-  })
+  .then((_v) => setTimeout(() => process.exit(0), 1000))
   .catch((res) => logger.error("ERROR ", res))

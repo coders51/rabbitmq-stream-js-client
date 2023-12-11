@@ -35,14 +35,17 @@ export class PerfTestProducer {
     this.displayTimer = setInterval(() => {
       this.displayMetrics()
       this.metrics.setStart()
-    }, 1000)
+    }, 500)
 
     await this.send(publisher)
+    this.displayMetrics(true)
+
+    return true
   }
 
   private displayMetrics(stop: boolean = false) {
     const metrics = { ...this.metrics.getMetrics(), total: this.ctr }
-    this.logger.info(`${new Date().toISOString()} - ${inspect(metrics)}`)
+    this.logger.info(`${inspect(metrics)}`)
     if (stop && this.displayTimer) {
       clearInterval(this.displayTimer)
     }

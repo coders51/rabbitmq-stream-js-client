@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "perftest": "ts-node ./index.ts"
+    "perftest": "ts-node ./index.ts",
+    "perftest-reset": "cd .. && npm run build && cd - && npm install --force && ts-node ./index.ts 10000000"
   },
   "author": "",
   "license": "ISC",

@@ -198,6 +198,9 @@ export class Connection {
       publisherId: publisherId,
       publisherRef: params.publisherRef,
       boot: params.boot,
+      maxFrameSize: params.maxFrameSize,
+      maxChunkLength: params.maxChunkLength,
+      logger: this.logger,
     })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -529,6 +532,8 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
   boot?: boolean
+  maxFrameSize?: number
+  maxChunkLength?: number
 }
 
 export interface DeclareConsumerParams {

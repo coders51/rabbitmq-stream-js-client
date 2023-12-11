@@ -70,9 +70,10 @@ export abstract class AbstractRequest implements Request {
   abstract get responseKey(): number
   readonly version = 1
 
+  constructor(private readonly writeBufferSize: number = 1048576) {}
+
   toBuffer(correlationId?: number): Buffer {
-    const writeBufferSize = 65536
-    const dataWriter = new BufferDataWriter(Buffer.alloc(writeBufferSize), 4)
+    const dataWriter = new BufferDataWriter(Buffer.alloc(this.writeBufferSize), 4)
     dataWriter.writeUInt16(this.key)
     dataWriter.writeUInt16(this.version)
     if (typeof correlationId === "number") {

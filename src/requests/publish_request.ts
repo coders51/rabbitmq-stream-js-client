@@ -3,9 +3,15 @@ import { Message } from "../producer"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
+export type PublishRequestMessage = {
+  publishingId: bigint
+  message: Message
+}
+
 interface PublishRequestParams {
   publisherId: number
-  messages: Array<{ publishingId: bigint; message: Message }>
+  maxFrameSize: number
+  messages: Array<PublishRequestMessage>
 }
 
 export class PublishRequest extends AbstractRequest {
@@ -13,7 +19,7 @@ export class PublishRequest extends AbstractRequest {
   readonly responseKey = -1
 
   constructor(private params: PublishRequestParams) {
-    super()
+    super(params.maxFrameSize)
   }
 
   protected writeContent(writer: DataWriter): void {
