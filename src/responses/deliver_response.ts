@@ -13,7 +13,8 @@ export class DeliverResponse implements Response {
   }
 
   toBuffer(): Buffer {
-    const dw = new BufferDataWriter(Buffer.alloc(1024), 4)
+    const bufferSize = 1024
+    const dw = new BufferDataWriter(bufferSize, Buffer.alloc(bufferSize), 4)
     dw.writeUInt16(DeliverResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt8(this.response.subscriptionId)

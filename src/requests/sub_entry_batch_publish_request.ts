@@ -30,7 +30,8 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
     writer.writeUInt16(messages.length)
     writer.writeUInt32(messages.reduce((sum, message) => sum + 4 + messageSize(message), 0))
 
-    const data = new BufferDataWriter(Buffer.alloc(maxFrameSize), 0)
+    const initialDataBufferSize = 65536
+    const data = new BufferDataWriter(maxFrameSize, Buffer.alloc(initialDataBufferSize), 0)
     messages.forEach((m) => amqpEncode(data, m))
 
     const compressedData = compression.compress(data.toBuffer())

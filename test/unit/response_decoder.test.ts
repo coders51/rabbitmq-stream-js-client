@@ -54,7 +54,8 @@ describe("ResponseDecoder", () => {
 })
 
 function createResponse(params: { key: number; correlationId?: number; responseCode?: number }): Buffer {
-  const dataWriter = new BufferDataWriter(Buffer.alloc(1024), 4)
+  const bufferSize = 1024
+  const dataWriter = new BufferDataWriter(bufferSize, Buffer.alloc(bufferSize), 4)
   dataWriter.writeUInt16(params.key)
   dataWriter.writeUInt16(1)
   dataWriter.writeUInt32(params.correlationId || 101)
