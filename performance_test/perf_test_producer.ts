@@ -27,7 +27,7 @@ export class PerfTestProducer {
     const publisher = await this.connection.declarePublisher(this.publisherParams)
     publisher.on("publish_confirm", (err, confirmedIds) => {
       if (err) {
-        console.log(err)
+        this.logger.error(err)
       }
       this.metrics.addCounter("confirmed", confirmedIds.length)
     })
@@ -38,7 +38,6 @@ export class PerfTestProducer {
     }, 500)
 
     await this.send(publisher)
-    this.displayMetrics(true)
 
     return true
   }
@@ -53,13 +52,14 @@ export class PerfTestProducer {
 
   private async send(publisher: Producer) {
     while (this.maxMessages === -1 || this.ctr < this.maxMessages) {
-      const nmsgs = this.maxMessages > 0 ? Math.min(this.maxChunkSize, this.maxMessages) : this.maxChunkSize
-      for (let index = 0; index < nmsgs; index++) {
+      const messageQuantity = this.maxMessages > 0 ? Math.min(this.maxChunkSize, this.maxMessages) : this.maxChunkSize
+      for (let index = 0; index < messageQuantity; index++) {
         await publisher.send(this.payload, {})
       }
-      this.ctr = this.ctr + nmsgs
-      this.metrics.addCounter("published", nmsgs)
+      this.ctr = this.ctr + messageQuantity
+      this.metrics.addCounter("published", messageQuantity)
     }
+    this.displayMetrics(true)
   }
 
   public getDisplayTimer() {

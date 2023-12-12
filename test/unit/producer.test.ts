@@ -1,18 +1,21 @@
-import { expect, use as chaiUse } from "chai"
+import { expect, spy, use as chaiUse } from "chai"
 import { randomUUID } from "crypto"
 import { Connection, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
-import { password, username } from "../support/util"
+import { eventually, password, username } from "../support/util"
 import { FrameSizeException } from "../../src/requests/frame_size_exception"
 import chaiAsPromised from "chai-as-promised"
+import spies from "chai-spies"
 chaiUse(chaiAsPromised)
+chaiUse(spies)
 
 describe("Producer", () => {
   const rabbit = new Rabbit(username, password)
-  const testStreamName = "test-stream"
+  let testStreamName = ""
   let publisherRef: string
 
   beforeEach(async () => {
+    testStreamName = `${randomUUID()}`
     publisherRef = randomUUID()
     await rabbit.createStream(testStreamName)
   })
@@ -85,10 +88,13 @@ describe("Producer", () => {
   }).timeout(10000)
 
   describe("Send operation limits", () => {
-    let connection: Connection | null = null
+    const maxFrameSize = 1000
+    let writeConnection: Connection | null = null
+    let spySandbox: ChaiSpies.Sandbox | null = null
 
     beforeEach(async () => {
-      connection = await connect({
+      spySandbox = spy.sandbox()
+      writeConnection = await connect({
         hostname: "localhost",
         port: 5552,
         username,
@@ -100,11 +106,11 @@ describe("Producer", () => {
     })
 
     afterEach(async () => {
-      await connection!.close()
+      await writeConnection!.close()
+      spySandbox?.restore()
     })
     it("if a message is too big an exception is raised when sending it", async () => {
-      const maxFrameSize = 1000
-      const publisher = await connection!.declarePublisher({
+      const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxFrameSize: maxFrameSize,
@@ -115,9 +121,8 @@ describe("Producer", () => {
     })
 
     it("if chunk size is not reached, then the message is enqueued", async () => {
-      const maxFrameSize = 1000
       const chunkSize = 100
-      const publisher = await connection!.declarePublisher({
+      const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxFrameSize: maxFrameSize,
@@ -130,9 +135,8 @@ describe("Producer", () => {
       expect(result).is.false
     })
     it("if max queue length is reached, then the chunk is sent immediately", async () => {
-      const maxFrameSize = 1000
       const queueLength = 2
-      const publisher = await connection!.declarePublisher({
+      const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxFrameSize: maxFrameSize,
@@ -143,6 +147,23 @@ describe("Producer", () => {
       const result = await Promise.all(msgs.map((msg) => publisher.send(msg, {})))
 
       expect(result).eql([false, true])
+    })
+
+    it("even if max queue length is not reached, the messages are eventually sent", async () => {
+      const queueLength = 10
+      const messageQuantity = queueLength - 2
+      const publisher = await writeConnection!.declarePublisher({
+        stream: testStreamName,
+        publisherRef,
+        maxFrameSize: maxFrameSize,
+        maxChunkLength: queueLength,
+      })
+      const msgs = Array.from(Array(messageQuantity).keys()).map((k) => Buffer.from([k]))
+      spySandbox?.on(publisher, "flush")
+
+      await Promise.all(msgs.map((msg) => publisher.send(msg, {})))
+
+      await eventually(() => expect(publisher.flush).called)
     })
   })
 })

@@ -185,7 +185,8 @@ export class StreamProducer implements Producer {
   private scheduleIfNeeded() {
     if (this.queue.length > 0 && this.scheduled === null) {
       this.scheduled = setImmediate(() => {
-        this.sendChunk()
+        this.scheduled = null
+        this.flush()
           .then((_v) => _v)
           .catch((err) => this.logger.error(`Error in send: ${inspect(err)}`))
           .finally(() => this.scheduleIfNeeded())
