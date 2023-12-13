@@ -39,7 +39,9 @@ function parseArgs(args) {
 async function main() {
   const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
   const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
+
   const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
+
   const connection = await connect(
     {
       hostname: "localhost",
@@ -57,7 +59,9 @@ async function main() {
   const publisherRef = `my-publisher-${randomUUID()}`
   const passedArgs = parseArgs(argv.slice(2))
   logger.info(
-    `Stream: ${streamName} - publisher ${publisherRef} - max messages ${passedArgs.maxMessages} - message size: ${passedArgs.messageSize} bytes`
+    `Stream: ${streamName} - publisher ${publisherRef} - max messages ${passedArgs.maxMessages} - message size: ${
+      passedArgs.messageSize
+    } bytes - write buffer settings: ${inspect(bufferSizeSettings)}`
   )
 
   const perfTestProducer = new PerfTestProducer(
