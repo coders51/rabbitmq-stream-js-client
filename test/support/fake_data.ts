@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto"
 import { Connection, ListenersParams, connect } from "../../src/connection"
 import { MessageProperties } from "../../src/producer"
+import { BufferSizeSettings } from "../../src/requests/request"
 
 export function createProperties(): MessageProperties {
   return {
@@ -28,11 +29,18 @@ export async function createPublisher(streamName: string, connection: Connection
   const publisher = await connection.declarePublisher({
     stream: streamName,
     publisherRef: `my-publisher-${randomUUID()}`,
+    maxFrameSize: connection.maxFrameSize,
   })
   return publisher
 }
 
-export function createConnection(username: string, password: string, listeners?: ListenersParams, frameMax?: number) {
+export function createConnection(
+  username: string,
+  password: string,
+  listeners?: ListenersParams,
+  frameMax?: number,
+  bufferSizeSettings?: BufferSizeSettings
+) {
   return connect({
     hostname: "localhost",
     port: 5552,
@@ -42,5 +50,6 @@ export function createConnection(username: string, password: string, listeners?:
     frameMax: frameMax ?? 0,
     heartbeat: 0,
     listeners: listeners,
+    bufferSizeSettings: bufferSizeSettings,
   })
 }

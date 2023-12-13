@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { argv } from "process"
 import { PerfTestProducer } from "./perf_test_producer"
 import { inspect } from "util"
+import { BufferSizeSettings } from "../dist/requests/request"
 
 const logger = createLogger({
   level: "info",
@@ -38,12 +39,14 @@ function parseArgs(args) {
 async function main() {
   const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
   const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
+  const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
   const connection = await connect(
     {
       hostname: "localhost",
       port: 5552,
       username: rabbitUser,
       password: rabbitPassword,
+      bufferSizeSettings: bufferSizeSettings,
       vhost: "/",
     },
     connLogger

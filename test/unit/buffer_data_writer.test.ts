@@ -6,7 +6,8 @@ describe("Buffer Data Writer functionalities", () => {
   const stringPayload = "a long string that requires the buffer to grow"
 
   it("allocate a functioning buffer data writer", () => {
-    const b = new BufferDataWriter(bufferMaxSize, Buffer.alloc(bufferInitialSize), 0)
+    const bufferSizeParams = { maxSize: bufferMaxSize }
+    const b = new BufferDataWriter(Buffer.alloc(bufferInitialSize), 0, bufferSizeParams)
     b.writeByte(1)
 
     const result = b.toBuffer()
@@ -15,7 +16,8 @@ describe("Buffer Data Writer functionalities", () => {
   })
 
   it("grow the buffer when needed", () => {
-    const b = new BufferDataWriter(bufferMaxSize, Buffer.alloc(bufferInitialSize), 0)
+    const bufferSizeParams = { maxSize: bufferMaxSize }
+    const b = new BufferDataWriter(Buffer.alloc(bufferInitialSize), 0, bufferSizeParams)
 
     b.writeString(stringPayload)
 
@@ -29,7 +31,8 @@ describe("Buffer Data Writer functionalities", () => {
 
   it("the buffer max size is a hard limit", () => {
     const maxSize = 32
-    const b = new BufferDataWriter(maxSize, Buffer.alloc(bufferInitialSize), 0)
+    const bufferSizeParams = { maxSize: maxSize }
+    const b = new BufferDataWriter(Buffer.alloc(bufferInitialSize), 0, bufferSizeParams)
 
     b.writeString(stringPayload)
 

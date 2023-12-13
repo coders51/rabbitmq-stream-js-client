@@ -10,7 +10,6 @@ export type PublishRequestMessage = {
 
 interface PublishRequestParams {
   publisherId: number
-  maxFrameSize: number
   messages: Array<PublishRequestMessage>
 }
 
@@ -19,7 +18,7 @@ export class PublishRequest extends AbstractRequest {
   readonly responseKey = -1
 
   constructor(private params: PublishRequestParams) {
-    super(params.maxFrameSize)
+    super()
   }
 
   protected writeContent(writer: DataWriter): void {

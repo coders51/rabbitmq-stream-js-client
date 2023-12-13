@@ -10,7 +10,7 @@ import { DeleteStreamRequest } from "./requests/delete_stream_request"
 import { OpenRequest } from "./requests/open_request"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
-import { Request } from "./requests/request"
+import { BufferSizeParams, BufferSizeSettings, Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { TuneRequest } from "./requests/tune_request"
@@ -64,6 +64,7 @@ export class Connection {
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
   private compressions = new Map<CompressionType, Compression>()
+  private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
@@ -74,11 +75,11 @@ export class Connection {
       this.socket = new Socket()
       this.socket.connect(this.params.port, this.params.hostname)
     }
-
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
+    this.bufferSizeSettings = params.bufferSizeSettings || {}
   }
 
   getCompression(compressionType: CompressionType) {
@@ -269,7 +270,8 @@ export class Connection {
 
   public send(cmd: Request): Promise<void> {
     return new Promise((res, rej) => {
-      const body = cmd.toBuffer()
+      const bufferSizeParams = this.getBufferSizeParams()
+      const body = cmd.toBuffer(bufferSizeParams)
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
           body.byteLength
@@ -375,6 +377,10 @@ export class Connection {
     return res
   }
 
+  public get maxFrameSize() {
+    return this.frameMax
+  }
+
   private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
   }
@@ -424,7 +430,8 @@ export class Connection {
   private sendAndWait<T extends Response>(cmd: Request): Promise<T> {
     return new Promise((res, rej) => {
       const correlationId = this.incCorrelationId()
-      const body = cmd.toBuffer(correlationId)
+      const bufferSizeParams = this.getBufferSizeParams()
+      const body = cmd.toBuffer(bufferSizeParams, correlationId)
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
           body.toJSON()
@@ -502,6 +509,10 @@ export class Connection {
     if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_MAX) return this.frameMax
     return Math.min(this.frameMax, tuneResponseFrameMax)
   }
+
+  private getBufferSizeParams(): BufferSizeParams {
+    return { maxSize: this.frameMax, ...this.bufferSizeSettings }
+  }
 }
 
 export type ListenersParams = {
@@ -526,6 +537,7 @@ export interface ConnectionParams {
   heartbeat?: number
   listeners?: ListenersParams
   ssl?: SSLConnectionParams
+  bufferSizeSettings?: BufferSizeSettings
 }
 
 export interface DeclarePublisherParams {

@@ -15,13 +15,15 @@ interface SubEntryBatchPublishRequestParams {
 export class SubEntryBatchPublishRequest extends AbstractRequest {
   readonly key = 0x02
   readonly responseKey = -1
+  private readonly maxFrameSize: number
 
   constructor(private params: SubEntryBatchPublishRequestParams) {
-    super(params.maxFrameSize)
+    super()
+    this.maxFrameSize = params.maxFrameSize
   }
 
   protected writeContent(writer: DataWriter): void {
-    const { compression, messages, publishingId, publisherId, maxFrameSize } = this.params
+    const { compression, messages, publishingId, publisherId } = this.params
     writer.writeUInt8(publisherId)
     // number of root messages. In this case will be always 1
     writer.writeUInt32(1)
@@ -31,7 +33,8 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
     writer.writeUInt32(messages.reduce((sum, message) => sum + 4 + messageSize(message), 0))
 
     const initialDataBufferSize = 65536
-    const data = new BufferDataWriter(maxFrameSize, Buffer.alloc(initialDataBufferSize), 0)
+    const bufferSizeParams = { maxSize: this.maxFrameSize }
+    const data = new BufferDataWriter(Buffer.alloc(initialDataBufferSize), 0, bufferSizeParams)
     messages.forEach((m) => amqpEncode(data, m))
 
     const compressedData = compression.compress(data.toBuffer())

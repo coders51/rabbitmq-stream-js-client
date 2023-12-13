@@ -16,7 +16,8 @@ export class PublishConfirmResponse implements Response {
 
   toBuffer(): Buffer {
     const bufferSize = 1024
-    const dw = new BufferDataWriter(bufferSize, Buffer.alloc(bufferSize), 4)
+    const bufferSizeParams = { maxSize: bufferSize }
+    const dw = new BufferDataWriter(Buffer.alloc(bufferSize), 4, bufferSizeParams)
     dw.writeUInt16(PublishConfirmResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt8(this.publisherId)

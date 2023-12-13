@@ -8,7 +8,7 @@ export class PerfTestProducer {
   private payload: Buffer
   private readonly maxChunkSize: number = 1000
   private ctr = 0
-  private displayTimer: NodeJS.Timeout | null
+  private displayTimer: NodeJS.Timer | null
 
   constructor(
     private readonly connection: Connection,
@@ -46,7 +46,7 @@ export class PerfTestProducer {
     const metrics = { ...this.metrics.getMetrics(), total: this.ctr }
     this.logger.info(`${inspect(metrics)}`)
     if (stop && this.displayTimer) {
-      clearInterval(this.displayTimer)
+      clearInterval(this.displayTimer[Symbol.toPrimitive]())
     }
   }
 

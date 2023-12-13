@@ -1,11 +1,18 @@
+import { DEFAULT_FRAME_MAX } from "../util"
 import { DataWriter } from "./data_writer"
-import { Request } from "./request"
+import { BufferSizeParams, Request } from "./request"
 
 export class BufferDataWriter implements DataWriter {
   private _offset = 0
+  private readonly maxBufferSize: number
+  private readonly growthTriggerRatio: number
+  private readonly sizeMultiplier: number
 
-  constructor(private readonly writeBufferMaxSize: number, private buffer: Buffer, startFrom: number) {
+  constructor(private buffer: Buffer, startFrom: number, bufferSizeParameters?: BufferSizeParams) {
     this._offset = startFrom
+    this.maxBufferSize = bufferSizeParameters?.maxSize ?? 1048576
+    this.growthTriggerRatio = bufferSizeParameters?.maxRatio ?? 0.9
+    this.sizeMultiplier = bufferSizeParameters?.multiplier ?? 2
   }
 
   get offset() {
@@ -85,17 +92,22 @@ export class BufferDataWriter implements DataWriter {
   }
 
   private growIfNeeded(additionalBytes: number) {
-    const maxRatio = 0.9
-    if ((this._offset + additionalBytes) / this.buffer.length > maxRatio) {
+    if ((this._offset + additionalBytes) / this.buffer.length > this.growthTriggerRatio) {
       this.growBuffer(additionalBytes)
     }
   }
 
   private growBuffer(requiredBytes: number) {
-    const newSize = Math.min(this.buffer.length * 2 + requiredBytes, this.writeBufferMaxSize)
+    const newSize = this.getNewSize(requiredBytes)
     const data = Buffer.from(this.buffer)
     this.buffer = Buffer.alloc(newSize)
     data.copy(this.buffer, 0)
+  }
+
+  private getNewSize(requiredBytes: number) {
+    const requiredNewSize = this.buffer.length * this.sizeMultiplier + this._offset + requiredBytes
+    if (this.maxBufferSize === DEFAULT_FRAME_MAX) return requiredNewSize
+    return Math.min(requiredNewSize, this.maxBufferSize)
   }
 }
 export abstract class AbstractRequest implements Request {
@@ -103,11 +115,9 @@ export abstract class AbstractRequest implements Request {
   abstract get responseKey(): number
   readonly version = 1
 
-  constructor(private readonly writeBufferMaxSize: number = 1048576) {}
-
-  toBuffer(correlationId?: number): Buffer {
-    const initialBufferSize = 65536
-    const dataWriter = new BufferDataWriter(this.writeBufferMaxSize, Buffer.alloc(initialBufferSize), 4)
+  toBuffer(bufferSizeParams?: BufferSizeParams, correlationId?: number): Buffer {
+    const initialSize = bufferSizeParams?.initialSize ?? 65536
+    const dataWriter = new BufferDataWriter(Buffer.alloc(initialSize), 4, bufferSizeParams)
     dataWriter.writeUInt16(this.key)
     dataWriter.writeUInt16(this.version)
     if (typeof correlationId === "number") {

@@ -9,9 +9,9 @@ describe("PublishRequest", () => {
     const messages = [...Array(100).keys()].map((idx) => {
       return { publishingId: BigInt(idx), message: { content: Buffer.from(randomUUID()) } }
     })
-    const pr = new PublishRequest({ publisherId, messages, maxFrameSize })
+    const pr = new PublishRequest({ publisherId, messages })
 
-    const written = pr.toBuffer()
+    const written = pr.toBuffer({ maxSize: maxFrameSize })
 
     expect(written.byteLength).eql(5313)
   })

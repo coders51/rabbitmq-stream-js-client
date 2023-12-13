@@ -8,6 +8,7 @@ import { PublishRequest, PublishRequestMessage } from "./requests/publish_reques
 import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
+import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -162,7 +163,7 @@ export class StreamProducer implements Producer {
 
   private checkMessageSize(publishRequestMessage: PublishRequestMessage) {
     const computedSize = messageSize(publishRequestMessage.message)
-    if (computedSize > this.maxFrameSize) {
+    if (this.maxFrameSize !== DEFAULT_UNLIMITED_FRAME_MAX && computedSize > this.maxFrameSize) {
       throw new FrameSizeException(`Message too big to fit in one frame: ${computedSize}`)
     }
 
@@ -176,7 +177,6 @@ export class StreamProducer implements Producer {
         new PublishRequest({
           publisherId: this.publisherId,
           messages: chunk,
-          maxFrameSize: this.maxFrameSize,
         })
       )
     }
