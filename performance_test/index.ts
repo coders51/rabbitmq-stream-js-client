@@ -18,6 +18,8 @@ const logger = createLogger({
   transports: new transports.Console(),
 })
 
+const connLogger = undefined
+
 function parseArgs(args) {
   const zip = (a: string[], b: string[]): [string, number][] => {
     const shorterArray = a.length < b.length ? a : b
@@ -44,7 +46,7 @@ async function main() {
       password: rabbitPassword,
       vhost: "/",
     },
-    logger
+    connLogger
   )
 
   const streamName = `my-stream-${randomUUID()}`
