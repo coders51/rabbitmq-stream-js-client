@@ -10,11 +10,18 @@ describe("query metadata", () => {
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
   let connection: Connection
-  const RABBIT_TESTING_NODE: Broker = {
-    host: "rabbitmq",
-    port: 5552,
-    reference: 0,
-  }
+  const RABBIT_TESTING_NODES: Broker[] = [
+    {
+      host: "localhost",
+      port: 5552,
+      reference: 0,
+    },
+    {
+      host: "rabbitmq",
+      port: 5552,
+      reference: 0,
+    },
+  ]
 
   beforeEach(async () => {
     connection = await createConnection(username, password)
@@ -56,7 +63,7 @@ describe("query metadata", () => {
 
     expect(res[streamName].streamName).to.eql(streamName)
     expect(res[streamName].responseCode).to.eql(1)
-    expect(res[streamName].leader).to.eql(RABBIT_TESTING_NODE)
+    expect(res[streamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
     expect(res[streamName].replicas).to.have.lengthOf(0)
   })
 
@@ -69,11 +76,11 @@ describe("query metadata", () => {
 
     expect(res[streamName].streamName).to.eql(streamName)
     expect(res[streamName].responseCode).to.eql(1)
-    expect(res[streamName].leader).to.eql(RABBIT_TESTING_NODE)
+    expect(res[streamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
     expect(res[streamName].replicas).to.have.lengthOf(0)
     expect(res[secondStreamName].streamName).to.eql(secondStreamName)
     expect(res[secondStreamName].responseCode).to.eql(1)
-    expect(res[secondStreamName].leader).to.eql(RABBIT_TESTING_NODE)
+    expect(res[secondStreamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
     expect(res[secondStreamName].replicas).to.have.lengthOf(0)
   })
 })
