@@ -43,6 +43,7 @@ import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { MetadataResponse } from "./responses/metadata_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -158,6 +159,10 @@ function decodeResponse(
   }
   const correlationId = dataResponse.readUInt32()
   const code = dataResponse.readUInt16()
+  if (key === MetadataResponse.key) {
+    // metadata response doesn't contain a code
+    dataResponse.rewind(2)
+  }
   const payload = dataResponse.readToEnd()
   return { size, key, version, correlationId, code, payload }
 }
@@ -589,6 +594,7 @@ export class ResponseDecoder {
     this.addFactoryFor(StreamStatsResponse)
     this.addFactoryFor(StoreOffsetResponse)
     this.addFactoryFor(QueryOffsetResponse)
+    this.addFactoryFor(MetadataResponse)
   }
 
   add(data: Buffer, getCompressionBy: (type: CompressionType) => Compression) {
