@@ -1,4 +1,4 @@
-import { DEFAULT_FRAME_MAX } from "../util"
+import { DEFAULT_UNLIMITED_FRAME_MAX } from "../util"
 import { DataWriter } from "./data_writer"
 import { BufferSizeParams, Request } from "./request"
 
@@ -106,7 +106,7 @@ export class BufferDataWriter implements DataWriter {
 
   private getNewSize(requiredBytes: number) {
     const requiredNewSize = this.buffer.length * this.sizeMultiplier + this._offset + requiredBytes
-    if (this.maxBufferSize === DEFAULT_FRAME_MAX) return requiredNewSize
+    if (this.maxBufferSize === DEFAULT_UNLIMITED_FRAME_MAX) return requiredNewSize
     return Math.min(requiredNewSize, this.maxBufferSize)
   }
 }

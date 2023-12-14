@@ -40,6 +40,7 @@ async function main() {
   const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
   const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
   const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
+  const frameMax = 65536
 
   const connection = await connect(
     {
@@ -49,6 +50,7 @@ async function main() {
       password: rabbitPassword,
       bufferSizeSettings: bufferSizeSettings,
       vhost: "/",
+      frameMax,
     },
     connLogger
   )
