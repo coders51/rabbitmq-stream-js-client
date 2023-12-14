@@ -30,7 +30,7 @@ import {
   PublishErrorListener,
   ResponseDecoder,
 } from "./response_decoder"
-import { removeFrom } from "./util"
+import { DEFAULT_MAX_FRAME_SIZE, DEFAULT_UNLIMITED_FRAME_SIZE, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -62,7 +62,7 @@ export class Connection {
   private consumers = new Map<number, Consumer>()
   private compressions = new Map<CompressionType, Compression>()
 
-  constructor(private readonly logger: Logger) {
+  constructor(private readonly logger: Logger, private frameMax: number = DEFAULT_MAX_FRAME_SIZE) {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -89,7 +89,7 @@ export class Connection {
   }
 
   static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
-    return new Connection(logger ?? new NullLogger()).start(params)
+    return new Connection(logger ?? new NullLogger(), params.frameMax).start(params)
   }
 
   public start(params: ConnectionParams): Promise<Connection> {
@@ -235,6 +235,10 @@ export class Connection {
     return this.consumers.size
   }
 
+  public savedFrameMax() {
+    return this.frameMax
+  }
+
   public send(cmd: Request): Promise<void> {
     return new Promise((res, rej) => {
       const body = cmd.toBuffer()
@@ -326,7 +330,8 @@ export class Connection {
     const heartbeat = extractHeartbeatInterval(heartbeatInterval, tuneResponse)
 
     return new Promise((res, rej) => {
-      const request = new TuneRequest({ frameMax: tuneResponse.frameMax, heartbeat })
+      this.frameMax = this.calculateFrameMaxSizeFrom(tuneResponse.frameMax)
+      const request = new TuneRequest({ frameMax: this.frameMax, heartbeat })
       this.socket.write(request.toBuffer(), (err) => {
         this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(tuneResponse)} - err: ${err}`)
         return err ? rej(err) : res({ heartbeat })
@@ -462,6 +467,13 @@ export class Connection {
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
     })
+  }
+
+  private calculateFrameMaxSizeFrom(tuneResponseFrameMax: number) {
+    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_SIZE && tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_SIZE) {
+      return 0
+    }
+    return Math.max(1, Math.min(this.frameMax, tuneResponseFrameMax))
   }
 }
 

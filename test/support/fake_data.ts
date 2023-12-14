@@ -32,14 +32,14 @@ export async function createPublisher(streamName: string, connection: Connection
   return publisher
 }
 
-export function createConnection(username: string, password: string, listeners?: ListenersParams) {
+export function createConnection(username: string, password: string, listeners?: ListenersParams, frameMax?: number) {
   return connect({
     hostname: "localhost",
     port: 5552,
     username,
     password,
     vhost: "/",
-    frameMax: 0, // not used
+    frameMax: frameMax ?? 0, // not used
     heartbeat: 0,
     listeners: listeners,
   })
