@@ -100,7 +100,7 @@ describe("Producer", () => {
         username,
         password,
         vhost: "/",
-        frameMax: 0,
+        frameMax: maxFrameSize,
         heartbeat: 0,
       })
     })
@@ -113,7 +113,6 @@ describe("Producer", () => {
       const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
-        maxFrameSize: maxFrameSize,
       })
       const msg = Buffer.from(Array.from(Array(maxFrameSize + 1).keys()).map((_v) => 1))
 
@@ -125,7 +124,6 @@ describe("Producer", () => {
       const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
-        maxFrameSize: maxFrameSize,
         maxChunkLength: chunkSize,
       })
       const msg = Buffer.from([1])
@@ -139,7 +137,6 @@ describe("Producer", () => {
       const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
-        maxFrameSize: maxFrameSize,
         maxChunkLength: queueLength,
       })
       const msgs = [Buffer.from([1]), Buffer.from([2])]
@@ -155,7 +152,6 @@ describe("Producer", () => {
       const publisher = await writeConnection!.declarePublisher({
         stream: testStreamName,
         publisherRef,
-        maxFrameSize: maxFrameSize,
         maxChunkLength: queueLength,
       })
       const msgs = Array.from(Array(messageQuantity).keys()).map((k) => Buffer.from([k]))

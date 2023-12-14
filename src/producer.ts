@@ -85,7 +85,7 @@ export class StreamProducer implements Producer {
     publisherId: number
     publisherRef?: string
     boot?: boolean
-    maxFrameSize?: number
+    maxFrameSize: number
     maxChunkLength?: number
     logger: Logger
   }) {

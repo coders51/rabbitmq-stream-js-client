@@ -199,7 +199,7 @@ export class Connection {
       publisherId: publisherId,
       publisherRef: params.publisherRef,
       boot: params.boot,
-      maxFrameSize: params.maxFrameSize,
+      maxFrameSize: this.frameMax,
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
@@ -544,7 +544,6 @@ export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
   boot?: boolean
-  maxFrameSize?: number
   maxChunkLength?: number
 }
 
