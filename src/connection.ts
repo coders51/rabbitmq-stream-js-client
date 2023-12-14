@@ -470,10 +470,9 @@ export class Connection {
   }
 
   private calculateFrameMaxSizeFrom(tuneResponseFrameMax: number) {
-    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_SIZE && tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_SIZE) {
-      return 0
-    }
-    return Math.max(1, Math.min(this.frameMax, tuneResponseFrameMax))
+    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_SIZE) return tuneResponseFrameMax
+    if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_SIZE) return this.frameMax
+    return Math.min(this.frameMax, tuneResponseFrameMax)
   }
 }
 
