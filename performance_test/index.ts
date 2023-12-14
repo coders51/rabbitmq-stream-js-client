@@ -39,7 +39,6 @@ function parseArgs(args) {
 async function main() {
   const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
   const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
-
   const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
 
   const connection = await connect(
@@ -77,4 +76,7 @@ async function main() {
 
 main()
   .then((_v) => setTimeout(() => process.exit(0), 1000))
-  .catch((res) => logger.error("ERROR ", res))
+  .catch((res) => {
+    logger.error("ERROR ", res)
+    process.exit(400)
+  })
