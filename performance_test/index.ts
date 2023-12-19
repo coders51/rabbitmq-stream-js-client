@@ -19,7 +19,11 @@ const logger = createLogger({
 })
 
 function parseArgs(args) {
-  const zip = (a, b) => Array.from(Array(Math.min(a.length, b.length)), (_, i) => [a[i], +b[i]])
+  const zip = (a: string[], b: string[]): [string, number][] => {
+    const shorterArray = a.length < b.length ? a : b
+    const zipped = shorterArray.map((_, i) => [a[i], +b[i]] as [string, number])
+    return zipped
+  }
   const orderedNamedArgs = ["maxMessages", "messageSize"]
   const defaultNamedArgs = {
     maxMessages: 100000,
