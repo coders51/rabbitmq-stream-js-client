@@ -39,7 +39,7 @@ export function createConnection(username: string, password: string, listeners?:
     username,
     password,
     vhost: "/",
-    frameMax: frameMax ?? 0, // not used
+    frameMax: frameMax ?? 0,
     heartbeat: 0,
     listeners: listeners,
   })
