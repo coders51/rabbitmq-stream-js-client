@@ -50,6 +50,8 @@ import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { Logger, NullLogger } from "./logger"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import tls from "node:tls"
+import { MetadataResponse, StreamMetadata } from "./responses/metadata_response"
+import { MetadataRequest } from "./requests/metadata_request"
 
 export class Connection {
   private socket: Socket
@@ -166,6 +168,18 @@ export class Connection {
     const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
     this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
     this.socket.end()
+  }
+
+  public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
+    const { streams } = params
+    const res = await this.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
+    if (!res.ok) {
+      throw new Error(`Query Metadata command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`Returned stream metadata for streams with names ${params.streams.join(",")}`)
+    const { streamInfos } = res
+
+    return streamInfos
   }
 
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
@@ -539,6 +553,10 @@ export interface StoreOffsetParams {
 export interface QueryOffsetParams {
   reference: string
   stream: string
+}
+
+export interface QueryMetadataParams {
+  streams: string[]
 }
 
 export function connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
