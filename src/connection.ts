@@ -30,7 +30,7 @@ import {
   PublishErrorListener,
   ResponseDecoder,
 } from "./response_decoder"
-import { DEFAULT_MAX_FRAME_SIZE, DEFAULT_UNLIMITED_FRAME_SIZE, removeFrom } from "./util"
+import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
@@ -62,7 +62,7 @@ export class Connection {
   private consumers = new Map<number, Consumer>()
   private compressions = new Map<CompressionType, Compression>()
 
-  constructor(private readonly logger: Logger, private frameMax: number = DEFAULT_MAX_FRAME_SIZE) {
+  constructor(private readonly logger: Logger, private frameMax: number = DEFAULT_FRAME_MAX) {
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -470,8 +470,8 @@ export class Connection {
   }
 
   private calculateFrameMaxSizeFrom(tuneResponseFrameMax: number) {
-    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_SIZE) return tuneResponseFrameMax
-    if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_SIZE) return this.frameMax
+    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_MAX) return tuneResponseFrameMax
+    if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_MAX) return this.frameMax
     return Math.min(this.frameMax, tuneResponseFrameMax)
   }
 }
@@ -488,7 +488,7 @@ export interface ConnectionParams {
   username: string
   password: string
   vhost: string
-  frameMax?: number // not used
+  frameMax?: number
   heartbeat?: number
   listeners?: ListenersParams
 }

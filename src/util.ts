@@ -32,5 +32,5 @@ export function range(count: number): number[] {
   return ret
 }
 
-export const DEFAULT_MAX_FRAME_SIZE = 1048576
-export const DEFAULT_UNLIMITED_FRAME_SIZE = 0
+export const DEFAULT_FRAME_MAX = 1048576
+export const DEFAULT_UNLIMITED_FRAME_MAX = 0
