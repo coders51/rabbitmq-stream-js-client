@@ -314,7 +314,6 @@ function decodeMessageHeader(dataResponse: DataReader) {
 
   const formatCode = dataResponse.readUInt8()
   const headerLength = decodeFormatCode(dataResponse, formatCode)
-  //if (!headerLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return Header.parse(dataResponse, headerLength as number)
 }
@@ -322,7 +321,6 @@ function decodeMessageHeader(dataResponse: DataReader) {
 function decodeApplicationData(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const length = decodeFormatCode(dataResponse, formatCode)
-  //if (!length) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return dataResponse.readBufferOf(length as number)
 }
