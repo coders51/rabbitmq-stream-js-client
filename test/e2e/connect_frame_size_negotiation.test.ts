@@ -12,7 +12,7 @@ describe("connect frame size negotiation", () => {
     const connection = await createConnection(username, password, undefined, frameMax)
 
     await eventually(async () => {
-      expect(connection.savedFrameMax()).lte(frameMax)
+      expect(connection.currentFrameMax).lte(frameMax)
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)
     try {
@@ -27,7 +27,7 @@ describe("connect frame size negotiation", () => {
     const connection = await createConnection(username, password, undefined, frameMax)
 
     await eventually(async () => {
-      expect(connection.savedFrameMax()).lte(frameMax)
+      expect(connection.currentFrameMax).lte(frameMax)
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)
     try {

@@ -235,7 +235,7 @@ export class Connection {
     return this.consumers.size
   }
 
-  public savedFrameMax() {
+  public get currentFrameMax() {
     return this.frameMax
   }
 
