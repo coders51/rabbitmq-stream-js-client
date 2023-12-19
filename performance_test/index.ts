@@ -24,7 +24,6 @@ function parseArgs(args) {
     const zipped = shorterArray.map((_, i) => [a[i], +b[i]] as [string, number])
     return zipped
   }
-
   const orderedNamedArgs = ["maxMessages", "messageSize"]
   const defaultNamedArgs = {
     maxMessages: 100000,
