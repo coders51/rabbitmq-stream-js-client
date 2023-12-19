@@ -2,7 +2,7 @@ import { Socket } from "net"
 import { inspect } from "util"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
-import { Producer } from "./producer"
+import { Producer, StreamProducer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
@@ -37,7 +37,7 @@ import { TuneResponse } from "./responses/tune_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { Consumer, ConsumerFunc } from "./consumer"
+import { StreamConsumer, ConsumerFunc, Consumer } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
@@ -62,7 +62,7 @@ export class Connection {
   private publisherId = 0
   private heartbeat: Heartbeat
   private consumerId = 0
-  private consumers = new Map<number, Consumer>()
+  private consumers = new Map<number, StreamConsumer>()
   private compressions = new Map<CompressionType, Compression>()
   private frameMax: number = DEFAULT_FRAME_MAX
 
@@ -192,7 +192,7 @@ export class Connection {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
-    const producer = new Producer({
+    const producer = new StreamProducer({
       connection: this,
       stream: params.stream,
       publisherId: publisherId,
@@ -217,7 +217,7 @@ export class Connection {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const consumer = new Consumer(handle, {
+    const consumer = new StreamConsumer(handle, {
       connection: this,
       stream: params.stream,
       consumerId,

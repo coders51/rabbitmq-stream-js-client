@@ -1,0 +1,23 @@
+{
+  "name": "perftest",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "perftest": "ts-node ./index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "rabbitmq-stream-js-client": "file:../.",
+    "ts-node": "^10.9.1",
+    "winston": "^3.11.0"
+  },
+  "engines": {
+    "node": "16.x.x"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  }
+}

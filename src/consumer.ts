@@ -3,7 +3,15 @@ import { Message } from "./producer"
 
 export type ConsumerFunc = (message: Message) => void
 
-export class Consumer {
+export interface Consumer {
+  close(): Promise<void>
+  storeOffset(offsetValue: bigint): Promise<void>
+  queryOffset(): Promise<bigint>
+  consumerId: number
+  consumerRef?: string
+}
+
+export class StreamConsumer implements Consumer {
   private connection: Connection
   private stream: string
   public consumerId: number
