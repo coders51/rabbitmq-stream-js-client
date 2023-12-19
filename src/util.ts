@@ -31,3 +31,6 @@ export function range(count: number): number[] {
   }
   return ret
 }
+
+export const DEFAULT_FRAME_MAX = 1048576
+export const DEFAULT_UNLIMITED_FRAME_MAX = 0

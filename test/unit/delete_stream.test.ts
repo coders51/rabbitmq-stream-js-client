@@ -15,8 +15,8 @@ describe("Delete command", () => {
       username,
       password,
       vhost: "/",
-      frameMax: 0, // not used
-      heartbeat: 0, // not user
+      frameMax: 0,
+      heartbeat: 0,
     })
   })
 
