@@ -46,25 +46,27 @@ describe("query metadata", () => {
   })
 
   it("query the metadata - the server should return streamMetaData", async () => {
-    const res = await connection.queryMetadata({ streams: [streamName] })
+    const [streamInfo] = await connection.queryMetadata({ streams: [streamName] })
 
-    expect(res[streamName]).to.exist
+    expect(streamInfo).to.exist
+    expect(streamInfo.streamName).to.eql(streamName)
   })
 
   it("query the metadata - on a non-existing stream the leader or replicas should not be defined", async () => {
-    const res = await connection.queryMetadata({ streams: [nonExistingStreamName] })
+    const [streamInfo] = await connection.queryMetadata({ streams: [nonExistingStreamName] })
 
-    expect(res[nonExistingStreamName].leader).not.to.exist
-    expect(res[nonExistingStreamName].replicas).to.have.lengthOf(0)
+    expect(streamInfo.streamName).to.eql(nonExistingStreamName)
+    expect(streamInfo.leader).not.to.exist
+    expect(streamInfo.replicas).to.have.lengthOf(0)
   })
 
   it("querying the metadata - on an existing stream on a single node", async () => {
-    const res = await connection.queryMetadata({ streams: [streamName] })
+    const [streamInfo] = await connection.queryMetadata({ streams: [streamName] })
 
-    expect(res[streamName].streamName).to.eql(streamName)
-    expect(res[streamName].responseCode).to.eql(1)
-    expect(res[streamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
-    expect(res[streamName].replicas).to.have.lengthOf(0)
+    expect(streamInfo.streamName).to.eql(streamName)
+    expect(streamInfo.responseCode).to.eql(1)
+    expect(streamInfo.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect(streamInfo.replicas).to.have.lengthOf(0)
   })
 
   it("querying the metadata - query for multiple streams", async () => {
@@ -74,13 +76,17 @@ describe("query metadata", () => {
     const res = await connection.queryMetadata({ streams: [streamName, secondStreamName] })
     await rabbit.deleteStream(secondStreamName)
 
-    expect(res[streamName].streamName).to.eql(streamName)
-    expect(res[streamName].responseCode).to.eql(1)
-    expect(res[streamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
-    expect(res[streamName].replicas).to.have.lengthOf(0)
-    expect(res[secondStreamName].streamName).to.eql(secondStreamName)
-    expect(res[secondStreamName].responseCode).to.eql(1)
-    expect(res[secondStreamName].leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
-    expect(res[secondStreamName].replicas).to.have.lengthOf(0)
+    const firstStreamInfo = res.find((i) => i.streamName === streamName)
+    const secondStreamInfo = res.find((i) => i.streamName === secondStreamName)
+    expect(firstStreamInfo).to.exist
+    expect(firstStreamInfo!.streamName).to.eql(streamName)
+    expect(firstStreamInfo!.responseCode).to.eql(1)
+    expect(firstStreamInfo!.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect(firstStreamInfo!.replicas).to.have.lengthOf(0)
+    expect(secondStreamInfo).to.exist
+    expect(secondStreamInfo!.streamName).to.eql(secondStreamName)
+    expect(secondStreamInfo!.responseCode).to.eql(1)
+    expect(secondStreamInfo!.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect(secondStreamInfo!.replicas).to.have.lengthOf(0)
   })
 })

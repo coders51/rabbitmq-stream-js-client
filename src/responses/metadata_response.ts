@@ -16,7 +16,7 @@ export interface StreamMetadata {
 
 export class MetadataResponse extends AbstractResponse {
   static key = 0x800f as const
-  readonly streamInfos: Record<string, StreamMetadata> = {}
+  readonly streamInfos: StreamMetadata[] = []
 
   constructor(response: RawResponse) {
     super(response)
@@ -46,7 +46,7 @@ export class MetadataResponse extends AbstractResponse {
       const replicasReferences = this.readReplicasReferencesFrom(response.payload)
       const leader = brokers?.find((b) => b.reference === leaderReference)
       const replicas = brokers?.filter((b) => replicasReferences.includes(b.reference))
-      this.streamInfos[streamName] = { ...streamInfo, leader, replicas }
+      this.streamInfos.push({ ...streamInfo, leader, replicas })
     }
   }
 

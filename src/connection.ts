@@ -170,7 +170,7 @@ export class Connection {
     this.socket.end()
   }
 
-  public async queryMetadata(params: QueryMetadataParams): Promise<Record<string, StreamMetadata>> {
+  public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
     const { streams } = params
     const res = await this.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
     if (!res.ok) {
