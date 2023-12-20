@@ -1,24 +1,24 @@
 import { expect } from "chai"
 import { Offset } from "../../src/requests/subscribe_request"
-import { createConnection, createStreamName } from "../support/fake_data"
+import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 
 describe("subscribe", () => {
   const rabbit = new Rabbit(username, password)
   let streamName: string
-  let connection: Connection
+  let client: Client
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
   })
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
@@ -26,7 +26,7 @@ describe("subscribe", () => {
   })
 
   it("subscribe to next message", async () => {
-    const res = await connection.subscribe({
+    const res = await client.subscribe({
       subscriptionId: 1,
       stream: streamName,
       offset: Offset.next(),
@@ -39,7 +39,7 @@ describe("subscribe", () => {
   }).timeout(10000)
 
   it("subscribe to first message", async () => {
-    const res = await connection.subscribe({
+    const res = await client.subscribe({
       subscriptionId: 2,
       stream: streamName,
       offset: Offset.first(),
@@ -52,7 +52,7 @@ describe("subscribe", () => {
   }).timeout(10000)
 
   it("subscribe to last message", async () => {
-    const res = await connection.subscribe({
+    const res = await client.subscribe({
       subscriptionId: 3,
       stream: streamName,
       offset: Offset.last(),
@@ -65,7 +65,7 @@ describe("subscribe", () => {
   }).timeout(10000)
 
   it("subscribe to offset message", async () => {
-    const res = await connection.subscribe({
+    const res = await client.subscribe({
       subscriptionId: 4,
       stream: streamName,
       offset: Offset.offset(BigInt(1)),
@@ -78,7 +78,7 @@ describe("subscribe", () => {
   }).timeout(10000)
 
   it("subscribe to date message", async () => {
-    const res = await connection.subscribe({
+    const res = await client.subscribe({
       subscriptionId: 5,
       stream: streamName,
       offset: Offset.timestamp(new Date()),

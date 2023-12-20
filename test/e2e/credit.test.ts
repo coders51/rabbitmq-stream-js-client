@@ -1,25 +1,25 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
-import { createConnection, createStreamName } from "../support/fake_data"
+import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
 
 describe.skip("credit management", () => {
   const rabbit = new Rabbit(username, password)
   let streamName: string
-  let connection: Connection
+  let client: Client
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
   })
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
@@ -31,12 +31,12 @@ describe.skip("credit management", () => {
     const receivedMessages: Buffer[] = []
     const howMany = 2
     const messages = Array.from(Array(howMany).keys()).map((_) => Buffer.from("hello"))
-    const publisher = await connection.declarePublisher({ stream: streamName })
+    const publisher = await client.declarePublisher({ stream: streamName })
     for (const m of messages) {
       await publisher.send(m)
     }
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       receivedMessages.push(message.content)
     )
 

@@ -1,7 +1,7 @@
 import { inspect } from "util"
 import { messageSize } from "./amqp10/encoder"
+import { Client } from "./client"
 import { CompressionType } from "./compression"
-import { Connection } from "./connection"
 import { Logger } from "./logger"
 import { FrameSizeException } from "./requests/frame_size_exception"
 import { PublishRequest, PublishRequestMessage } from "./requests/publish_request"
@@ -67,7 +67,7 @@ export interface Producer {
 
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class StreamProducer implements Producer {
-  private connection: Connection
+  private client: Client
   private stream: string
   readonly publisherId: number
   protected publisherRef: string
@@ -80,7 +80,7 @@ export class StreamProducer implements Producer {
   private maxChunkLength: number
 
   constructor(params: {
-    connection: Connection
+    client: Client
     stream: string
     publisherId: number
     publisherRef?: string
@@ -89,7 +89,7 @@ export class StreamProducer implements Producer {
     maxChunkLength?: number
     logger: Logger
   }) {
-    this.connection = params.connection
+    this.client = params.client
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef || ""
@@ -122,11 +122,11 @@ export class StreamProducer implements Producer {
   }
 
   async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
-    return this.connection.send(
+    return this.client.send(
       new SubEntryBatchPublishRequest({
         publisherId: this.publisherId,
         publishingId: this.publishingId,
-        compression: this.connection.getCompression(compressionType),
+        compression: this.client.getCompression(compressionType),
         maxFrameSize: this.maxFrameSize,
         messages: messages,
       })
@@ -134,14 +134,14 @@ export class StreamProducer implements Producer {
   }
 
   public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
-    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
-    this.connection.on("publish_error", (error: PublishErrorResponse) =>
+    this.client.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+    this.client.on("publish_error", (error: PublishErrorResponse) =>
       cb(error.publishingError.code, [error.publishingError.publishingId])
     )
   }
 
   getLastPublishingId(): Promise<bigint> {
-    return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
+    return this.client.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 
   get ref() {
@@ -173,7 +173,7 @@ export class StreamProducer implements Producer {
   private async sendChunk() {
     const chunk = this.popChunk()
     if (chunk.length > 0) {
-      await this.connection.send(
+      await this.client.send(
         new PublishRequest({
           publisherId: this.publisherId,
           messages: chunk,

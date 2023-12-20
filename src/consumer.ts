@@ -1,4 +1,4 @@
-import { Connection } from "./connection"
+import { Client } from "./client"
 import { Message } from "./producer"
 
 export type ConsumerFunc = (message: Message) => void
@@ -12,7 +12,7 @@ export interface Consumer {
 }
 
 export class StreamConsumer implements Consumer {
-  private connection: Connection
+  private client: Client
   private stream: string
   public consumerId: number
   public consumerRef?: string
@@ -20,13 +20,13 @@ export class StreamConsumer implements Consumer {
   constructor(
     readonly handle: ConsumerFunc,
     params: {
-      connection: Connection
+      client: Client
       stream: string
       consumerId: number
       consumerRef?: string
     }
   ) {
-    this.connection = params.connection
+    this.client = params.client
     this.stream = params.stream
     this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef
@@ -38,11 +38,11 @@ export class StreamConsumer implements Consumer {
 
   public storeOffset(offsetValue: bigint): Promise<void> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
-    return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
+    return this.client.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
   }
 
   public queryOffset(): Promise<bigint> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
-    return this.connection.queryOffset({ stream: this.stream, reference: this.consumerRef })
+    return this.client.queryOffset({ stream: this.stream, reference: this.consumerRef })
   }
 }

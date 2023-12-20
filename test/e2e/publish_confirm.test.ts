@@ -1,28 +1,28 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
-import { createConnection } from "../support/fake_data"
+import { createClient } from "../support/fake_data"
 
 describe("publish a message and get confirmation", () => {
   const rabbit = new Rabbit(username, password)
-  let connection: Connection
+  let client: Client
   let stream: string
   const publishResponses: { error: number | null; ids: bigint[] }[] = []
   const publisherRef = "my publisher"
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     stream = `my-stream-${randomUUID()}`
     await rabbit.createStream(stream)
     publishResponses.splice(0)
   })
-  afterEach(() => connection.close())
+  afterEach(() => client.close())
   afterEach(() => rabbit.closeAllConnections())
 
   it("after the server replies with a confirm, the confirm callback is invoked", async () => {
-    const publisher = await connection.declarePublisher({ stream, publisherRef })
+    const publisher = await client.declarePublisher({ stream, publisherRef })
     const publishingId = 1n
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
 
@@ -33,7 +33,7 @@ describe("publish a message and get confirmation", () => {
   }).timeout(10000)
 
   it("after the server replies with a confirm, the confirm callback is invoked with the publishingId as an argument", async () => {
-    const publisher = await connection.declarePublisher({ stream, publisherRef })
+    const publisher = await client.declarePublisher({ stream, publisherRef })
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
 
     await publisher.send(Buffer.from(`test${randomUUID()}`))
@@ -44,7 +44,7 @@ describe("publish a message and get confirmation", () => {
   }).timeout(10000)
 
   it("after the server replies with an error, the error callback is invoked with an error", async () => {
-    const publisher = await connection.declarePublisher({ stream, publisherRef })
+    const publisher = await client.declarePublisher({ stream, publisherRef })
     publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
     await rabbit.deleteStream(stream)
 

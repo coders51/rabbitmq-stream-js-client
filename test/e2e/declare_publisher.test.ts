@@ -1,6 +1,6 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
-import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
+import { Client } from "../../src"
+import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, username, password } from "../support/util"
 
@@ -8,10 +8,10 @@ describe("declare publisher", () => {
   let streamName: string
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
-  let connection: Connection
+  let client: Client
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     streamName = createStreamName()
     nonExistingStreamName = createStreamName()
     await rabbit.createStream(streamName)
@@ -19,7 +19,7 @@ describe("declare publisher", () => {
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
@@ -27,7 +27,7 @@ describe("declare publisher", () => {
   })
 
   it("declaring a publisher on an existing stream - the publisher should be created", async () => {
-    const producer = await createPublisher(streamName, connection)
+    const producer = await createPublisher(streamName, client)
 
     await eventually(async () => {
       expect(await rabbit.returnPublishers(streamName))
@@ -37,7 +37,7 @@ describe("declare publisher", () => {
   }).timeout(10000)
 
   it("declaring a publisher on an existing stream with no publisherRef - the publisher should be created", async () => {
-    const producer = await createPublisher(streamName, connection)
+    const producer = await createPublisher(streamName, client)
 
     await eventually(async () => {
       expect(await rabbit.returnPublishers(streamName))
@@ -48,7 +48,7 @@ describe("declare publisher", () => {
 
   it("declaring a publisher on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
-      () => createPublisher(nonExistingStreamName, connection),
+      () => createPublisher(nonExistingStreamName, client),
       Error,
       "Declare Publisher command returned error with code 2 - Stream does not exist"
     )

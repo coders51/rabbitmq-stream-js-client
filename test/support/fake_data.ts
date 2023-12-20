@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto"
-import { Connection, ListenersParams, connect } from "../../src/connection"
+import { Client, ListenersParams, connect } from "../../src/client"
 import { MessageProperties } from "../../src/producer"
 import { BufferSizeSettings } from "../../src/requests/request"
 
@@ -25,15 +25,15 @@ export function createStreamName() {
   return `my-stream-${randomUUID()}`
 }
 
-export async function createPublisher(streamName: string, connection: Connection) {
-  const publisher = await connection.declarePublisher({
+export async function createPublisher(streamName: string, client: Client) {
+  const publisher = await client.declarePublisher({
     stream: streamName,
     publisherRef: `my-publisher-${randomUUID()}`,
   })
   return publisher
 }
 
-export function createConnection(
+export function createClient(
   username: string,
   password: string,
   listeners?: ListenersParams,

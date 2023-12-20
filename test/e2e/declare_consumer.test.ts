@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 import {
   Message,
   MessageAnnotations,
@@ -9,7 +9,7 @@ import {
   MessageHeader,
 } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
-import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
+import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
 import { BufferDataReader } from "../../src/response_decoder"
@@ -28,20 +28,20 @@ describe("declare consumer", () => {
   let streamName: string
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
-  let connection: Connection
+  let client: Client
   let publisher: Producer
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     streamName = createStreamName()
     nonExistingStreamName = createStreamName()
     await rabbit.createStream(streamName)
-    publisher = await createPublisher(streamName, connection)
+    publisher = await createPublisher(streamName, client)
   })
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
@@ -52,7 +52,7 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
 
@@ -65,7 +65,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
     await publisher.send(Buffer.from("world"))
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
       messages.push(message.content)
     )
 
@@ -74,7 +74,7 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-    await connection.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
       receivedMessages.push(message.content)
     })
 
@@ -89,7 +89,7 @@ describe("declare consumer", () => {
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
       () =>
-        connection.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
+        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
           console.log(message.content)
         ),
       Error,
@@ -102,7 +102,7 @@ describe("declare consumer", () => {
     const properties = createProperties()
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageProperties.push(message.messageProperties || {})
     })
 
@@ -116,7 +116,7 @@ describe("declare consumer", () => {
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageApplicationProperties.push(message.applicationProperties || {})
     })
 
@@ -130,7 +130,7 @@ describe("declare consumer", () => {
     const annotations = createAnnotations()
     await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
 
-    await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageAnnotations.push(message.messageAnnotations || {})
     })
 
@@ -155,7 +155,7 @@ describe("declare consumer", () => {
       },
     })
 
-    await connection.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
+    await client.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
       messageAnnotations.push(message.messageAnnotations || {})
     })
 

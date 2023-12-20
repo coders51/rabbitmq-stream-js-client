@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { connect, Connection } from "../../src"
+import { connect, Client } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync, username, password } from "../support/util"
 
@@ -14,10 +14,10 @@ describe("Stream", () => {
     "x-initial-cluster-size": 42,
     "x-max-length-bytes": 42,
   }
-  let connection: Connection
+  let client: Client
 
   beforeEach(async () => {
-    connection = await connect({
+    client = await connect({
       hostname: "localhost",
       port: 5552,
       username,
@@ -35,7 +35,7 @@ describe("Stream", () => {
   })
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
     } catch (error) {}
   })
 
@@ -43,7 +43,7 @@ describe("Stream", () => {
 
   describe("Create", () => {
     it("Should create a new Stream", async () => {
-      const resp = await connection.createStream({ stream: streamName, arguments: payload })
+      const resp = await client.createStream({ stream: streamName, arguments: payload })
 
       expect(resp).to.be.true
       const result = await rabbit.getQueue("%2F", streamName)
@@ -51,15 +51,15 @@ describe("Stream", () => {
     })
 
     it("Should be idempotent and ignore a duplicate Stream error", async () => {
-      await connection.createStream({ stream: streamName, arguments: payload })
-      const resp = await connection.createStream({ stream: streamName, arguments: payload })
+      await client.createStream({ stream: streamName, arguments: payload })
+      const resp = await client.createStream({ stream: streamName, arguments: payload })
 
       expect(resp).to.be.true
     })
 
     it("Should raise an error if creation goes wrong", async () => {
       await expectToThrowAsync(
-        () => connection.createStream({ stream: "", arguments: payload }),
+        () => client.createStream({ stream: "", arguments: payload }),
         Error,
         "Create Stream command returned error with code 17"
       )

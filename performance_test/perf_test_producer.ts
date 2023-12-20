@@ -1,6 +1,6 @@
 import { inspect } from "util"
 import { Metrics } from "./metrics"
-import { Connection, DeclarePublisherParams, Producer } from "rabbitmq-stream-js-client"
+import { Client, DeclarePublisherParams, Producer } from "rabbitmq-stream-js-client"
 import { Logger } from "winston"
 
 export class PerfTestProducer {
@@ -11,7 +11,7 @@ export class PerfTestProducer {
   private displayTimer: NodeJS.Timeout | null
 
   constructor(
-    private readonly connection: Connection,
+    private readonly client: Client,
     private readonly logger: Logger,
     private readonly maxMessages: number,
     private readonly publisherParams: DeclarePublisherParams,
@@ -24,7 +24,7 @@ export class PerfTestProducer {
   }
 
   public async cycle() {
-    const publisher = await this.connection.declarePublisher(this.publisherParams)
+    const publisher = await this.client.declarePublisher(this.publisherParams)
     publisher.on("publish_confirm", (err, confirmedIds) => {
       if (err) {
         this.logger.error(err)

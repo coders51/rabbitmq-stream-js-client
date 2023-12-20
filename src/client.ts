@@ -53,7 +53,7 @@ import tls from "node:tls"
 import { MetadataResponse, StreamMetadata } from "./responses/metadata_response"
 import { MetadataRequest } from "./requests/metadata_request"
 
-export class Connection {
+export class Client {
   private socket: Socket
   private correlationId = 100
   private decoder: ResponseDecoder
@@ -101,17 +101,17 @@ export class Connection {
     this.compressions.set(compression.getType(), compression)
   }
 
-  static connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
-    return new Connection(logger ?? new NullLogger(), params).start()
+  static connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
+    return new Client(logger ?? new NullLogger(), params).start()
   }
 
-  public start(): Promise<Connection> {
+  public start(): Promise<Client> {
     this.registerListeners(this.params.listeners)
     this.registerDelivers()
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
-          `Error on connection ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
+          `Error on client ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
         )
         return rej(err)
       })
@@ -163,7 +163,7 @@ export class Connection {
   public async close(
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
   ): Promise<void> {
-    this.logger.info(`Closing connection ...`)
+    this.logger.info(`Closing client ...`)
     this.heartbeat.stop()
     this.logger.debug(`Close ...`)
     const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
@@ -194,7 +194,7 @@ export class Connection {
     }
 
     const producer = new StreamProducer({
-      connection: this,
+      client: this,
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
@@ -222,7 +222,7 @@ export class Connection {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const consumer = new StreamConsumer(handle, {
-      connection: this,
+      client: this,
       stream: params.stream,
       consumerId,
       consumerRef: params.consumerRef,
@@ -575,8 +575,8 @@ export interface QueryMetadataParams {
   streams: string[]
 }
 
-export function connect(params: ConnectionParams, logger?: Logger): Promise<Connection> {
-  return Connection.connect(params, logger)
+export function connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
+  return Client.connect(params, logger)
 }
 
 function errorMessageOf(code: number): string {

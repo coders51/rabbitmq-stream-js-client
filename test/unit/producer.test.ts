@@ -1,6 +1,6 @@
 import { expect, spy, use as chaiUse } from "chai"
 import { randomUUID } from "crypto"
-import { Connection, connect } from "../../src"
+import { Client, connect } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
 import { FrameSizeException } from "../../src/requests/frame_size_exception"
@@ -23,7 +23,7 @@ describe("Producer", () => {
   afterEach(() => rabbit.deleteStream(testStreamName))
 
   it("increase publishing id from server when boot is true", async () => {
-    const oldConnection = await connect({
+    const oldClient = await connect({
       hostname: "localhost",
       port: 5552,
       username,
@@ -32,12 +32,12 @@ describe("Producer", () => {
       frameMax: 0,
       heartbeat: 0,
     })
-    const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
-    await oldConnection.close()
-    const newConnection = await connect({
+    await oldClient.close()
+    const newClient = await connect({
       hostname: "localhost",
       port: 5552,
       username,
@@ -47,16 +47,16 @@ describe("Producer", () => {
       heartbeat: 0,
     })
 
-    const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
     await newPublisher.flush()
 
     expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length) + 1n)
-    await newConnection.close()
+    await newClient.close()
   }).timeout(10000)
 
   it("do not increase publishing id from server when boot is false", async () => {
-    const oldConnection = await connect({
+    const oldClient = await connect({
       hostname: "localhost",
       port: 5552,
       username,
@@ -65,12 +65,12 @@ describe("Producer", () => {
       frameMax: 0,
       heartbeat: 0,
     })
-    const oldPublisher = await oldConnection.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
-    await oldConnection.close()
-    const newConnection = await connect({
+    await oldClient.close()
+    const newClient = await connect({
       hostname: "localhost",
       port: 5552,
       username,
@@ -80,21 +80,21 @@ describe("Producer", () => {
       heartbeat: 0,
     })
 
-    const newPublisher = await newConnection.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
 
     expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length))
-    await newConnection.close()
+    await newClient.close()
   }).timeout(10000)
 
   describe("Send operation limits", () => {
     const maxFrameSize = 1000
-    let writeConnection: Connection | null = null
+    let writeClient: Client | null = null
     let spySandbox: ChaiSpies.Sandbox | null = null
 
     beforeEach(async () => {
       spySandbox = spy.sandbox()
-      writeConnection = await connect({
+      writeClient = await connect({
         hostname: "localhost",
         port: 5552,
         username,
@@ -106,11 +106,11 @@ describe("Producer", () => {
     })
 
     afterEach(async () => {
-      await writeConnection!.close()
+      await writeClient!.close()
       spySandbox?.restore()
     })
     it("if a message is too big an exception is raised when sending it", async () => {
-      const publisher = await writeConnection!.declarePublisher({
+      const publisher = await writeClient!.declarePublisher({
         stream: testStreamName,
         publisherRef,
       })
@@ -121,7 +121,7 @@ describe("Producer", () => {
 
     it("if chunk size is not reached, then the message is enqueued", async () => {
       const chunkSize = 100
-      const publisher = await writeConnection!.declarePublisher({
+      const publisher = await writeClient!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxChunkLength: chunkSize,
@@ -134,7 +134,7 @@ describe("Producer", () => {
     })
     it("if max queue length is reached, then the chunk is sent immediately", async () => {
       const queueLength = 2
-      const publisher = await writeConnection!.declarePublisher({
+      const publisher = await writeClient!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxChunkLength: queueLength,
@@ -149,7 +149,7 @@ describe("Producer", () => {
     it("even if max queue length is not reached, the messages are eventually sent", async () => {
       const queueLength = 10
       const messageQuantity = queueLength - 2
-      const publisher = await writeConnection!.declarePublisher({
+      const publisher = await writeClient!.declarePublisher({
         stream: testStreamName,
         publisherRef,
         maxChunkLength: queueLength,
