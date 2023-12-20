@@ -5,15 +5,19 @@ import { Producer } from "../../src/producer"
 import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password, getMessageFrom } from "../support/util"
+import { BufferSizeSettings } from "../../src/requests/request"
+import { FrameSizeException } from "../../src/requests/frame_size_exception"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit(username, password)
   let connection: Connection
   let streamName: string
   let publisher: Producer
+  let bufferSizeSettings: BufferSizeSettings | undefined = undefined
+  let maxFrameSize: number | undefined = undefined
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    connection = await createConnection(username, password, undefined, maxFrameSize, bufferSizeSettings)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
     publisher = await createPublisher(streamName, connection)
@@ -83,6 +87,34 @@ describe("publish a message", () => {
     const { content, properties } = msg
     expect(message).eql(content)
     expect(properties.headers).eql({ ...applicationProperties, "x-stream-offset": 0 })
+  })
+
+  describe("with custom buffer size limits", () => {
+    before(() => {
+      bufferSizeSettings = { initialSize: 16 }
+      maxFrameSize = 256
+    })
+
+    after(() => {
+      bufferSizeSettings = undefined
+      maxFrameSize = undefined
+    })
+
+    it("send a message that triggers buffer size growth", async () => {
+      const message = Array(bufferSizeSettings!.initialSize! * 3).join(".")
+
+      await publisher.send(Buffer.from(message))
+
+      const msg = await getMessageFrom(streamName, username, password)
+      const { content } = msg
+      expect(message).eql(content)
+    })
+
+    it("max buffer size reached, exception thrown", async () => {
+      const message = Array(maxFrameSize).join(".")
+
+      return expect(publisher.send(Buffer.from(message))).to.be.rejectedWith(FrameSizeException)
+    })
   })
 
   describe("deduplication", () => {

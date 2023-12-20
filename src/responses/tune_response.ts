@@ -11,7 +11,9 @@ export class TuneResponse implements Response {
   }
 
   toBuffer(): Buffer {
-    const dw = new BufferDataWriter(Buffer.alloc(1024), 4)
+    const bufferSize = 1024
+    const bufferSizeParams = { maxSize: bufferSize }
+    const dw = new BufferDataWriter(Buffer.alloc(bufferSize), 4, bufferSizeParams)
     dw.writeUInt16(TuneResponse.key)
     dw.writeUInt16(1)
     dw.writeUInt32(this.response.frameMax)

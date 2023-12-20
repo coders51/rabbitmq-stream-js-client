@@ -33,6 +33,7 @@ describe("query publisher sequence", () => {
     await publisher.basicSend(2n, Buffer.from(`test${randomUUID()}`))
     await publisher.basicSend(3n, Buffer.from(`test${randomUUID()}`))
     await publisher.basicSend(4n, Buffer.from(`test${randomUUID()}`))
+    await publisher.flush()
 
     const lastPublishingId = await publisher.getLastPublishingId()
 

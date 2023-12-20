@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { argv } from "process"
 import { PerfTestProducer } from "./perf_test_producer"
 import { inspect } from "util"
+import { BufferSizeSettings } from "../dist/requests/request"
 
 const logger = createLogger({
   level: "info",
@@ -17,6 +18,8 @@ const logger = createLogger({
   ),
   transports: new transports.Console(),
 })
+
+const connLogger = undefined
 
 function parseArgs(args) {
   const zip = (a: string[], b: string[]): [string, number][] => {
@@ -36,15 +39,20 @@ function parseArgs(args) {
 async function main() {
   const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
   const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
+  const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
+  const frameMax = 65536
+
   const connection = await connect(
     {
       hostname: "localhost",
       port: 5552,
       username: rabbitUser,
       password: rabbitPassword,
+      bufferSizeSettings: bufferSizeSettings,
       vhost: "/",
+      frameMax,
     },
-    logger
+    connLogger
   )
 
   const streamName = `my-stream-${randomUUID()}`
@@ -52,7 +60,9 @@ async function main() {
   const publisherRef = `my-publisher-${randomUUID()}`
   const passedArgs = parseArgs(argv.slice(2))
   logger.info(
-    `Stream: ${streamName} - publisher ${publisherRef} - max messages ${passedArgs.maxMessages} - message size: ${passedArgs.messageSize} bytes`
+    `Stream: ${streamName} - publisher ${publisherRef} - max messages ${passedArgs.maxMessages} - message size: ${
+      passedArgs.messageSize
+    } bytes - write buffer settings: ${inspect(bufferSizeSettings)}`
   )
 
   const perfTestProducer = new PerfTestProducer(
@@ -67,8 +77,8 @@ async function main() {
 }
 
 main()
-  .then((_v) => {
-    logger.info(`Ending...`)
-    setTimeout(() => process.exit(0), 1000)
+  .then((_v) => setTimeout(() => process.exit(0), 1000))
+  .catch((res) => {
+    logger.error("ERROR ", res)
+    process.exit(400)
   })
-  .catch((res) => logger.error("ERROR ", res))
