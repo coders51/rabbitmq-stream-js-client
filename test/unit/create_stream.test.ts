@@ -1,8 +1,9 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { connect, Client } from "../../src"
+import { Client } from "../../src"
+import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { expectToThrowAsync, username, password } from "../support/util"
+import { expectToThrowAsync, password, username } from "../support/util"
 
 describe("Stream", () => {
   const rabbit = new Rabbit(username, password)
@@ -17,15 +18,7 @@ describe("Stream", () => {
   let client: Client
 
   beforeEach(async () => {
-    client = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    client = await createClient(username, password)
   })
 
   afterEach(async () => {

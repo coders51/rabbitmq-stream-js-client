@@ -1,11 +1,12 @@
-import { expect, spy, use as chaiUse } from "chai"
-import { randomUUID } from "crypto"
-import { Client, connect } from "../../src"
-import { Rabbit } from "../support/rabbit"
-import { eventually, password, username } from "../support/util"
-import { FrameSizeException } from "../../src/requests/frame_size_exception"
+import { use as chaiUse, expect, spy } from "chai"
 import chaiAsPromised from "chai-as-promised"
 import spies from "chai-spies"
+import { randomUUID } from "crypto"
+import { Client } from "../../src"
+import { FrameSizeException } from "../../src/requests/frame_size_exception"
+import { createClient } from "../support/fake_data"
+import { Rabbit } from "../support/rabbit"
+import { eventually, password, username } from "../support/util"
 chaiUse(chaiAsPromised)
 chaiUse(spies)
 
@@ -23,29 +24,13 @@ describe("Producer", () => {
   afterEach(() => rabbit.deleteStream(testStreamName))
 
   it("increase publishing id from server when boot is true", async () => {
-    const oldClient = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
     await oldClient.close()
-    const newClient = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const newClient = await createClient(username, password)
 
     const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
@@ -56,29 +41,13 @@ describe("Producer", () => {
   }).timeout(10000)
 
   it("do not increase publishing id from server when boot is false", async () => {
-    const oldClient = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
     await oldClient.close()
-    const newClient = await connect({
-      hostname: "localhost",
-      port: 5552,
-      username,
-      password,
-      vhost: "/",
-      frameMax: 0,
-      heartbeat: 0,
-    })
+    const newClient = await createClient(username, password)
 
     const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
@@ -94,15 +63,7 @@ describe("Producer", () => {
 
     beforeEach(async () => {
       spySandbox = spy.sandbox()
-      writeClient = await connect({
-        hostname: "localhost",
-        port: 5552,
-        username,
-        password,
-        vhost: "/",
-        frameMax: maxFrameSize,
-        heartbeat: 0,
-      })
+      writeClient = await createClient(username, password)
     })
 
     afterEach(async () => {
