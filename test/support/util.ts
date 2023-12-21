@@ -1,12 +1,30 @@
-import { AssertionError, expect } from "chai"
 import * as ampq from "amqplib"
-import { DataReader } from "../../src/responses/raw_response"
-import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
+import { AssertionError, expect } from "chai"
+import { inspect } from "node:util"
+import { createLogger, format, transports } from "winston"
+import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
 import { FormatCodeType } from "../../src/amqp10/decoder"
-import { decodeFormatCode } from "../../src/response_decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
-import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
+import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
+import { decodeFormatCode } from "../../src/response_decoder"
+import { DataReader } from "../../src/responses/raw_response"
+
+export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
+  return createLogger({
+    silent,
+    level,
+    format: format.combine(
+      format.colorize(),
+      format.timestamp(),
+      format.align(),
+      format.splat(),
+      format.label(),
+      format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`)
+    ),
+    transports: new transports.Console(),
+  })
+}
 
 export function elapsedFrom(from: number): number {
   return Date.now() - from
