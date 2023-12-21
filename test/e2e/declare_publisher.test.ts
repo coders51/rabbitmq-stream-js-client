@@ -50,7 +50,7 @@ describe("declare publisher", () => {
     await expectToThrowAsync(
       () => createPublisher(nonExistingStreamName, client),
       Error,
-      "Declare Publisher command returned error with code 2 - Stream does not exist"
+      "Stream was not found on any node"
     )
   })
 })

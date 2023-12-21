@@ -38,8 +38,8 @@ describe("update the metadata from the server", () => {
 
   it("when delete stream we receive a metadataUpdate registering after creation", async () => {
     let called = 0
-    await createPublisher(streamName, client)
-    client.on("metadata_update", (_data: MetadataUpdateResponse) => called++)
+    const publisher = await createPublisher(streamName, client)
+    publisher.on("metadata_update", (_data: MetadataUpdateResponse) => called++)
 
     await rabbit.deleteStream(streamName)
 

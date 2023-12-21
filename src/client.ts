@@ -1,57 +1,58 @@
+import { randomUUID } from "crypto"
 import { Socket } from "net"
+import tls from "node:tls"
 import { inspect } from "util"
+import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
+import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
+import { Logger, NullLogger } from "./logger"
 import { Producer, StreamProducer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
+import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
+import { MetadataRequest } from "./requests/metadata_request"
 import { OpenRequest } from "./requests/open_request"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { BufferSizeParams, BufferSizeSettings, Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
+import { StoreOffsetRequest } from "./requests/store_offset_request"
+import { StreamStatsRequest } from "./requests/stream_stats_request"
+import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
-import { CloseResponse } from "./responses/close_response"
-import { CreateStreamResponse } from "./responses/create_stream_response"
-import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
-import { DeletePublisherRequest } from "./requests/delete_publisher_request"
-import { DeletePublisherResponse } from "./responses/delete_publisher_response"
-import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { OpenResponse } from "./responses/open_response"
-import { Response } from "./responses/response"
+import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import {
   MetadataUpdateListener,
   PublishConfirmListener,
   PublishErrorListener,
   ResponseDecoder,
 } from "./response_decoder"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
-import { WaitingResponse } from "./waiting_response"
+import { CloseResponse } from "./responses/close_response"
+import { CreateStreamResponse } from "./responses/create_stream_response"
+import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
+import { DeletePublisherResponse } from "./responses/delete_publisher_response"
+import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { MetadataResponse, StreamMetadata } from "./responses/metadata_response"
+import { OpenResponse } from "./responses/open_response"
+import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { QueryPublisherResponse } from "./responses/query_publisher_response"
+import { Response } from "./responses/response"
+import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
+import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
-import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { StreamConsumer, ConsumerFunc, Consumer } from "./consumer"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
-import { StreamStatsRequest } from "./requests/stream_stats_request"
-import { StreamStatsResponse } from "./responses/stream_stats_response"
-import { DeliverResponse } from "./responses/deliver_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
-import { QueryOffsetRequest } from "./requests/query_offset_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
-import { Logger, NullLogger } from "./logger"
-import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
-import tls from "node:tls"
-import { MetadataResponse, StreamMetadata } from "./responses/metadata_response"
-import { MetadataRequest } from "./requests/metadata_request"
+import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
+import { WaitingResponse } from "./waiting_response"
 
 export class Client {
   private socket: Socket
@@ -63,9 +64,12 @@ export class Client {
   private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
+  private producers = new Map<number, StreamProducer>()
+  private producerConnections = new Map<number, Client>()
   private compressions = new Map<CompressionType, Compression>()
   private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
+  private connectionId: string
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -80,6 +84,7 @@ export class Client {
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.bufferSizeSettings = params.bufferSizeSettings || {}
+    this.connectionId = randomUUID()
   }
 
   getCompression(compressionType: CompressionType) {
@@ -101,8 +106,8 @@ export class Client {
     this.compressions.set(compression.getType(), compression)
   }
 
-  static connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
-    return new Client(logger ?? new NullLogger(), params).start()
+  static async connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
+    return new Client(logger ?? new NullLogger(), { ...params, hostname: params.hostname }).start()
   }
 
   public start(): Promise<Client> {
@@ -163,9 +168,18 @@ export class Client {
   public async close(
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
   ): Promise<void> {
-    this.logger.info(`Closing client ...`)
+    this.logger.info(`Closing client...`)
+    if (this.producerCounts()) {
+      this.logger.info(`Stopping all producers...`)
+      await this.closeAllProducers()
+    }
+    if (this.consumerCounts()) {
+      this.logger.info(`Stopping all consumers...`)
+      await this.closeAllConsumers()
+    }
+    this.logger.info(`Stopping heartbeat...`)
     this.heartbeat.stop()
-    this.logger.debug(`Close ...`)
+    this.logger.debug(`Close...`)
     const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
     this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
     this.socket.end()
@@ -186,15 +200,17 @@ export class Client {
   public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
-    const res = await this.sendAndWait<DeclarePublisherResponse>(
+
+    const client = await this.initNewClient(params.stream, false)
+    const res = await client.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
+      await client.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-
     const producer = new StreamProducer({
-      client: this,
+      client,
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
@@ -203,6 +219,8 @@ export class Client {
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
+    this.producerConnections.set(publisherId, client)
+    this.producers.set(publisherId, producer)
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
@@ -211,18 +229,23 @@ export class Client {
   }
 
   public async deletePublisher(publisherId: number) {
-    const res = await this.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    const producerConnection = this.producerConnections.get(publisherId) ?? this
+    const res = await producerConnection.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
+    await this.producers.get(publisherId)?.close()
+    this.producers.delete(publisherId)
+    this.producerConnections.delete(publisherId)
     this.logger.info(`deleted producer with publishing id ${publisherId}`)
     return res.ok
   }
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
+    const client = await this.initNewClient(params.stream, false)
     const consumer = new StreamConsumer(handle, {
-      client: this,
+      client,
       stream: params.stream,
       consumerId,
       consumerRef: params.consumerRef,
@@ -255,13 +278,29 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
+    await consumer.close()
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
   }
 
+  private async closeAllConsumers() {
+    await Promise.all([...this.consumers.values()].map((c) => c.close()))
+    this.consumers = new Map<number, StreamConsumer>()
+  }
+
+  private async closeAllProducers() {
+    await Promise.all([...this.producers.values()].map((c) => c.close()))
+    this.producers = new Map<number, StreamProducer>()
+    this.producerConnections = new Map<number, Client>()
+  }
+
   public consumerCounts() {
     return this.consumers.size
+  }
+
+  public producerCounts() {
+    return this.producers.size
   }
 
   public get currentFrameMax() {
@@ -342,6 +381,10 @@ export class Client {
     }
     this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
     return res.offsetValue
+  }
+
+  public getConnectionInfo(): { host: string; port: number; id: string } {
+    return { host: this.params.hostname, port: this.params.port, id: this.connectionId }
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -513,6 +556,17 @@ export class Client {
   private getBufferSizeParams(): BufferSizeParams {
     return { maxSize: this.frameMax, ...this.bufferSizeSettings }
   }
+
+  private async initNewClient(streamName: string, leader: boolean): Promise<Client> {
+    const [metadata] = await this.queryMetadata({ streams: [streamName] })
+    const chosenNode = leader ? metadata.leader : sample([metadata.leader, ...(metadata.replicas ?? [])])
+    if (!chosenNode) {
+      // need some help with this error message -- what might be better than this? --Luca (20/12/23)
+      throw new Error(`Stream was not found on any node`)
+    }
+    const newClient = await connect({ ...this.params, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+    return newClient
+  }
 }
 
 export type ListenersParams = {
@@ -593,4 +647,13 @@ function errorMessageOf(code: number): string {
 
 function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
+}
+
+const sample = <T>(candidates: (T | undefined)[]): T | undefined => {
+  const actualCandidates = candidates.filter((c) => !!c)
+  if (!actualCandidates.length) {
+    return undefined
+  }
+  const index = Math.floor(Math.random() * actualCandidates.length)
+  return actualCandidates[index]!
 }

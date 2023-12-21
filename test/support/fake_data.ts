@@ -1,7 +1,9 @@
 import { randomUUID } from "crypto"
 import { Client, ListenersParams, connect } from "../../src/client"
-import { MessageProperties } from "../../src/producer"
+import { MessageProperties, Producer } from "../../src/producer"
 import { BufferSizeSettings } from "../../src/requests/request"
+import { Offset } from "../../src/requests/subscribe_request"
+import { Consumer } from "../../src"
 
 export function createProperties(): MessageProperties {
   return {
@@ -21,11 +23,11 @@ export function createProperties(): MessageProperties {
   }
 }
 
-export function createStreamName() {
+export function createStreamName(): string {
   return `my-stream-${randomUUID()}`
 }
 
-export async function createPublisher(streamName: string, client: Client) {
+export async function createPublisher(streamName: string, client: Client): Promise<Producer> {
   const publisher = await client.declarePublisher({
     stream: streamName,
     publisherRef: `my-publisher-${randomUUID()}`,
@@ -33,13 +35,24 @@ export async function createPublisher(streamName: string, client: Client) {
   return publisher
 }
 
-export function createClient(
+export async function createConsumer(streamName: string, client: Client): Promise<Consumer> {
+  const id = randomUUID()
+  const consumer = await client.declareConsumer(
+    { stream: streamName, offset: Offset.first(), consumerRef: `my-consumer-${id}` },
+    () => {
+      console.log(`Test consumer with id ${id} received a message`)
+    }
+  )
+  return consumer
+}
+
+export async function createClient(
   username: string,
   password: string,
   listeners?: ListenersParams,
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings
-) {
+): Promise<Client> {
   return connect({
     hostname: "localhost",
     port: 5552,

@@ -7,6 +7,7 @@ export interface Consumer {
   close(): Promise<void>
   storeOffset(offsetValue: bigint): Promise<void>
   queryOffset(): Promise<bigint>
+  getConnectionInfo(): { host: string; port: number; id: string }
   consumerId: number
   consumerRef?: string
 }
@@ -33,7 +34,7 @@ export class StreamConsumer implements Consumer {
   }
 
   async close(): Promise<void> {
-    throw new Error("Method not implemented.")
+    await this.client.close()
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {
@@ -44,5 +45,9 @@ export class StreamConsumer implements Consumer {
   public queryOffset(): Promise<bigint> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
     return this.client.queryOffset({ stream: this.stream, reference: this.consumerRef })
+  }
+
+  public getConnectionInfo(): { host: string; port: number; id: string } {
+    return this.client.getConnectionInfo()
   }
 }

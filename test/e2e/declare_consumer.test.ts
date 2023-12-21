@@ -93,7 +93,7 @@ describe("declare consumer", () => {
           console.log(message.content)
         ),
       Error,
-      "Declare Consumer command returned error with code 2 - Stream does not exist"
+      "Stream was not found on any node"
     )
   })
 

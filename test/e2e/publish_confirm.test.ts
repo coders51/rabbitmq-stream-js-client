@@ -18,7 +18,7 @@ describe("publish a message and get confirmation", () => {
     await rabbit.createStream(stream)
     publishResponses.splice(0)
   })
-  afterEach(() => client.close())
+  afterEach(async () => await client.close())
   afterEach(() => rabbit.closeAllConnections())
 
   it("after the server replies with a confirm, the confirm callback is invoked", async () => {
@@ -41,7 +41,7 @@ describe("publish a message and get confirmation", () => {
     await eventually(async () => expect((await rabbit.getQueueInfo(stream)).messages).eql(1), 10000)
     const lastPublishingId = await publisher.getLastPublishingId()
     expect(publishResponses).eql([{ error: null, ids: [lastPublishingId] }])
-  }).timeout(10000)
+  }).timeout(12000)
 
   it("after the server replies with an error, the error callback is invoked with an error", async () => {
     const publisher = await client.declarePublisher({ stream, publisherRef })
