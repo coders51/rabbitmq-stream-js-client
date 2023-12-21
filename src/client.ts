@@ -64,8 +64,7 @@ export class Client {
   private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
-  private producers = new Map<number, StreamProducer>()
-  private producerConnections = new Map<number, Client>()
+  private producers = new Map<number, { connection: Client; producer: StreamProducer }>()
   private compressions = new Map<CompressionType, Compression>()
   private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
@@ -219,8 +218,7 @@ export class Client {
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
-    this.producerConnections.set(publisherId, client)
-    this.producers.set(publisherId, producer)
+    this.producers.set(publisherId, { producer, connection: client })
     this.logger.info(
       `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
@@ -229,14 +227,13 @@ export class Client {
   }
 
   public async deletePublisher(publisherId: number) {
-    const producerConnection = this.producerConnections.get(publisherId) ?? this
+    const producerConnection = this.producers.get(publisherId)?.connection ?? this
     const res = await producerConnection.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await this.producers.get(publisherId)?.close()
+    await this.producers.get(publisherId)?.producer.close()
     this.producers.delete(publisherId)
-    this.producerConnections.delete(publisherId)
     this.logger.info(`deleted producer with publishing id ${publisherId}`)
     return res.ok
   }
@@ -290,9 +287,8 @@ export class Client {
   }
 
   private async closeAllProducers() {
-    await Promise.all([...this.producers.values()].map((c) => c.close()))
-    this.producers = new Map<number, StreamProducer>()
-    this.producerConnections = new Map<number, Client>()
+    await Promise.all([...this.producers.values()].map((c) => c.producer.close()))
+    this.producers = new Map<number, { connection: Client; producer: StreamProducer }>()
   }
 
   public consumerCounts() {
