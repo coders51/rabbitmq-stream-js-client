@@ -5,7 +5,7 @@ import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { ResponseDecoder } from "../../src/response_decoder"
 import { PeerPropertiesResponse } from "../../src/responses/peer_properties_response"
 import { Response } from "../../src/responses/response"
-import { createConsoleLog } from "../../src/util"
+import { createConsoleLog } from "../support/util"
 
 class MockDecoderListener {
   readonly responses: Response[] = []
