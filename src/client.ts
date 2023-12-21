@@ -107,7 +107,7 @@ export class Client {
   }
 
   static async connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
-    return new Client(logger ?? new NullLogger(), { ...params, hostname: params.hostname }).start()
+    return new Client(logger ?? new NullLogger(), params).start()
   }
 
   public start(): Promise<Client> {
