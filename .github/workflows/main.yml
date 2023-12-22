@@ -34,6 +34,8 @@ jobs:
           - 61613:61613
 
     steps:
+      - name: Add the rabbitmq service to /etc/hosts
+        run: sudo echo "127.0.0.1 test-node" | sudo tee -a /etc/hosts
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
