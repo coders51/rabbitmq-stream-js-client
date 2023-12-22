@@ -21,8 +21,9 @@ jobs:
     services:
       rabbitmq:
         image: rabbitmq:3-management
+        options: --hostname test-node
         env:
-          RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
+          # RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
           RABBITMQ_DEFAULT_USER: "test-user"
           RABBITMQ_DEFAULT_PASS: "test-password"
         ports:
@@ -50,6 +51,7 @@ jobs:
         env:
           RABBITMQ_USER: "test-user"
           RABBITMQ_PASSWORD: "test-password"
+          RABBIT_MQ_TEST_NODES: "test-node:5552"
       - run: cd example && npm install && npm start
         env:
           RABBITMQ_USER: "test-user"
