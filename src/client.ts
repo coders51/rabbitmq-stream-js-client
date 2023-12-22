@@ -200,7 +200,7 @@ export class Client {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
-    const client = await this.initNewClient(params.stream, false)
+    const client = await this.initNewClient(params.stream, true)
     const res = await client.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
@@ -633,9 +633,10 @@ function errorMessageOf(code: number): string {
   switch (code) {
     case 0x02:
       return "Stream does not exist"
+    case 0x06:
+      return "Stream not available"
     case 0x12:
       return "Publisher does not exist"
-
     default:
       return "Unknown error"
   }
