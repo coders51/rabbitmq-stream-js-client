@@ -55,7 +55,7 @@ export async function createClient(
 ): Promise<Client> {
   return connect({
     hostname: "localhost",
-    port: 5552,
+    port: 5553,
     username,
     password,
     vhost: "/",

@@ -1,4 +1,4 @@
-import * as ampq from "amqplib"
+import * as amqp from "amqplib"
 import { AssertionError, expect } from "chai"
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
@@ -25,6 +25,8 @@ export function createConsoleLog({ silent, level } = { silent: false, level: "de
     transports: new transports.Console(),
   })
 }
+
+const getAmqpConnectionString = (user: string, pwd: string): string => `amqp://${user}:${pwd}@localhost:5555/%2F`
 
 export function elapsedFrom(from: number): number {
   return Date.now() - from
@@ -74,9 +76,15 @@ export async function getMessageFrom(
   stream: string,
   user: string,
   pwd: string
-): Promise<{ content: string; properties: ampq.MessageProperties }> {
+): Promise<{ content: string; properties: amqp.MessageProperties }> {
   return new Promise(async (res, rej) => {
-    const con = await ampq.connect(`amqp://${user}:${pwd}@localhost`)
+    const con = await amqp.connect(getAmqpConnectionString(user, pwd)).catch((e) => {
+      console.error("Could not connect to Rabbit due to:", e)
+      rej(e)
+    })
+    if (!con) {
+      throw new Error(`Connection with AMPQ could not be established`)
+    }
     con.on("error", async (err) => rej(err))
     const ch = await con.createChannel()
     await ch.prefetch(1)
@@ -97,9 +105,9 @@ export async function getMessageFrom(
 
 export async function createClassicConsumer(
   stream: string,
-  cb: (msg: ampq.Message) => void
-): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
-  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
+  cb: (msg: amqp.Message) => void
+): Promise<{ conn: amqp.Connection; ch: amqp.Channel }> {
+  const conn = await amqp.connect(getAmqpConnectionString(username, password))
   const ch = await conn.createChannel()
   await ch.prefetch(1)
   await ch.consume(
@@ -115,8 +123,8 @@ export async function createClassicConsumer(
   return { conn, ch }
 }
 
-export async function createClassicPublisher(): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
-  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
+export async function createClassicPublisher(): Promise<{ conn: amqp.Connection; ch: amqp.Channel }> {
+  const conn = await amqp.connect(getAmqpConnectionString(username, password))
   const ch = await conn.createChannel()
   return { conn, ch }
 }

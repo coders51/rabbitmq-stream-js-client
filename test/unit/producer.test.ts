@@ -63,13 +63,14 @@ describe("Producer", () => {
 
     beforeEach(async () => {
       spySandbox = spy.sandbox()
-      writeClient = await createClient(username, password)
+      writeClient = await createClient(username, password, undefined, maxFrameSize)
     })
 
     afterEach(async () => {
       await writeClient!.close()
       spySandbox?.restore()
     })
+
     it("if a message is too big an exception is raised when sending it", async () => {
       const publisher = await writeClient!.declarePublisher({
         stream: testStreamName,

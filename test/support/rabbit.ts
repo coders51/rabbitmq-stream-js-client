@@ -58,6 +58,7 @@ interface RabbitQueueResponse {
 }
 
 export class Rabbit {
+  private port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   constructor(private username: string, private password: string) {}
 
   async closeAllConnections(): Promise<void> {
@@ -66,7 +67,7 @@ export class Rabbit {
   }
 
   async closeConnection(name: string) {
-    return got.delete(`http://localhost:15672/api/connections/${name}`, {
+    return got.delete(`http://localhost:${this.port}/api/connections/${name}`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -74,7 +75,7 @@ export class Rabbit {
   }
 
   async getQueueInfo(queue: string): Promise<MessageInfoResponse> {
-    const ret = await got.get<MessageInfoResponse>(`http://localhost:15672/api/queues/%2F/${queue}`, {
+    const ret = await got.get<MessageInfoResponse>(`http://localhost:${this.port}/api/queues/%2F/${queue}`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -84,7 +85,7 @@ export class Rabbit {
 
   async getMessages(queue: string) {
     // I think it's not possible to execute on stream queue
-    const ret = await got.post<unknown>(`http://localhost:15672/api/queues/%2F/${queue}/get`, {
+    const ret = await got.post<unknown>(`http://localhost:${this.port}/api/queues/%2F/${queue}/get`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -94,7 +95,7 @@ export class Rabbit {
   }
 
   async getConnections(): Promise<RabbitConnectionResponse[]> {
-    const ret = await got.get<RabbitConnectionResponse[]>(`http://localhost:15672/api/connections`, {
+    const ret = await got.get<RabbitConnectionResponse[]>(`http://localhost:${this.port}/api/connections`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -103,7 +104,7 @@ export class Rabbit {
   }
 
   createStream(streamName: string) {
-    return got.put<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+    return got.put<unknown>(`http://localhost:${this.port}/api/queues/%2F/${streamName}`, {
       body: JSON.stringify({ auto_delete: false, durable: true, arguments: { "x-queue-type": "stream" } }),
       username: this.username,
       password: this.password,
@@ -112,7 +113,7 @@ export class Rabbit {
   }
 
   deleteStream(streamName: string) {
-    return got.delete<unknown>(`http://localhost:15672/api/queues/%2F/${streamName}`, {
+    return got.delete<unknown>(`http://localhost:${this.port}/api/queues/%2F/${streamName}`, {
       username: this.username,
       password: this.password,
     })
@@ -120,7 +121,7 @@ export class Rabbit {
 
   async returnPublishers(streamName: string): Promise<string[]> {
     const resp = await got.get<RabbitPublishersResponse[]>(
-      `http://localhost:15672/api/stream/publishers/%2F/${streamName}`,
+      `http://localhost:${this.port}/api/stream/publishers/%2F/${streamName}`,
       {
         username: this.username,
         password: this.password,
@@ -131,7 +132,7 @@ export class Rabbit {
   }
 
   async returnConsumers(): Promise<string[]> {
-    const resp = await got.get<RabbitConsumersResponse[]>(`http://localhost:15672/api/consumers/%2F/`, {
+    const resp = await got.get<RabbitConsumersResponse[]>(`http://localhost:${this.port}/api/consumers/%2F/`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -141,7 +142,7 @@ export class Rabbit {
 
   async returnConsumersCredits(): Promise<RabbitConsumerCredits[]> {
     const allConsumerCredits: RabbitConsumerCredits[] = []
-    const allConsumersResp = await got.get<RabbitConsumersResponse[]>(`http://localhost:15672/api/consumers`, {
+    const allConsumersResp = await got.get<RabbitConsumersResponse[]>(`http://localhost:${this.port}/api/consumers`, {
       username: "rabbit",
       password: "rabbit",
       responseType: "json",
@@ -150,7 +151,7 @@ export class Rabbit {
     for (const consumerChannelDetail of consumerChannelDetails) {
       const connectionName = consumerChannelDetail.connection_name
       const resp = await got.get<RabbitConnectionDetails[]>(
-        `http://localhost:15672/api/stream/connections/%2F/${connectionName}/consumers`,
+        `http://localhost:${this.port}/api/stream/connections/%2F/${connectionName}/consumers`,
         {
           username: "rabbit",
           password: "rabbit",
@@ -163,7 +164,7 @@ export class Rabbit {
   }
 
   async getQueue(vhost: string = "%2F", name: string): Promise<RabbitQueueResponse> {
-    const ret = await got.get<RabbitQueueResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+    const ret = await got.get<RabbitQueueResponse>(`http://localhost:${this.port}/api/queues/${vhost}/${name}`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -172,7 +173,7 @@ export class Rabbit {
   }
 
   async deleteQueue(vhost: string = "%2F", name: string): Promise<void> {
-    await got.delete(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+    await got.delete(`http://localhost:${this.port}/api/queues/${vhost}/${name}`, {
       username: this.username,
       password: this.password,
       responseType: "json",
@@ -180,7 +181,7 @@ export class Rabbit {
   }
 
   async createQueue(vhost: string = "%2F", name: string): Promise<RabbitConnectionResponse> {
-    const r = await got.put<RabbitConnectionResponse>(`http://localhost:15672/api/queues/${vhost}/${name}`, {
+    const r = await got.put<RabbitConnectionResponse>(`http://localhost:${this.port}/api/queues/${vhost}/${name}`, {
       json: { arguments: { "x-queue-type": "stream" }, durable: true },
       username: this.username,
       password: this.password,
@@ -190,7 +191,7 @@ export class Rabbit {
   }
 
   async getQueues(): Promise<RabbitQueueResponse[]> {
-    const ret = await got.get<RabbitQueueResponse[]>(`http://localhost:15672/api/queues`, {
+    const ret = await got.get<RabbitQueueResponse[]>(`http://localhost:${this.port}/api/queues`, {
       username: this.username,
       password: this.password,
       responseType: "json",
