@@ -1,0 +1,68 @@
+version: "1"
+services:
+  rabbit_node0:
+    environment:
+      - RABBITMQ_ERLANG_COOKIE='secret_cookie'
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_stream advertised_host node0 advertised_port 5562
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=rabbit
+    networks:
+      - back
+    hostname: node0
+    image: docker.io/rabbitmq:3-management
+    ports:
+      - "5560:5550"
+      - "5561:5551"
+      - "5562:5552"
+    tty: true
+    volumes:
+     - ./conf/:/etc/rabbitmq/
+     - "./tls-gen/basic/result/:/certs"
+  rabbit_node1:
+    environment:
+      - RABBITMQ_ERLANG_COOKIE='secret_cookie'
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_stream advertised_host node1 advertised_port 5572
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=rabbit
+    networks:
+      - back
+    hostname: node1
+    image: docker.io/rabbitmq:3-management
+    ports:
+      - "5570:5550"
+      - "5571:5551"
+      - "5572:5552"
+    tty: true
+    volumes:
+      - ./conf/:/etc/rabbitmq/
+      - "./tls-gen/basic/result/:/certs"
+  rabbit_node2:
+    environment:
+      - RABBITMQ_ERLANG_COOKIE='secret_cookie'
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_stream advertised_host node2 advertised_port 5582
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=rabbit
+    networks:
+      - back
+    hostname: node2
+    image: docker.io/rabbitmq:3-management
+    ports:
+      - "5580:5550"
+      - "5581:5551"
+      - "5582:5552"
+    tty: true
+    volumes:
+      - ./conf/:/etc/rabbitmq/
+      - "./tls-gen/basic/result/:/certs"
+  haproxy:
+    image: haproxy-rabbitmq-cluster
+    hostname: haproxy
+    ports:
+      - "5553:5552"
+      - "5554:5551"
+      - "5555:5550"
+      - "15673:15672"
+    networks:
+      - back
+networks:
+  back:
