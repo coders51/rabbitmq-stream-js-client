@@ -557,7 +557,7 @@ export class Client {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = leader ? metadata.leader : sample([metadata.leader, ...(metadata.replicas ?? [])])
     if (!chosenNode) {
-      // need some help with this error message -- what might be better than this? --Luca (20/12/23)
+      // need some help with this error message -- what might be better than this? --tarza (20/12/23)
       throw new Error(`Stream was not found on any node`)
     }
     const newClient = await connect({ ...this.params, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
