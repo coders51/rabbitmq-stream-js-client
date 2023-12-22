@@ -9,6 +9,7 @@ import { Properties } from "../../src/amqp10/properties"
 import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
 import { decodeFormatCode } from "../../src/response_decoder"
 import { DataReader } from "../../src/responses/raw_response"
+import { getTestNodesFromEnv } from "../../src/util"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
   return createLogger({
@@ -26,7 +27,11 @@ export function createConsoleLog({ silent, level } = { silent: false, level: "de
   })
 }
 
-const getAmqpConnectionString = (user: string, pwd: string): string => `amqp://${user}:${pwd}@localhost:5555/%2F`
+const getAmqpConnectionString = (user: string, pwd: string): string => {
+  const [firstNode] = getTestNodesFromEnv()
+  const port = process.env.RABBIT_MQ_AMQP_PORT ?? 5672
+  return `amqp://${user}:${pwd}@${firstNode.host}:${port}/%2F`
+}
 
 export function elapsedFrom(from: number): number {
   return Date.now() - from

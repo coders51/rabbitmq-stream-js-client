@@ -10,6 +10,15 @@ add the following to your `/etc/hosts`
 127.0.0.1       node2
 ```
 
+set the following values in your environment if you want to run the tests
+```
+RABBITMQ_USER="rabbit"
+RABBITMQ_PASSWORD="rabbit"
+RABBIT_MQ_MANAGEMENT_PORT=15673
+RABBIT_MQ_AMQP_PORT=5555
+RABBIT_MQ_TEST_NODES="node0:5562;node1:5572;node2:5582"
+```
+
 then run the following
 
 ```bash

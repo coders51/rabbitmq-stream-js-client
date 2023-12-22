@@ -4,6 +4,7 @@ import { MessageProperties, Producer } from "../../src/producer"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Consumer } from "../../src"
+import { getTestNodesFromEnv } from "../../src/util"
 
 export function createProperties(): MessageProperties {
   return {
@@ -53,9 +54,10 @@ export async function createClient(
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings
 ): Promise<Client> {
+  const [firstNode] = getTestNodesFromEnv()
   return connect({
-    hostname: "localhost",
-    port: 5553,
+    hostname: firstNode.host,
+    port: firstNode.port,
     username,
     password,
     vhost: "/",

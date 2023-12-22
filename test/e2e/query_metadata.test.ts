@@ -1,44 +1,16 @@
 import { expect } from "chai"
 import { Client } from "../../src"
+import { getTestNodesFromEnv } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { username, password } from "../support/util"
-import { Broker } from "../../src/responses/metadata_response"
+import { password, username } from "../support/util"
 
 describe("query metadata", () => {
   let streamName: string
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
-  const RABBIT_TESTING_NODES: Broker[] = [
-    {
-      host: "localhost",
-      port: 5552,
-      reference: 0,
-    },
-    {
-      host: "rabbitmq",
-      port: 5552,
-      reference: 0,
-    },
-    // tests with cluster
-    {
-      host: "node0",
-      port: 5562,
-      reference: 0,
-    },
-    {
-      host: "node1",
-      port: 5572,
-      reference: 1,
-    },
-    {
-      host: "node2",
-      port: 5582,
-      reference: 2,
-    },
-  ]
-
+  const nodes = getTestNodesFromEnv()
   beforeEach(async () => {
     client = await createClient(username, password)
     streamName = createStreamName()
@@ -81,7 +53,7 @@ describe("query metadata", () => {
 
     expect(streamInfo.streamName).to.eql(streamName)
     expect(streamInfo.responseCode).to.eql(1)
-    expect(streamInfo.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect({ host: streamInfo.leader?.host, port: streamInfo.leader?.port }).to.be.deep.oneOf(nodes)
   })
 
   it("querying the metadata - query for multiple streams", async () => {
@@ -96,10 +68,10 @@ describe("query metadata", () => {
     expect(firstStreamInfo).to.exist
     expect(firstStreamInfo!.streamName).to.eql(streamName)
     expect(firstStreamInfo!.responseCode).to.eql(1)
-    expect(firstStreamInfo!.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect({ host: firstStreamInfo!.leader?.host, port: firstStreamInfo!.leader?.port }).to.be.deep.oneOf(nodes)
     expect(secondStreamInfo).to.exist
     expect(secondStreamInfo!.streamName).to.eql(secondStreamName)
     expect(secondStreamInfo!.responseCode).to.eql(1)
-    expect(secondStreamInfo!.leader).to.be.deep.oneOf(RABBIT_TESTING_NODES)
+    expect({ host: secondStreamInfo!.leader?.host, port: secondStreamInfo!.leader?.port }).to.be.deep.oneOf(nodes)
   })
 })
