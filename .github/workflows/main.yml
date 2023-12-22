@@ -23,7 +23,6 @@ jobs:
         image: rabbitmq:3-management
         options: --hostname test-node
         env:
-          # RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
           RABBITMQ_DEFAULT_USER: "test-user"
           RABBITMQ_DEFAULT_PASS: "test-password"
         ports:
