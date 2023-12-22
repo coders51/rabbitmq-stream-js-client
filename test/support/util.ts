@@ -9,6 +9,7 @@ import { Properties } from "../../src/amqp10/properties"
 import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Producer } from "../../src/producer"
 import { decodeFormatCode } from "../../src/response_decoder"
 import { DataReader } from "../../src/responses/raw_response"
+import { getTestNodesFromEnv } from "../../src/util"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
   return createLogger({
