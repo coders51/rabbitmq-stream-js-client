@@ -37,6 +37,22 @@ export function elapsedFrom(from: number): number {
   return Date.now() - from
 }
 
+export async function always(fn: Function, timeout = 1500) {
+  const start = Date.now()
+  while (true) {
+    try {
+      await fn()
+      await wait(5)
+      if (elapsedFrom(start) > timeout) {
+        return
+      }
+    } catch (error) {
+      if (error instanceof AssertionError) throw error
+      expect.fail(error as string)
+    }
+  }
+}
+
 export async function eventually(fn: Function, timeout = 1500) {
   const start = Date.now()
   while (true) {

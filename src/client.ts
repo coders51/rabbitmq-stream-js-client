@@ -54,6 +54,8 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
 import { WaitingResponse } from "./waiting_response"
 
+export type ConnectionClosedListener = (hadError: boolean) => void
+
 export class Client {
   private socket: Socket
   private correlationId = 100
@@ -69,6 +71,7 @@ export class Client {
   private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
   private connectionId: string
+  private connectionClosedListener: ConnectionClosedListener | undefined
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -84,6 +87,7 @@ export class Client {
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.bufferSizeSettings = params.bufferSizeSettings || {}
     this.connectionId = randomUUID()
+    this.connectionClosedListener = params.listeners?.connection_closed
   }
 
   getCompression(compressionType: CompressionType) {
@@ -139,6 +143,7 @@ export class Client {
       })
       this.socket.on("close", (had_error) => {
         this.logger.info(`Close event on socket, close cloud had_error? ${had_error}`)
+        if (this.connectionClosedListener) this.connectionClosedListener(had_error)
       })
     })
   }
@@ -200,7 +205,7 @@ export class Client {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
-    const client = await this.initNewClient(params.stream, true)
+    const client = await this.initNewClient(params.stream, true, params.connectionClosedListener)
     const res = await client.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
@@ -240,7 +245,7 @@ export class Client {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const client = await this.initNewClient(params.stream, false)
+    const client = await this.initNewClient(params.stream, false, params.connectionClosedListener)
     const consumer = new StreamConsumer(handle, {
       client,
       stream: params.stream,
@@ -553,13 +558,22 @@ export class Client {
     return { maxSize: this.frameMax, ...this.bufferSizeSettings }
   }
 
-  private async initNewClient(streamName: string, leader: boolean): Promise<Client> {
+  private async initNewClient(
+    streamName: string,
+    leader: boolean,
+    connectionClosedListener?: ConnectionClosedListener
+  ): Promise<Client> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = leader ? metadata.leader : sample([metadata.leader, ...(metadata.replicas ?? [])])
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const newClient = await connect({ ...this.params, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+    const listeners = { ...this.params.listeners, connection_closed: connectionClosedListener }
+    const connectionParams = { ...this.params, listeners: listeners }
+    const newClient = await connect(
+      { ...connectionParams, hostname: chosenNode.host, port: chosenNode.port },
+      this.logger
+    )
     return newClient
   }
 }
@@ -568,6 +582,7 @@ export type ListenersParams = {
   metadata_update?: MetadataUpdateListener
   publish_confirm?: PublishConfirmListener
   publish_error?: PublishErrorListener
+  connection_closed?: ConnectionClosedListener
 }
 
 export interface SSLConnectionParams {
@@ -594,12 +609,14 @@ export interface DeclarePublisherParams {
   publisherRef?: string
   boot?: boolean
   maxChunkLength?: number
+  connectionClosedListener?: ConnectionClosedListener
 }
 
 export interface DeclareConsumerParams {
   stream: string
   consumerRef?: string
   offset: Offset
+  connectionClosedListener?: ConnectionClosedListener
 }
 
 export interface SubscribeParams {
