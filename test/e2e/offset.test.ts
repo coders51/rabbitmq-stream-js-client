@@ -2,9 +2,9 @@ import { expect } from "chai"
 import { Client } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
-import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync, password, username } from "../support/util"
 import { createClient } from "../support/fake_data"
+import { Rabbit } from "../support/rabbit"
+import { eventually, expectToThrowAsync, password, sendANumberOfRandomMessages, username, wait } from "../support/util"
 
 describe("offset", () => {
   const rabbit = new Rabbit(username, password)
@@ -21,6 +21,143 @@ describe("offset", () => {
     try {
       await rabbit.deleteStream(testStreamName)
     } catch (e) {}
+  })
+
+  describe("reading", () => {
+    it("if offset is first, all messages should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(producer)
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.first() },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(messages.length)
+      })
+    })
+
+    it("if offset is next, only the messages sent after the subscription should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      await sendANumberOfRandomMessages(producer)
+      const nextMessage = "next message"
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.next() },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+      await producer.send(Buffer.from(nextMessage))
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(1)
+        const [receivedMessage] = receivedMessages
+        expect(receivedMessage.content.toString()).to.eql(nextMessage)
+      })
+    })
+
+    it("if offset is last, only the messages sent in the last batch and all subsequent ones should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const previousMessages = await sendANumberOfRandomMessages(producer)
+      await wait(200)
+      const lastBatchMessages = await sendANumberOfRandomMessages(producer, previousMessages.length)
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.last() },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(lastBatchMessages.length)
+      })
+    })
+
+    it("if offset is of type numeric and value 0, all messages should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(producer)
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(0n) },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(messages.length)
+      })
+    })
+
+    it("if offset is of type numeric, only the messages with offset higher or equal to the requested offset should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(producer)
+      const offset = Math.floor(Math.random() * messages.length)
+
+      await client.declareConsumer(
+        {
+          stream: testStreamName,
+          consumerRef: "my consumer",
+          offset: Offset.offset(BigInt(offset)),
+        },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(messages.length - offset)
+      })
+    })
+
+    it("if offset is of type numeric and value greater than the number of messages, no messages should be read", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(producer)
+      const offset = messages.length + 1
+      await Promise.all(messages.map((m) => producer.send(Buffer.from(m))))
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(BigInt(offset)) },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(0)
+      })
+    })
+
+    it("if offset is of type timestamp, all the messages belonging to batches sent earlier than the timestamp should be skipped", async () => {
+      const receivedMessages: Message[] = []
+      const producer = await client.declarePublisher({ stream: testStreamName })
+      const previousMessages = await sendANumberOfRandomMessages(producer)
+      await wait(10)
+      const offset = new Date()
+      const laterMessages = await sendANumberOfRandomMessages(producer, previousMessages.length)
+
+      await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.timestamp(offset) },
+        async (message: Message) => {
+          receivedMessages.push(message)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessages).to.have.length(laterMessages.length)
+      })
+    })
   })
 
   describe("store", () => {

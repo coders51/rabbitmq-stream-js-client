@@ -7,7 +7,7 @@ import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
 import { Logger, NullLogger } from "./logger"
-import { Producer, StreamProducer } from "./producer"
+import { Message, Producer, StreamProducer } from "./producer"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
@@ -241,7 +241,7 @@ export class Client {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const client = await this.initNewClient(params.stream, false)
-    const consumer = new StreamConsumer(handle, {
+    const consumer = new StreamConsumer(addOffsetFilterToHandle(handle, params.offset), {
       client,
       stream: params.stream,
       consumerId,
@@ -652,4 +652,17 @@ const sample = <T>(candidates: (T | undefined)[]): T | undefined => {
   }
   const index = Math.floor(Math.random() * actualCandidates.length)
   return actualCandidates[index]!
+}
+
+const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): ConsumerFunc => {
+  if (offset.type === "numeric") {
+    const handlerWithFilter = (message: Message) => {
+      if (message.offset !== undefined && message.offset < offset.value!) {
+        return
+      }
+      handle(message)
+    }
+    return handlerWithFilter
+  }
+  return handle
 }

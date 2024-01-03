@@ -17,7 +17,7 @@ export class Offset {
 
   write(writer: DataWriter) {
     writer.writeUInt16(OFFSET_TYPE[this.type])
-    if (this.type === "numeric" && this.value) writer.writeUInt64(this.value)
+    if (this.type === "numeric" && this.value !== null && this.value !== undefined) writer.writeUInt64(this.value)
     if (this.type === "timestamp" && this.value) writer.writeInt64(this.value)
   }
 
