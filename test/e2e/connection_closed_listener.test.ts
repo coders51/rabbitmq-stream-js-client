@@ -33,7 +33,7 @@ describe("connection closed callback", () => {
     } catch (e) {}
   })
 
-  it.only("is invoked after close operation", async () => {
+  it("is invoked after close operation", async () => {
     const listener = (_hasError: boolean) => {}
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
@@ -44,7 +44,7 @@ describe("connection closed callback", () => {
     }, 1000)
   }).timeout(5000)
 
-  it.only("is invoked only on locator socket event", async () => {
+  it("is invoked only on locator socket event", async () => {
     const listener = (_hasError: boolean) => {}
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
@@ -57,7 +57,7 @@ describe("connection closed callback", () => {
     }, 1000)
   }).timeout(5000)
 
-  it.only("if specified, is called also on producer and consumer socket events", async () => {
+  it("if specified, is called also on producer and consumer socket events", async () => {
     const listener = (_hasError: boolean) => {}
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
