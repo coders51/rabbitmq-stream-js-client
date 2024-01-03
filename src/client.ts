@@ -676,3 +676,16 @@ const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): Consumer
   }
   return handle
 }
+
+const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): ConsumerFunc => {
+  if (offset.type === "numeric") {
+    const handlerWithFilter = (message: Message) => {
+      if (message.offset !== undefined && message.offset < offset.value!) {
+        return
+      }
+      handle(message)
+    }
+    return handlerWithFilter
+  }
+  return handle
+}
