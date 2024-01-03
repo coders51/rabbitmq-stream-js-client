@@ -96,7 +96,7 @@ describe("offset", () => {
       await eventually(async () => {
         expect(receivedMessages).to.have.length(messages.length)
       })
-    }).timeout(5000000)
+    })
 
     it("if offset is of type numeric, only the messages with offset higher or equal to the requested offset should be read", async () => {
       const receivedMessages: Message[] = []
