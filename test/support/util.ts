@@ -6,7 +6,7 @@ import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
 import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
-import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
+import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Producer } from "../../src/producer"
 import { decodeFormatCode } from "../../src/response_decoder"
 import { DataReader } from "../../src/responses/raw_response"
 import { getTestNodesFromEnv } from "../../src/util"
@@ -195,6 +195,13 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
   }
 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
+}
+
+export const sendANumberOfRandomMessages = async (producer: Producer, offset = 0): Promise<string[]> => {
+  const noOfMessages = Math.floor(Math.random() * 10) + 1
+  const messages = Array.from(Array(noOfMessages).keys()).map((_, i) => `Message number ${i + offset + 1}`)
+  await Promise.all(messages.map((m) => producer.send(Buffer.from(m))))
+  return messages
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"
