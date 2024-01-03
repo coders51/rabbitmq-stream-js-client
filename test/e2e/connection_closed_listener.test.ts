@@ -34,7 +34,9 @@ describe("connection closed callback", () => {
   })
 
   it("is invoked after close operation", async () => {
-    const listener = (_hasError: boolean) => {}
+    const listener = (_hasError: boolean) => {
+      return
+    }
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
     await client.close()
@@ -45,11 +47,15 @@ describe("connection closed callback", () => {
   }).timeout(5000)
 
   it("is invoked only on locator socket event", async () => {
-    const listener = (_hasError: boolean) => {}
+    const listener = (_hasError: boolean) => {
+      return
+    }
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
     await client.declarePublisher({ stream: streamName, publisherRef })
-    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {})
+    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {
+      return
+    })
     await client.close()
 
     await always(() => {
@@ -58,13 +64,17 @@ describe("connection closed callback", () => {
   }).timeout(5000)
 
   it("if specified, is called also on producer and consumer socket events", async () => {
-    const listener = (_hasError: boolean) => {}
+    const listener = (_hasError: boolean) => {
+      return
+    }
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
     await client.declarePublisher({ stream: streamName, publisherRef, connectionClosedListener: listenerSpy })
     await client.declareConsumer(
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: listenerSpy },
-      (_msg) => {}
+      (_msg) => {
+        return
+      }
     )
     await client.close()
 
