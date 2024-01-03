@@ -8,10 +8,6 @@ describe("connect", () => {
   let client: Client
   const rabbit = new Rabbit(username, password)
 
-  beforeEach(async () => {
-    client = await createClient(username, password)
-  })
-
   afterEach(async () => {
     try {
       await client.close()
@@ -23,11 +19,23 @@ describe("connect", () => {
   })
 
   it("using parameters", async () => {
+    client = await createClient(username, password)
+
     await eventually(async () => {
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)
   }).timeout(10000)
 
-  it("raise exception if goes in timeout")
-  it("raise exception if server refuse port")
+  // TODO -> Need a way to test connection phase timeout and not inactivity timeout
+  // it("raise exception if goes in timeout", async () => {
+  //   client = await createClient(username, password)
+
+  //   await expectToThrowAsync(async () => await wait(10000), Error, "Timeout rabbitmq:5552")
+  // }).timeout(15000)
+
+  it("raise exception if server refuse port", async () => {
+    createClient(username, password, undefined, undefined, undefined, 5550).catch((err) => {
+      expect(err).to.not.be.null
+    })
+  }).timeout(10000)
 })

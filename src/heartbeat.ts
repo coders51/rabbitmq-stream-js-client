@@ -14,12 +14,15 @@ export class Heartbeat {
   private lastMessageSent = new Date()
   private idleCounter: number = 0
   private timeout: NodeJS.Timeout | null = null
+  private heartBeatStarted = false
 
   constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
 
   start(secondsInterval: number) {
+    if (this.heartBeatStarted) throw new Error("HeartBeat already started")
     if (secondsInterval <= 0) return
     this.interval = secondsInterval * 1000
+    this.heartBeatStarted = true
     this.timeout = setTimeout(() => this.heartbeat(), this.interval)
   }
 
