@@ -4,7 +4,10 @@ import { DataWriter } from "./data_writer"
 
 export class TuneRequest extends AbstractRequest {
   readonly responseKey = TuneResponse.key
-  readonly key = 0x0014
+  static readonly Key = 0x0014
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
+  readonly key = TuneRequest.Key
 
   constructor(private params: { frameMax: number; heartbeat: number }) {
     super()

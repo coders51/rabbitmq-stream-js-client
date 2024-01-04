@@ -4,7 +4,10 @@ import { DataWriter } from "./data_writer"
 
 export class SaslAuthenticateRequest extends AbstractRequest {
   readonly responseKey = SaslAuthenticateResponse.key
-  readonly key = 0x0013
+  static readonly Key = 0x0013
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
+  readonly key = SaslAuthenticateRequest.Key
 
   constructor(private params: { mechanism: string; username: string; password: string }) {
     super()

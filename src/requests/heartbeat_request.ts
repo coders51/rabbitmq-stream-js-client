@@ -4,7 +4,10 @@ import { DataWriter } from "./data_writer"
 
 export class HeartbeatRequest extends AbstractRequest {
   readonly responseKey = HeartbeatResponse.key
-  readonly key = 0x0017
+  static readonly Key = 0x0017
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
+  readonly key = HeartbeatRequest.Key
 
   writeContent(_b: DataWriter) {
     return

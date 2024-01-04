@@ -4,7 +4,10 @@ import { DataWriter } from "./data_writer"
 
 export class DeletePublisherRequest extends AbstractRequest {
   readonly responseKey = DeletePublisherResponse.key
-  readonly key = 0x0006
+  static readonly Key = 0x0006
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
+  readonly key = DeletePublisherRequest.Key
 
   constructor(private publisherId: number) {
     super()

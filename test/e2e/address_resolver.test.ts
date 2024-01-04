@@ -7,7 +7,7 @@ import { createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { getTestNodesFromEnv, password, username, wait } from "../support/util"
 
-describe("address resolver", () => {
+describe.only("address resolver", () => {
   let streamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client

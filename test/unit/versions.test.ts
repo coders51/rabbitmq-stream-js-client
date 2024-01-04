@@ -1,0 +1,54 @@
+import { expect } from "chai"
+import { checkServerDeclaredVersions, clientSupportedVersions } from "../../src/versions"
+import { NullLogger } from "../../src/logger"
+
+describe("Versions", () => {
+  const logger = new NullLogger()
+  it("client-side version declaration", () => {
+    expect(clientSupportedVersions).eql([
+      { key: 22, maxVersion: 1, minVersion: 1 },
+      { key: 13, maxVersion: 1, minVersion: 1 },
+      { key: 9, maxVersion: 1, minVersion: 1 },
+      { key: 1, maxVersion: 1, minVersion: 1 },
+      { key: 6, maxVersion: 1, minVersion: 1 },
+      { key: 14, maxVersion: 1, minVersion: 1 },
+      { key: 27, maxVersion: 1, minVersion: 1 },
+      { key: 23, maxVersion: 1, minVersion: 1 },
+      { key: 15, maxVersion: 1, minVersion: 1 },
+      { key: 16, maxVersion: 1, minVersion: 1 },
+      { key: 21, maxVersion: 1, minVersion: 1 },
+      { key: 17, maxVersion: 1, minVersion: 1 },
+      { key: 2, maxVersion: 1, minVersion: 1 },
+      { key: 11, maxVersion: 1, minVersion: 1 },
+      { key: 5, maxVersion: 1, minVersion: 1 },
+      { key: 19, maxVersion: 1, minVersion: 1 },
+      { key: 18, maxVersion: 1, minVersion: 1 },
+      { key: 10, maxVersion: 1, minVersion: 1 },
+      { key: 28, maxVersion: 1, minVersion: 1 },
+      { key: 2, maxVersion: 1, minVersion: 1 },
+      { key: 7, maxVersion: 1, minVersion: 1 },
+      { key: 20, maxVersion: 1, minVersion: 1 },
+      { key: 12, maxVersion: 1, minVersion: 1 },
+    ])
+  })
+
+  it("compare versions, server-side all defaults, ok", () => {
+    expect(checkServerDeclaredVersions([], logger)).to.eql(true)
+  })
+
+  it("compare versions, server-side specifies greater max version, ok", () => {
+    expect(checkServerDeclaredVersions([{ key: 20, maxVersion: 99, minVersion: 1 }], logger)).to.eql(true)
+  })
+
+  it("compare versions, server-side specifies message, fallback on client side, ok", () => {
+    expect(checkServerDeclaredVersions([{ key: -99, maxVersion: 1, minVersion: 1 }], logger)).to.eql(true)
+  })
+
+  it("compare versions, server-side specifies greater min version, ko", () => {
+    expect(checkServerDeclaredVersions([{ key: 20, maxVersion: 10, minVersion: 2 }], logger)).to.eql(false)
+  })
+
+  it("compare versions, server-side specifies smaller max version, ko", () => {
+    expect(checkServerDeclaredVersions([{ key: 20, maxVersion: -1, minVersion: -2 }], logger)).to.eql(false)
+  })
+})

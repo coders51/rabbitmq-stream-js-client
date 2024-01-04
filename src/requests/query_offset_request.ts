@@ -4,7 +4,10 @@ import { DataWriter } from "./data_writer"
 
 export class QueryOffsetRequest extends AbstractRequest {
   readonly responseKey = QueryOffsetResponse.key
-  readonly key = 0x000b
+  static readonly Key = 0x000b
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
+  readonly key = QueryOffsetRequest.Key
   private readonly reference: string
   private readonly stream: string
 

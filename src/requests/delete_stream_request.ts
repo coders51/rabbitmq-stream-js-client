@@ -3,7 +3,10 @@ import { DeleteStreamResponse } from "../responses/delete_stream_response"
 import { DataWriter } from "./data_writer"
 
 export class DeleteStreamRequest extends AbstractRequest {
-  readonly key = 0x000e
+  static readonly Key = 0x000e
+  readonly key = DeleteStreamRequest.Key
+  static readonly MinVersion = 1
+  static readonly MaxVersion = 1
   readonly responseKey = DeleteStreamResponse.key
   private readonly stream: string
 
