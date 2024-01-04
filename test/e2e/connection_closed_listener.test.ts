@@ -39,6 +39,7 @@ describe("connection closed callback", () => {
     }
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
+
     await client.close()
 
     await eventually(() => {
@@ -56,6 +57,7 @@ describe("connection closed callback", () => {
     await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {
       return
     })
+
     await client.close()
 
     await always(() => {
@@ -76,6 +78,7 @@ describe("connection closed callback", () => {
         return
       }
     )
+
     await client.close()
 
     await eventually(() => {
