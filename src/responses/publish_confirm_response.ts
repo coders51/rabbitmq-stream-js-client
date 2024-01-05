@@ -4,6 +4,8 @@ import { Response } from "./response"
 
 export class PublishConfirmResponse implements Response {
   static key = 0x0003
+  static MinVersion = 1
+  static MaxVersion = 1
   public publishingIds: bigint[]
   private publisherId: number
   constructor(private response: RawPublishConfirmResponse) {

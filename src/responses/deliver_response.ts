@@ -5,6 +5,8 @@ import { Response } from "./response"
 
 export class DeliverResponse implements Response {
   static key = 0x0008
+  static MinVersion = 1
+  static MaxVersion = 1
 
   constructor(private response: RawDeliverResponse) {
     if (this.response.key !== DeliverResponse.key) {

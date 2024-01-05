@@ -1,63 +1,57 @@
 import { Logger } from "./logger"
-import { CloseRequest } from "./requests/close_request"
-import { CreateStreamRequest } from "./requests/create_stream_request"
-import { CreditRequest } from "./requests/credit_request"
-import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
-import { DeletePublisherRequest } from "./requests/delete_publisher_request"
-import { DeleteStreamRequest } from "./requests/delete_stream_request"
-import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
-import { HeartbeatRequest } from "./requests/heartbeat_request"
-import { MetadataRequest } from "./requests/metadata_request"
-import { MetadataUpdateRequest } from "./requests/metadata_update_request"
-import { OpenRequest } from "./requests/open_request"
-import { PeerPropertiesRequest } from "./requests/peer_properties_request"
-import { PublishRequest } from "./requests/publish_request"
-import { QueryOffsetRequest } from "./requests/query_offset_request"
-import { QueryPublisherRequest } from "./requests/query_publisher_request"
-import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
-import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
-import { StreamStatsRequest } from "./requests/stream_stats_request"
-import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
-import { SubscribeRequest } from "./requests/subscribe_request"
-import { TuneRequest } from "./requests/tune_request"
-import { UnsubscribeRequest } from "./requests/unsubscribe_request"
+import * as requests from "./requests/requests"
+import * as responses from "./responses/responses"
 
 export type Version = { key: number; minVersion: number; maxVersion: number }
 type Key = number
 type MappedVersions = Map<Key, Version>
 
 const supportedRequests = [
-  CloseRequest,
-  CreateStreamRequest,
-  CreditRequest,
-  DeclarePublisherRequest,
-  DeletePublisherRequest,
-  DeleteStreamRequest,
-  ExchangeCommandVersionsRequest,
-  HeartbeatRequest,
-  MetadataRequest,
-  MetadataUpdateRequest,
-  OpenRequest,
-  PeerPropertiesRequest,
-  PublishRequest,
-  QueryOffsetRequest,
-  QueryPublisherRequest,
-  SaslAuthenticateRequest,
-  SaslHandshakeRequest,
-  StoreOffsetRequest,
-  StreamStatsRequest,
-  SubEntryBatchPublishRequest,
-  SubscribeRequest,
-  TuneRequest,
-  UnsubscribeRequest,
+  requests.CloseRequest,
+  requests.CreateStreamRequest,
+  requests.CreditRequest,
+  requests.DeclarePublisherRequest,
+  requests.DeletePublisherRequest,
+  requests.DeleteStreamRequest,
+  requests.ExchangeCommandVersionsRequest,
+  requests.HeartbeatRequest,
+  requests.MetadataRequest,
+  requests.MetadataUpdateRequest,
+  requests.OpenRequest,
+  requests.PeerPropertiesRequest,
+  requests.PublishRequest,
+  requests.QueryOffsetRequest,
+  requests.QueryPublisherRequest,
+  requests.SaslAuthenticateRequest,
+  requests.SaslHandshakeRequest,
+  requests.StoreOffsetRequest,
+  requests.StreamStatsRequest,
+  requests.SubscribeRequest,
+  requests.TuneRequest,
+  requests.UnsubscribeRequest,
 ]
 
-export const clientSupportedVersions: Version[] = supportedRequests.map((requestClass) => ({
-  key: requestClass.Key,
-  minVersion: requestClass.MinVersion,
-  maxVersion: requestClass.MaxVersion,
-}))
+const supportedResponses = [responses.DeliverResponse, responses.PublishConfirmResponse, responses.PublishErrorResponse]
+
+function getClientSupportedVersions() {
+  const result: Version[] = supportedRequests.map((requestClass) => ({
+    key: requestClass.Key,
+    minVersion: requestClass.MinVersion,
+    maxVersion: requestClass.MaxVersion,
+  }))
+
+  result.push(
+    ...supportedResponses.map((responseClass) => ({
+      key: responseClass.key,
+      minVersion: responseClass.MinVersion,
+      maxVersion: responseClass.MaxVersion,
+    }))
+  )
+
+  return result
+}
+
+export const clientSupportedVersions: Version[] = getClientSupportedVersions()
 
 function indexVersions(versions: Version[]) {
   const result = new Map<number, Version>()

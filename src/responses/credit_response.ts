@@ -4,6 +4,8 @@ import { Response } from "./response"
 
 export class CreditResponse implements Response {
   static key = 0x8009 as const
+  static MinVersion = 1
+  static MaxVersion = 1
 
   constructor(private response: RawCreditResponse) {
     if (this.response.key !== CreditResponse.key) {

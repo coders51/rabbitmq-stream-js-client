@@ -9,6 +9,8 @@ export interface Statistics {
 
 export class StreamStatsResponse extends AbstractResponse {
   static key = 0x801c
+  static MinVersion = 1
+  static MaxVersion = 1
   private rawStats: Record<string, bigint> = {}
   readonly statistics: Statistics = {
     committedChunkId: BigInt(0),

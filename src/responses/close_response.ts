@@ -3,6 +3,8 @@ import { RawResponse } from "./raw_response"
 
 export class CloseResponse extends AbstractResponse {
   static key = 0x8016
+  static MinVersion = 1
+  static MaxVersion = 1
 
   constructor(response: RawResponse) {
     super(response)
