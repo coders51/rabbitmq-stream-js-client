@@ -425,7 +425,7 @@ export class Client {
     const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
       new ExchangeCommandVersionsRequest(versions)
     )
-    response.serverDeclaredVersions.forEach((version) => this.serverDeclaredVersions.push(version))
+    this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
     checkServerDeclaredVersions(this.serverVersions, this.logger)
     return response
   }
