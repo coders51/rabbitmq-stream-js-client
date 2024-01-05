@@ -32,7 +32,7 @@ export const sample = <T>(items: (T | undefined)[]): T | undefined => {
 }
 
 export const getAddressResolverFromEnv = (): { host: string; port: number } => {
-  const envValue = process.env.RABBIT_MQ_TEST_ADDRESS_BALANCER ?? "localhost:5553"
+  const envValue = process.env.RABBIT_MQ_TEST_ADDRESS_BALANCER ?? "localhost:5552"
   const [host, port] = envValue.split(":")
   return { host: host ?? "localhost", port: parseInt(port) ?? 5553 }
 }
