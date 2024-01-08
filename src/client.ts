@@ -742,5 +742,5 @@ const chooseNode = (metadata: { leader?: Broker; replicas?: Broker[] }, leader: 
 }
 
 const computeMaxAttempts = (metadata: { leader?: Broker; replicas?: Broker[] }): number => {
-  return (2 + (metadata.leader ? 1 : 0) + (metadata.replicas?.length ?? 0)) ^ 2
+  return Math.pow(2 + (metadata.leader ? 1 : 0) + (metadata.replicas?.length ?? 0), 2)
 }
