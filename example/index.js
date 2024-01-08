@@ -9,7 +9,7 @@ async function main() {
   const streamName = `example-${randomUUID()}`
   console.log(`Create stream ${streamName}`)
 
-  const connection = await rabbit.connect({
+  const client = await rabbit.connect({
     hostname: "localhost",
     port: 5552,
     username: rabbitUser,
@@ -17,16 +17,16 @@ async function main() {
     vhost: "/",
     heartbeat: 0,
   })
-  await connection.createStream({ stream: streamName, arguments: {} })
-  const producer = await connection.declarePublisher({ stream: streamName })
+  await client.createStream({ stream: streamName, arguments: {} })
+  const producer = await client.declarePublisher({ stream: streamName })
 
   await producer.send(Buffer.from("ciao"))
 
   await createClassicConsumer(streamName)
 
-  await connection.deleteStream({ stream: streamName })
+  await client.deleteStream({ stream: streamName })
 
-  await connection.close()
+  await client.close()
 }
 
 /**

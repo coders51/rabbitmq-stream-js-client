@@ -42,7 +42,7 @@ async function main() {
   const bufferSizeSettings: BufferSizeSettings = { initialSize: 16384 }
   const frameMax = 65536
 
-  const connection = await connect(
+  const client = await connect(
     {
       hostname: "localhost",
       port: 5552,
@@ -56,7 +56,7 @@ async function main() {
   )
 
   const streamName = `my-stream-${randomUUID()}`
-  await connection.createStream({ stream: streamName, arguments: {} })
+  await client.createStream({ stream: streamName, arguments: {} })
   const publisherRef = `my-publisher-${randomUUID()}`
   const passedArgs = parseArgs(argv.slice(2))
   logger.info(
@@ -66,7 +66,7 @@ async function main() {
   )
 
   const perfTestProducer = new PerfTestProducer(
-    connection,
+    client,
     logger,
     passedArgs.maxMessages,
     { stream: streamName, publisherRef: publisherRef },

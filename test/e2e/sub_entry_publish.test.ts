@@ -1,27 +1,27 @@
 import { expect } from "chai"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 import { Producer } from "../../src/producer"
-import { createConnection, createPublisher, createStreamName } from "../support/fake_data"
+import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
 import { CompressionType } from "../../src/compression"
 
 describe("publish a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
-  let connection: Connection
+  let client: Client
   let streamName: string
   let publisher: Producer
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
-    publisher = await createPublisher(streamName, connection)
+    publisher = await createPublisher(streamName, client)
   })
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })

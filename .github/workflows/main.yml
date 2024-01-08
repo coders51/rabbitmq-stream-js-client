@@ -21,8 +21,8 @@ jobs:
     services:
       rabbitmq:
         image: rabbitmq:3-management
+        options: --hostname test-node
         env:
-          RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbitmq_stream advertised_host localhost
           RABBITMQ_DEFAULT_USER: "test-user"
           RABBITMQ_DEFAULT_PASS: "test-password"
         ports:
@@ -33,6 +33,8 @@ jobs:
           - 61613:61613
 
     steps:
+      - name: Add the rabbitmq service to /etc/hosts
+        run: sudo echo "127.0.0.1 test-node" | sudo tee -a /etc/hosts
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
@@ -50,6 +52,7 @@ jobs:
         env:
           RABBITMQ_USER: "test-user"
           RABBITMQ_PASSWORD: "test-password"
+          RABBIT_MQ_TEST_NODES: "test-node:5552"
       - run: cd example && npm install && npm start
         env:
           RABBITMQ_USER: "test-user"

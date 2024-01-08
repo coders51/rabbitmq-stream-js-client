@@ -23,7 +23,7 @@ A rapid getting started
 const rabbit = require("rabbitmq-stream-js-client")
 
 async function main() {
-  const connection = await rabbit.connect({
+  const client = await rabbit.connect({
     hostname: "localhost",
     port: 5552,
     username: "rabbit",
@@ -31,7 +31,7 @@ async function main() {
     vhost: "/",
   })
 
-  await connection.close()
+  await client.close()
 }
 
 main()
@@ -46,7 +46,7 @@ main()
 ### Connect
 
 ```typescript
-const connection = await connect({
+const client = await connect({
   hostname: "localhost",
   port: 5552,
   username: "rabbit",
@@ -56,7 +56,7 @@ const connection = await connect({
 
 // ...
 
-await connection.close()
+await client.close()
 ```
 
 ## Build from source

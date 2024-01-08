@@ -1,8 +1,8 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { Connection } from "../../src"
+import { Client } from "../../src"
 import { Producer } from "../../src/producer"
-import { createConnection, createProperties, createPublisher, createStreamName } from "../support/fake_data"
+import { createClient, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password, getMessageFrom } from "../support/util"
 import { BufferSizeSettings } from "../../src/requests/request"
@@ -10,22 +10,22 @@ import { FrameSizeException } from "../../src/requests/frame_size_exception"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit(username, password)
-  let connection: Connection
+  let client: Client
   let streamName: string
   let publisher: Producer
   let bufferSizeSettings: BufferSizeSettings | undefined = undefined
   let maxFrameSize: number | undefined = undefined
 
   beforeEach(async () => {
-    connection = await createConnection(username, password, undefined, maxFrameSize, bufferSizeSettings)
+    client = await createClient(username, password, undefined, maxFrameSize, bufferSizeSettings)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
-    publisher = await createPublisher(streamName, connection)
+    publisher = await createPublisher(streamName, client)
   })
 
   afterEach(async () => {
     try {
-      await connection.close()
+      await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
@@ -131,7 +131,7 @@ describe("publish a message", () => {
     }).timeout(30000)
 
     it("is not active if create a publisher with empty publisherRef", async () => {
-      const publisherEmptyRef = await connection.declarePublisher({ stream: streamName, publisherRef: "" })
+      const publisherEmptyRef = await client.declarePublisher({ stream: streamName, publisherRef: "" })
 
       const howMany = 100
       for (let index = 0; index < howMany; index++) {
@@ -145,7 +145,7 @@ describe("publish a message", () => {
     }).timeout(30000)
 
     it("is not active if create a publisher without publishRef", async () => {
-      const publisherNoRef = await connection.declarePublisher({ stream: streamName })
+      const publisherNoRef = await client.declarePublisher({ stream: streamName })
 
       const howMany = 100
       for (let index = 0; index < howMany; index++) {

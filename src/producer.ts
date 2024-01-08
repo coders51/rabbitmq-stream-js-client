@@ -1,7 +1,7 @@
 import { inspect } from "util"
 import { messageSize } from "./amqp10/encoder"
+import { Client } from "./client"
 import { CompressionType } from "./compression"
-import { Connection } from "./connection"
 import { Logger } from "./logger"
 import { FrameSizeException } from "./requests/frame_size_exception"
 import { PublishRequest, PublishRequestMessage } from "./requests/publish_request"
@@ -9,6 +9,7 @@ import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
+import { MetadataUpdateListener } from "./response_decoder"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -59,15 +60,18 @@ export interface Producer {
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<boolean>
   flush(): Promise<boolean>
   sendSubEntries(messages: Message[], compressionType?: CompressionType): Promise<void>
-  on(eventName: "publish_confirm", cb: PublishConfirmCallback): void
+  on(event: "metadata_update", listener: MetadataUpdateListener): void
+  on(event: "publish_confirm", listener: PublishConfirmCallback): void
   getLastPublishingId(): Promise<bigint>
+  getConnectionInfo(): { host: string; port: number; id: string }
+  close(): Promise<void>
   ref: string
   readonly publisherId: number
 }
 
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class StreamProducer implements Producer {
-  private connection: Connection
+  private client: Client
   private stream: string
   readonly publisherId: number
   protected publisherRef: string
@@ -80,7 +84,7 @@ export class StreamProducer implements Producer {
   private maxChunkLength: number
 
   constructor(params: {
-    connection: Connection
+    client: Client
     stream: string
     publisherId: number
     publisherRef?: string
@@ -89,7 +93,7 @@ export class StreamProducer implements Producer {
     maxChunkLength?: number
     logger: Logger
   }) {
-    this.connection = params.connection
+    this.client = params.client
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef || ""
@@ -122,30 +126,54 @@ export class StreamProducer implements Producer {
   }
 
   async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
-    return this.connection.send(
+    return this.client.send(
       new SubEntryBatchPublishRequest({
         publisherId: this.publisherId,
         publishingId: this.publishingId,
-        compression: this.connection.getCompression(compressionType),
+        compression: this.client.getCompression(compressionType),
         maxFrameSize: this.maxFrameSize,
         messages: messages,
       })
     )
   }
 
-  public on(_eventName: "publish_confirm", cb: PublishConfirmCallback) {
-    this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
-    this.connection.on("publish_error", (error: PublishErrorResponse) =>
-      cb(error.publishingError.code, [error.publishingError.publishingId])
-    )
+  public getConnectionInfo(): { host: string; port: number; id: string } {
+    return this.client.getConnectionInfo()
+  }
+
+  public on(event: "metadata_update", listener: MetadataUpdateListener): void
+  public on(event: "publish_confirm", listener: PublishConfirmCallback): void
+  public on(
+    event: "metadata_update" | "publish_confirm",
+    listener: MetadataUpdateListener | PublishConfirmCallback
+  ): void {
+    switch (event) {
+      case "metadata_update":
+        this.client.on("metadata_update", listener as MetadataUpdateListener)
+        break
+      case "publish_confirm":
+        const cb = listener as PublishConfirmCallback
+        this.client.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+        this.client.on("publish_error", (error: PublishErrorResponse) =>
+          cb(error.publishingError.code, [error.publishingError.publishingId])
+        )
+        break
+      default:
+        break
+    }
   }
 
   getLastPublishingId(): Promise<bigint> {
-    return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
+    return this.client.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 
   get ref() {
     return this.publisherRef
+  }
+
+  public async close(): Promise<void> {
+    await this.flush()
+    await this.client.close()
   }
 
   private async enqueue(publishRequestMessage: PublishRequestMessage) {
@@ -173,7 +201,7 @@ export class StreamProducer implements Producer {
   private async sendChunk() {
     const chunk = this.popChunk()
     if (chunk.length > 0) {
-      await this.connection.send(
+      await this.client.send(
         new PublishRequest({
           publisherId: this.publisherId,
           messages: chunk,

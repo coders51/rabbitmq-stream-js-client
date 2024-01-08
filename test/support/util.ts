@@ -1,4 +1,4 @@
-import * as ampq from "amqplib"
+import * as amqp from "amqplib"
 import { AssertionError, expect } from "chai"
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
@@ -6,7 +6,7 @@ import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
 import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
-import { Message, MessageApplicationProperties, MessageHeader, MessageProperties } from "../../src/producer"
+import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Producer } from "../../src/producer"
 import { decodeFormatCode } from "../../src/response_decoder"
 import { DataReader } from "../../src/responses/raw_response"
 
@@ -24,6 +24,12 @@ export function createConsoleLog({ silent, level } = { silent: false, level: "de
     ),
     transports: new transports.Console(),
   })
+}
+
+const getAmqpConnectionString = (user: string, pwd: string): string => {
+  const [firstNode] = getTestNodesFromEnv()
+  const port = process.env.RABBIT_MQ_AMQP_PORT ?? 5672
+  return `amqp://${user}:${pwd}@${firstNode.host}:${port}/%2F`
 }
 
 export function elapsedFrom(from: number): number {
@@ -74,9 +80,15 @@ export async function getMessageFrom(
   stream: string,
   user: string,
   pwd: string
-): Promise<{ content: string; properties: ampq.MessageProperties }> {
+): Promise<{ content: string; properties: amqp.MessageProperties }> {
   return new Promise(async (res, rej) => {
-    const con = await ampq.connect(`amqp://${user}:${pwd}@localhost`)
+    const con = await amqp.connect(getAmqpConnectionString(user, pwd)).catch((e) => {
+      console.error("Could not connect to Rabbit due to:", e)
+      rej(e)
+    })
+    if (!con) {
+      throw new Error(`Connection with AMPQ could not be established`)
+    }
     con.on("error", async (err) => rej(err))
     const ch = await con.createChannel()
     await ch.prefetch(1)
@@ -97,9 +109,9 @@ export async function getMessageFrom(
 
 export async function createClassicConsumer(
   stream: string,
-  cb: (msg: ampq.Message) => void
-): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
-  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
+  cb: (msg: amqp.Message) => void
+): Promise<{ conn: amqp.Connection; ch: amqp.Channel }> {
+  const conn = await amqp.connect(getAmqpConnectionString(username, password))
   const ch = await conn.createChannel()
   await ch.prefetch(1)
   await ch.consume(
@@ -115,8 +127,8 @@ export async function createClassicConsumer(
   return { conn, ch }
 }
 
-export async function createClassicPublisher(): Promise<{ conn: ampq.Connection; ch: ampq.Channel }> {
-  const conn = await ampq.connect(`amqp://${username}:${password}@localhost`)
+export async function createClassicPublisher(): Promise<{ conn: amqp.Connection; ch: amqp.Channel }> {
+  const conn = await amqp.connect(getAmqpConnectionString(username, password))
   const ch = await conn.createChannel()
   return { conn, ch }
 }
@@ -182,6 +194,22 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
   }
 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
+}
+
+export const sendANumberOfRandomMessages = async (producer: Producer, offset = 0): Promise<string[]> => {
+  const noOfMessages = Math.floor(Math.random() * 10) + 1
+  const messages = Array.from(Array(noOfMessages).keys()).map((_, i) => `Message number ${i + offset + 1}`)
+  await Promise.all(messages.map((m) => producer.send(Buffer.from(m))))
+  return messages
+}
+
+export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
+  const envValue = process.env.RABBIT_MQ_TEST_NODES ?? "localhost:5552"
+  const nodes = envValue.split(";")
+  return nodes.map((n) => {
+    const [host, port] = n.split(":")
+    return { host: host ?? "localhost", port: parseInt(port) ?? 5552 }
+  })
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"
