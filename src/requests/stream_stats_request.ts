@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class StreamStatsRequest extends AbstractRequest {
   readonly responseKey = StreamStatsResponse.key
-  readonly key = 0x001c
+  static readonly Key = 0x001c
+  static readonly Version = 1
+  readonly key = StreamStatsRequest.Key
 
   constructor(private streamName: string) {
     super()

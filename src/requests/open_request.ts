@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class OpenRequest extends AbstractRequest {
   readonly responseKey = OpenResponse.key
-  readonly key = 0x0015
+  static readonly Key = 0x0015
+  static readonly Version = 1
+  readonly key = OpenRequest.Key
 
   constructor(private params: { virtualHost: string }) {
     super()

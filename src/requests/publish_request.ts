@@ -14,7 +14,9 @@ interface PublishRequestParams {
 }
 
 export class PublishRequest extends AbstractRequest {
-  readonly key = 0x02
+  static readonly Key = 0x02
+  static readonly Version = 1
+  readonly key = PublishRequest.Key
   readonly responseKey = -1
 
   constructor(private params: PublishRequestParams) {

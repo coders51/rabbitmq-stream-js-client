@@ -3,6 +3,8 @@ import { RawResponse } from "./raw_response"
 
 export class PeerPropertiesResponse extends AbstractResponse {
   static key = 0x8011
+  static readonly Version = 1
+
   readonly properties: Record<string, string> = {}
 
   constructor(response: RawResponse) {

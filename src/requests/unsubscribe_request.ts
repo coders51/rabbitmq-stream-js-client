@@ -3,7 +3,9 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class UnsubscribeRequest extends AbstractRequest {
-  readonly key = 0x000c
+  static readonly Key = 0x000c
+  static readonly Version = 1
+  readonly key = UnsubscribeRequest.Key
   readonly responseKey = UnsubscribeResponse.key
 
   constructor(private subscriptionId: number) {

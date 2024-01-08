@@ -38,21 +38,24 @@ import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeliverResponse } from "./responses/deliver_response"
 import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { Response } from "./responses/response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
-import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom, sample } from "./util"
 import { WaitingResponse } from "./waiting_response"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
+import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
+import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
+import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -73,6 +76,7 @@ export class Client {
   private connectionId: string
   private connectionClosedListener: ConnectionClosedListener | undefined
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
+  private readonly serverDeclaredVersions: Version[] = []
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -132,6 +136,7 @@ export class Client {
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
         await this.open({ virtualHost: this.params.vhost })
         this.heartbeat.start(heartbeat)
+        await this.exchangeCommandVersions()
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${this.params.hostname}:${this.params.port}`))
@@ -415,6 +420,16 @@ export class Client {
     })
   }
 
+  private async exchangeCommandVersions() {
+    const versions = clientSupportedVersions
+    const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
+      new ExchangeCommandVersionsRequest(versions)
+    )
+    this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
+    checkServerDeclaredVersions(this.serverVersions, this.logger)
+    return response
+  }
+
   public async subscribe(params: SubscribeParams): Promise<SubscribeResponse> {
     const res = await this.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
     if (!res.ok) {
@@ -425,6 +440,10 @@ export class Client {
 
   public get maxFrameSize() {
     return this.frameMax
+  }
+
+  public get serverVersions() {
+    return [...this.serverDeclaredVersions]
   }
 
   private askForCredit(params: CreditRequestParams): Promise<void> {

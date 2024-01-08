@@ -4,6 +4,8 @@ import { Response } from "./response"
 
 export class TuneResponse implements Response {
   static key = 0x0014 // I know it isn't 8014
+  static readonly Version = 1
+
   constructor(private response: RawTuneResponse) {
     if (this.response.key !== TuneResponse.key) {
       throw new Error(`Unable to create ${TuneResponse.name} from data of type ${this.response.key}`)

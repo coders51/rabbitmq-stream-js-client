@@ -16,6 +16,8 @@ export interface StreamMetadata {
 
 export class MetadataResponse extends AbstractResponse {
   static key = 0x800f as const
+  static readonly Version = 1
+
   readonly streamInfos: StreamMetadata[] = []
 
   constructor(response: RawResponse) {

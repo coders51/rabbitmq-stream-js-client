@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class DeclarePublisherRequest extends AbstractRequest {
   readonly responseKey = DeclarePublisherResponse.key
-  readonly key = 0x0001
+  static readonly Key = 0x0001
+  static readonly Version = 1
+  readonly key = DeclarePublisherRequest.Key
 
   constructor(private params: { stream: string; publisherId: number; publisherRef?: string }) {
     super()

@@ -14,7 +14,9 @@ export const PROPERTIES = {
 }
 
 export class PeerPropertiesRequest extends AbstractRequest {
-  readonly key = 0x11
+  static readonly Key = 0x11
+  static readonly Version = 1
+  readonly key = PeerPropertiesRequest.Key
   readonly responseKey = PeerPropertiesResponse.key
   private readonly _properties: { key: string; value: string }[] = []
 

@@ -4,6 +4,7 @@ import { Response } from "./response"
 
 export class MetadataUpdateResponse implements Response {
   static key = 0x0010
+  static readonly Version = 1
 
   constructor(private response: RawMetadataUpdateResponse) {
     if (this.response.key !== MetadataUpdateResponse.key) {

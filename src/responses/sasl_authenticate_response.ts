@@ -3,6 +3,7 @@ import { RawResponse } from "./raw_response"
 
 export class SaslAuthenticateResponse extends AbstractResponse {
   static key = 0x8013
+  static readonly Version = 1
 
   constructor(response: RawResponse) {
     super(response)

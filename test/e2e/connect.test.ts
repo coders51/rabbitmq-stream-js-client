@@ -3,6 +3,7 @@ import { Client } from "../../src"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
+import { Version } from "../../src/versions"
 
 describe("connect", () => {
   let client: Client
@@ -26,12 +27,15 @@ describe("connect", () => {
     }, 5000)
   }).timeout(10000)
 
-  // TODO -> Need a way to test connection phase timeout and not inactivity timeout
-  // it("raise exception if goes in timeout", async () => {
-  //   client = await createClient(username, password)
+  it("and receive server-side message version declarations during handshake", async () => {
+    client = await createClient(username, password)
 
-  //   await expectToThrowAsync(async () => await wait(10000), Error, "Timeout rabbitmq:5552")
-  // }).timeout(15000)
+    await eventually(async () => {
+      const serverVersions = client.serverVersions
+      expect(serverVersions.length).gt(0)
+      expect(serverVersions).satisfies((versions: Version[]) => versions.every((version) => version.minVersion >= 1))
+    }, 5000)
+  }).timeout(10000)
 
   it("raise exception if server refuse port", async () => {
     createClient(username, password, undefined, undefined, undefined, 5550).catch((err) => {

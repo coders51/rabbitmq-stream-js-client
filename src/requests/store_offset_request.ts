@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class StoreOffsetRequest extends AbstractRequest {
   readonly responseKey = StoreOffsetResponse.key
-  readonly key = 0x000a
+  static readonly Key = 0x000a
+  static readonly Version = 1
+  readonly key = StoreOffsetRequest.Key
   private readonly reference: string
   private readonly stream: string
   private readonly offsetValue: bigint

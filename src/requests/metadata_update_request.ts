@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class MetadataUpdateRequest extends AbstractRequest {
   readonly responseKey = -1
-  readonly key = 0x0010
+  static readonly Key = 0x0010
+  static readonly Version = 1
+  readonly key = MetadataUpdateRequest.Key
 
   constructor(private params: { metadataInfo: MetadataInfo }) {
     super()

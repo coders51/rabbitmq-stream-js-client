@@ -9,6 +9,8 @@ interface PublishingError {
 
 export class PublishErrorResponse implements Response {
   static key = 0x0004
+  static readonly Version = 1
+
   private publisherId: number
   public publishingError: PublishingError
   constructor(private response: RawPublishErrorResponse) {
