@@ -16,6 +16,7 @@ interface MessageInfoResponse {
   messages_ready: number
   messages_unacknowledged: number
   types: "stream" | "quorum" | "classic"
+  node: string
 }
 
 interface RabbitPublishersResponse {
@@ -223,5 +224,14 @@ export class Rabbit {
   async deleteAllQueues({ match }: { match: RegExp } = { match: /.*/ }): Promise<void> {
     const l = await this.getQueues()
     await Promise.all(l.filter((q) => match && q.name.match(match)).map((q) => this.deleteQueue("%2F", q.name)))
+  }
+
+  async getNodes(): Promise<string[]> {
+    const ret = await got.get<{ name: string }[]>(`http://${this.firstNode.host}:${this.port}/api/nodes`, {
+      username: this.username,
+      password: this.password,
+      responseType: "json",
+    })
+    return ret.body.map((n) => n.name)
   }
 }

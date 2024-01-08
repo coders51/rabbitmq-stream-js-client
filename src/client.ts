@@ -39,7 +39,7 @@ import { DeclarePublisherResponse } from "./responses/declare_publisher_response
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
-import { MetadataResponse, StreamMetadata } from "./responses/metadata_response"
+import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
 import { OpenResponse } from "./responses/open_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
@@ -72,6 +72,7 @@ export class Client {
   private frameMax: number = DEFAULT_FRAME_MAX
   private connectionId: string
   private connectionClosedListener: ConnectionClosedListener | undefined
+  private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -386,7 +387,7 @@ export class Client {
   }
 
   public getConnectionInfo(): { host: string; port: number; id: string } {
-    return { host: this.params.hostname, port: this.params.port, id: this.connectionId }
+    return { host: this.serverEndpoint.host, port: this.serverEndpoint.port, id: this.connectionId }
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -469,6 +470,9 @@ export class Client {
     this.logger.debug(`Open ...`)
     const res = await this.sendAndWait<OpenResponse>(new OpenRequest(params))
     this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
+    const advertisedHost = res.properties["advertised_host"] ?? ""
+    const advertisedPort = parseInt(res.properties["advertised_port"] ?? "5552")
+    this.serverEndpoint = { host: advertisedHost, port: advertisedPort }
     return res
   }
 
@@ -565,17 +569,42 @@ export class Client {
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Client> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
-    const chosenNode = leader ? metadata.leader : sample([metadata.leader, ...(metadata.replicas ?? [])])
+    const chosenNode = chooseNode(metadata, leader)
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
     const listeners = { ...this.params.listeners, connection_closed: connectionClosedListener }
     const connectionParams = { ...this.params, listeners: listeners }
-    const newClient = await connect(
-      { ...connectionParams, hostname: chosenNode.host, port: chosenNode.port },
-      this.logger
-    )
+    const newClient = await this.getConnectionOnChosenNode(chosenNode, connectionParams, metadata)
     return newClient
+  }
+
+  private async getConnectionOnChosenNode(
+    chosenNode: { host: string; port: number },
+    connectionParams: ConnectionParams,
+    metadata: StreamMetadata
+  ): Promise<Client> {
+    if (this.params.addressResolver && this.params.addressResolver.enabled) {
+      const maxAttempts = computeMaxAttempts(metadata)
+      const resolver = this.params.addressResolver
+      let currentAttempt = 0
+      while (currentAttempt < maxAttempts) {
+        this.logger.debug(`Attempting to connect using the address resolver - attempt ${currentAttempt + 1}`)
+        const client = await connect(
+          { ...connectionParams, hostname: resolver.endpoint.host, port: resolver.endpoint.port },
+          this.logger
+        )
+        if (client.serverEndpoint.host === chosenNode.host && client.serverEndpoint.port === chosenNode.port) {
+          this.logger.debug(`Correct connection was found!`)
+          return client
+        }
+        this.logger.debug(`The node found was not the right one - closing the connection`)
+        await client.close()
+        currentAttempt++
+      }
+      throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
+    }
+    return connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
   }
 }
 
@@ -592,6 +621,13 @@ export interface SSLConnectionParams {
   ca?: string
 }
 
+export type AddressResolverParams =
+  | {
+      enabled: true
+      endpoint: { host: string; port: number }
+    }
+  | { enabled: false }
+
 export interface ConnectionParams {
   hostname: string
   port: number
@@ -604,6 +640,7 @@ export interface ConnectionParams {
   ssl?: SSLConnectionParams
   bufferSizeSettings?: BufferSizeSettings
   socketTimeout?: number
+  addressResolver?: AddressResolverParams
 }
 
 export interface DeclarePublisherParams {
@@ -675,4 +712,16 @@ const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): Consumer
     return handlerWithFilter
   }
   return handle
+}
+
+const chooseNode = (metadata: { leader?: Broker; replicas?: Broker[] }, leader: boolean): Broker | undefined => {
+  if (leader) {
+    return metadata.leader
+  }
+  const chosenNode = metadata.replicas?.length ? sample(metadata.replicas) : metadata.leader
+  return chosenNode
+}
+
+const computeMaxAttempts = (metadata: { leader?: Broker; replicas?: Broker[] }): number => {
+  return (2 + (metadata.leader ? 1 : 0) + (metadata.replicas?.length ?? 0)) ^ 2
 }
