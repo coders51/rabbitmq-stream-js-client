@@ -78,6 +78,7 @@ export class Client {
       this.socket = new Socket()
       this.socket.connect(this.params.port, this.params.hostname)
     }
+    if (params.socketTimeout) this.socket.setTimeout(params.socketTimeout)
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -131,7 +132,7 @@ export class Client {
       this.socket.on("drain", () => this.logger.warn(`Draining ${this.params.hostname}:${this.params.port}`))
       this.socket.on("timeout", () => {
         this.logger.error(`Timeout ${this.params.hostname}:${this.params.port}`)
-        return rej()
+        return rej(new Error(`Timeout ${this.params.hostname}:${this.params.port}`))
       })
       this.socket.on("data", (data) => {
         this.heartbeat.reportLastMessageReceived()
@@ -587,6 +588,7 @@ export interface ConnectionParams {
   listeners?: ListenersParams
   ssl?: SSLConnectionParams
   bufferSizeSettings?: BufferSizeSettings
+  socketTimeout?: number
 }
 
 export interface DeclarePublisherParams {

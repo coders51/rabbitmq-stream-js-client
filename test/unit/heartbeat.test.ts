@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Heartbeat, HeartbeatConnection } from "../../src/heartbeat"
 import { NullLogger } from "../../src/logger"
 import { Request } from "../../src/requests/request"
-import { eventually, wait } from "../support/util"
+import { eventually, expectToThrowAsync, wait } from "../support/util"
 
 class ConnectionMock implements HeartbeatConnection {
   private sendCount = 0
@@ -52,5 +52,12 @@ describe("heartbeat", () => {
     hb.stop()
   })
 
-  it("start two times same object raise exception")
+  it("start two times same object raise exception", async () => {
+    const connectionMock = new ConnectionMock()
+    const hb = new Heartbeat(connectionMock, logger)
+    hb.start(1)
+
+    await expectToThrowAsync(async () => hb.start(1), Error, "HeartBeat already started")
+    hb.stop()
+  })
 })

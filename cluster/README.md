@@ -1,9 +1,9 @@
-RabbitMQ cluster with HA proxy 
-===
+# RabbitMQ cluster with HA proxy
 
 how to run:
 
 add the following to your `/etc/hosts`
+
 ```
 127.0.0.1       node0
 127.0.0.1       node1
@@ -11,6 +11,7 @@ add the following to your `/etc/hosts`
 ```
 
 set the following values in your environment if you want to run the tests
+
 ```
 RABBITMQ_USER="rabbit"
 RABBITMQ_PASSWORD="rabbit"
@@ -27,6 +28,7 @@ make rabbitmq-cluster
 ```
 
 ports:
+
 ```
  - localhost:5553 #standard stream port
  - localhost:5554 #TLS stream port

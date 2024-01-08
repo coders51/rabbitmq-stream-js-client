@@ -52,12 +52,13 @@ export async function createClient(
   password: string,
   listeners?: ListenersParams,
   frameMax?: number,
-  bufferSizeSettings?: BufferSizeSettings
+  bufferSizeSettings?: BufferSizeSettings,
+  port?: number
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
   return connect({
     hostname: firstNode.host,
-    port: firstNode.port,
+    port: port ?? firstNode.port,
     username,
     password,
     vhost: "/",
