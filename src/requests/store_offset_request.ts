@@ -5,8 +5,7 @@ import { DataWriter } from "./data_writer"
 export class StoreOffsetRequest extends AbstractRequest {
   readonly responseKey = StoreOffsetResponse.key
   static readonly Key = 0x000a
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = StoreOffsetRequest.Key
   private readonly reference: string
   private readonly stream: string

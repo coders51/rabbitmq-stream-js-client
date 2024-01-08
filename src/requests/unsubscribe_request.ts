@@ -4,8 +4,7 @@ import { DataWriter } from "./data_writer"
 
 export class UnsubscribeRequest extends AbstractRequest {
   static readonly Key = 0x000c
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = UnsubscribeRequest.Key
   readonly responseKey = UnsubscribeResponse.key
 

@@ -3,8 +3,7 @@ import { Response } from "./response"
 
 export class HeartbeatResponse implements Response {
   static key = 0x0017
-  static MinVersion = 1
-  static MaxVersion = 1
+  static readonly Version = 1
 
   constructor(private response: RawTuneResponse) {
     if (this.response.key !== HeartbeatResponse.key) {

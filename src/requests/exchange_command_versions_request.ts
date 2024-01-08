@@ -6,8 +6,7 @@ import { DataWriter } from "./data_writer"
 export class ExchangeCommandVersionsRequest extends AbstractRequest {
   static readonly Key = 0x001b
   readonly key = ExchangeCommandVersionsRequest.Key
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly responseKey = ExchangeCommandVersionsResponse.key
   constructor(readonly versions: Version[]) {
     super()

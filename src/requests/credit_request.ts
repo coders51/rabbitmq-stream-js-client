@@ -9,8 +9,7 @@ export type CreditRequestParams = {
 export class CreditRequest extends AbstractRequest {
   static readonly Key = 0x09
   readonly key = CreditRequest.Key
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly responseKey = -1
 
   constructor(private params: CreditRequestParams) {

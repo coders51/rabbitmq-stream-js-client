@@ -4,6 +4,7 @@ import * as responses from "./responses/responses"
 
 export type Version = { key: number; minVersion: number; maxVersion: number }
 type Key = number
+type SimpleVersion = number
 type MappedVersions = Map<Key, Version>
 
 const supportedRequests = [
@@ -33,20 +34,35 @@ const supportedRequests = [
 
 const supportedResponses = [responses.DeliverResponse, responses.PublishConfirmResponse, responses.PublishErrorResponse]
 
-function getClientSupportedVersions() {
-  const result: Version[] = supportedRequests.map((requestClass) => ({
-    key: requestClass.Key,
-    minVersion: requestClass.MinVersion,
-    maxVersion: requestClass.MaxVersion,
-  }))
+function maybeAddMaxVersion(values: Map<Key, SimpleVersion>, key: Key, version: SimpleVersion) {
+  const currentMaxValue = values.get(key)
+  if (currentMaxValue === undefined || currentMaxValue < version) values.set(key, version)
+}
+function maybeAddMinVersion(values: Map<Key, SimpleVersion>, key: Key, version: SimpleVersion) {
+  const currentMinValue = values.get(key)
+  if (currentMinValue === undefined || currentMinValue > version) values.set(key, version)
+}
 
-  result.push(
-    ...supportedResponses.map((responseClass) => ({
-      key: responseClass.key,
-      minVersion: responseClass.MinVersion,
-      maxVersion: responseClass.MaxVersion,
-    }))
-  )
+function getClientSupportedVersions() {
+  const minValues = new Map<Key, SimpleVersion>()
+  const maxValues = new Map<Key, SimpleVersion>()
+
+  supportedRequests.forEach((requestClass) => {
+    maybeAddMaxVersion(maxValues, requestClass.Key, requestClass.Version)
+    maybeAddMinVersion(minValues, requestClass.Key, requestClass.Version)
+  })
+
+  supportedResponses.forEach((responseClass) => {
+    maybeAddMaxVersion(maxValues, responseClass.key, responseClass.Version)
+    maybeAddMinVersion(minValues, responseClass.key, responseClass.Version)
+  })
+
+  const result: Version[] = []
+  for (let k of minValues.keys()) {
+    const minVersion = minValues.get(k)
+    const maxVersion = maxValues.get(k)
+    result.push({ key: k, minVersion: minVersion!, maxVersion: maxVersion! })
+  }
 
   return result
 }
@@ -54,7 +70,7 @@ function getClientSupportedVersions() {
 export const clientSupportedVersions: Version[] = getClientSupportedVersions()
 
 function indexVersions(versions: Version[]) {
-  const result = new Map<number, Version>()
+  const result = new Map<Key, Version>()
   versions.forEach((v) => result.set(v.key, v))
 
   return result

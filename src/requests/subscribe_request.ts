@@ -44,8 +44,7 @@ export class Offset {
 
 export class SubscribeRequest extends AbstractRequest {
   static readonly Key = 0x0007
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = SubscribeRequest.Key
   readonly responseKey = SubscribeResponse.key
   private readonly _properties: { key: string; value: string }[] = []

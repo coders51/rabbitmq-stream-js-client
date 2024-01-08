@@ -5,8 +5,7 @@ import { DataWriter } from "./data_writer"
 export class MetadataRequest extends AbstractRequest {
   readonly responseKey = MetadataResponse.key
   static readonly Key = 0x000f
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = MetadataRequest.Key
 
   constructor(private params: { streams: string[] }) {

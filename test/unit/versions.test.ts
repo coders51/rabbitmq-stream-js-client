@@ -5,7 +5,7 @@ import { NullLogger } from "../../src/logger"
 describe("Versions", () => {
   const logger = new NullLogger()
   it("client-side version declaration", () => {
-    expect(clientSupportedVersions).eql([
+    expect(clientSupportedVersions.sort()).eql([
       { key: 22, maxVersion: 1, minVersion: 1 },
       { key: 13, maxVersion: 1, minVersion: 1 },
       { key: 9, maxVersion: 1, minVersion: 1 },

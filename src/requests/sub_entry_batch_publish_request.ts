@@ -14,8 +14,7 @@ interface SubEntryBatchPublishRequestParams {
 
 export class SubEntryBatchPublishRequest extends AbstractRequest {
   static readonly Key = 0x02
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = SubEntryBatchPublishRequest.Key
   readonly responseKey = -1
   private readonly maxFrameSize: number

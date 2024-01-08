@@ -5,8 +5,7 @@ import { DataWriter } from "./data_writer"
 export class CloseRequest extends AbstractRequest {
   readonly responseKey = CloseResponse.key
   static readonly Key = 0x0016
-  static readonly MinVersion = 1
-  static readonly MaxVersion = 1
+  static readonly Version = 1
   readonly key = CloseRequest.Key
 
   constructor(private params: { closingCode: number; closingReason: string }) {

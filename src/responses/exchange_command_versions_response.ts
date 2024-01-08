@@ -4,8 +4,8 @@ import { RawResponse } from "./raw_response"
 
 export class ExchangeCommandVersionsResponse extends AbstractResponse {
   static key = 0x801b
-  static MinVersion = 1
-  static MaxVersion = 1
+  static readonly Version = 1
+
   readonly serverDeclaredVersions: Version[]
 
   constructor(response: RawResponse) {

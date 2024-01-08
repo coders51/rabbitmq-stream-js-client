@@ -3,8 +3,8 @@ import { RawResponse } from "./raw_response"
 
 export class SaslHandshakeResponse extends AbstractResponse {
   static key = 0x8012
-  static MinVersion = 1
-  static MaxVersion = 1
+  static readonly Version = 1
+
   readonly mechanisms: string[] = []
 
   constructor(response: RawResponse) {
