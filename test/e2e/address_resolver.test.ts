@@ -2,10 +2,10 @@ import { expect } from "chai"
 import { Client, connect } from "../../src"
 import { Message } from "../../src/producer"
 import { Offset } from "../../src/requests/subscribe_request"
-import { getAddressResolverFromEnv, getTestNodesFromEnv } from "../../src/util"
+import { getAddressResolverFromEnv } from "../../src/util"
 import { createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { password, username, wait } from "../support/util"
+import { getTestNodesFromEnv, password, username, wait } from "../support/util"
 
 describe("address resolver", () => {
   let streamName: string
