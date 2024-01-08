@@ -1,5 +1,6 @@
 import got from "got"
-import { getTestNodesFromEnv } from "../../src/util"
+import { getTestNodesFromEnv } from "./util"
+
 interface RabbitConnectionResponse {
   name: string
 }

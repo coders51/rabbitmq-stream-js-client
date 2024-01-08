@@ -51,7 +51,7 @@ import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
+import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom, sample } from "./util"
 import { WaitingResponse } from "./waiting_response"
 
 export class Client {
@@ -643,15 +643,6 @@ function errorMessageOf(code: number): string {
 
 function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
-}
-
-const sample = <T>(candidates: (T | undefined)[]): T | undefined => {
-  const actualCandidates = candidates.filter((c) => !!c)
-  if (!actualCandidates.length) {
-    return undefined
-  }
-  const index = Math.floor(Math.random() * actualCandidates.length)
-  return actualCandidates[index]!
 }
 
 const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): ConsumerFunc => {

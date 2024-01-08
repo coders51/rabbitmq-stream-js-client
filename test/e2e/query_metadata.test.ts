@@ -1,9 +1,8 @@
 import { expect } from "chai"
 import { Client } from "../../src"
-import { getTestNodesFromEnv } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { password, username } from "../support/util"
+import { getTestNodesFromEnv, password, username } from "../support/util"
 
 describe("query metadata", () => {
   let streamName: string

@@ -4,7 +4,7 @@ import { MessageProperties, Producer } from "../../src/producer"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Consumer } from "../../src"
-import { getTestNodesFromEnv } from "../../src/util"
+import { getTestNodesFromEnv } from "./util"
 
 export function createProperties(): MessageProperties {
   return {
