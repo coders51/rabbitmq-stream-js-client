@@ -604,7 +604,7 @@ export class Client {
       }
       throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
     }
-    return connect({ ...this.params, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+    return connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
   }
 }
 
