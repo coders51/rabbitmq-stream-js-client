@@ -5,7 +5,6 @@
 ## Table of Contents
 
 - [RabbitMQ client for the stream protocol for Node.JS](#rabbitmq-client-for-the-stream-protocol-for-nodejs)
-  - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Installing via NPM](#installing-via-npm)
   - [Getting started](#getting-started)
@@ -74,7 +73,7 @@ await client.close()
 ### Basic Publish
 
 ```typescript
-const connection = await connect({
+const client = await connect({
   hostname: "localhost",
   port: 5552,
   username: "rabbit",
@@ -82,7 +81,7 @@ const connection = await connect({
   vhost: "/",
 })
 
-const publisher = await connection.declarePublisher({
+const publisher = await client.declarePublisher({
   stream: "stream-name",
   publisherRef: "my-publisher",
 })
@@ -91,13 +90,13 @@ await publisher.send(Buffer.from("my message content"))
 
 // ...
 
-await connection.close()
+await client.close()
 ```
 
 ### Basic Consuming
 
 ```typescript
-const connection = await connect({
+const client = await connect({
   hostname: "localhost",
   port: 5552,
   username: "rabbit",
@@ -107,13 +106,13 @@ const connection = await connect({
 
 const consumerOptions = { stream: "stream-name", offset: Offset.next() }  // see docs for various offset types
 
-const consumer = await connection.declareConsumer(consumerOptions, (message: Message) => {
+const consumer = await client.declareConsumer(consumerOptions, (message: Message) => {
   console.log(message.content) // it's a Buffer 
 })
 
 // ...
 
-await connection.close()
+await client.close()
 ```
 
 ## Running Examples
@@ -138,7 +137,6 @@ then launch the examples
 ```shell
 npm start
 ```
-
 
 ## Build from source
 
