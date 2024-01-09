@@ -58,7 +58,7 @@ function getClientSupportedVersions() {
   })
 
   const result: Version[] = []
-  for (let k of minValues.keys()) {
+  for (const k of minValues.keys()) {
     const minVersion = minValues.get(k)
     const maxVersion = maxValues.get(k)
     result.push({ key: k, minVersion: minVersion!, maxVersion: maxVersion! })
