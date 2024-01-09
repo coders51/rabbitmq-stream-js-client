@@ -1,6 +1,5 @@
 const rabbit = require("rabbitmq-stream-js-client")
 const { randomUUID } = require("crypto")
-const { Offset } = require("../dist/requests/subscribe_request")
 
 const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
 const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
@@ -22,9 +21,11 @@ async function main() {
 
   await producer.send(Buffer.from("Test message"))
 
-  await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message) => {
+  await client.declareConsumer({ stream: streamName, offset: rabbit.Offset.first() }, (message) => {
     console.log(`Received message ${message.content.toString()}`)
   })
+
+  await sleep(2000)
 
   await client.close()
 }
@@ -35,3 +36,4 @@ main()
     console.log("ERROR ", res)
     process.exit(-1)
   })
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

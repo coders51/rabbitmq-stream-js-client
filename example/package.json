@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.10.3",
-    "rabbitmq-stream-js-client": "^0.0.6"
+    "rabbitmq-stream-js-client": "file:../."
   },
   "engines": {
     "node": "16.x.x"
