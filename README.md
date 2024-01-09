@@ -1,23 +1,34 @@
 # RabbitMQ client for the stream protocol for Node.JS
 
-# NOT READY FOR PRODUCTION - The client is HEAVILY work in progress.
-
 [![Build Status](https://github.com/coders51/rabbitmq-stream-js-client/actions/workflows/main.yml/badge.svg)](https://github.com/coders51/rabbitmq-stream-js-client/actions)
 
-# Table of Contents
+## Table of Contents
 
-- [Overview](#overview)
-- [Installing via NPM](#installing-via-npm)
-- [Getting started](#getting-started)
+- [RabbitMQ client for the stream protocol for Node.JS](#rabbitmq-client-for-the-stream-protocol-for-nodejs)
+  - [Overview](#overview)
+  - [Installing via NPM](#installing-via-npm)
+  - [Getting started](#getting-started)
   - [Usage](#usage)
     - [Connect](#connect)
-- [Build from source](#build-from-source)
-- [Project Status](#project-status)
-- [Release Process](#release-process)
+    - [Basic Publish](#basic-publish)
+    - [Basic Consuming](#basic-consuming)
+  - [Running Examples](#running-examples)
+  - [Build from source](#build-from-source)
+  - [MISC](#misc)
+
+## Overview
+
+A client for the RabbitMQ stream protocol, written (and ready for) Typescript
+
+## Installing via NPM
+
+```shell
+npm install rabbitmq-stream-js-client
+```
 
 ## Getting started
 
-A rapid getting started
+A quick getting started
 
 ```typescript
 const rabbit = require("rabbitmq-stream-js-client")
@@ -59,31 +70,95 @@ const client = await connect({
 await client.close()
 ```
 
+### Basic Publish
+
+```typescript
+const client = await connect({
+  hostname: "localhost",
+  port: 5552,
+  username: "rabbit",
+  password: "rabbit",
+  vhost: "/",
+})
+
+const publisher = await client.declarePublisher({
+  stream: "stream-name",
+  publisherRef: "my-publisher",
+})
+
+await publisher.send(Buffer.from("my message content"))
+
+// ...
+
+await client.close()
+```
+
+### Basic Consuming
+
+```typescript
+const client = await connect({
+  hostname: "localhost",
+  port: 5552,
+  username: "rabbit",
+  password: "rabbit",
+  vhost: "/",
+})
+
+const consumerOptions = { stream: "stream-name", offset: Offset.next() }  // see docs for various offset types
+
+const consumer = await client.declareConsumer(consumerOptions, (message: Message) => {
+  console.log(message.content) // it's a Buffer 
+})
+
+// ...
+
+await client.close()
+```
+
+## Running Examples
+
+the folder /example contains a project that shows some examples on how to use the lib, to run it follow this steps
+
+move to the example folder and install the dependencies
+
+```shell
+cd example
+npm i
+```
+
+run the docker-compose to launch a rabbit instance already stream enabled
+
+```shell
+docker-compose up -d 
+```
+
+then launch the examples
+
+```shell
+npm start
+```
+
 ## Build from source
 
 Build:
 
 ```shell
-$ npm run build
+npm run build
 ```
 
 Test:
 
 ```shell
-$ docker-compose up -d
-$ npm run test
+docker-compose up -d
+npm run test
 ```
 
 Check everything:
 
 ```shell
-$ npm run check
+npm run check
 ```
-
-## Project Status
-
-The client is HEAVILY work in progress. The API(s) could change prior to version `1.0.0`
 
 ## MISC
 
-https://github.com/rabbitmq/rabbitmq-server/blob/master/deps/rabbitmq_stream/docs/PROTOCOL.adoc
+<https://github.com/rabbitmq/rabbitmq-server/blob/master/deps/rabbitmq_stream/docs/PROTOCOL.adoc>
