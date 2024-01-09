@@ -121,7 +121,7 @@ export class StreamProducer implements Producer {
   }
 
   async flush() {
-    await this.sendChunk()
+    await this.sendBuffer()
     return true
   }
 
@@ -181,7 +181,7 @@ export class StreamProducer implements Producer {
     const sendCycleNeeded = this.add(publishRequestMessage)
     let sent = false
     if (sendCycleNeeded) {
-      await this.sendChunk()
+      await this.sendBuffer()
       sent = true
     }
     this.scheduleIfNeeded()
@@ -198,7 +198,7 @@ export class StreamProducer implements Producer {
     return true
   }
 
-  private async sendChunk() {
+  private async sendBuffer() {
     const chunk = this.popChunk()
     if (chunk.length > 0) {
       await this.client.send(
