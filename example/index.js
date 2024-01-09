@@ -7,7 +7,7 @@ const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
 
 async function main() {
   const streamName = `example-${randomUUID()}`
-  console.log(`Create stream ${streamName}`)
+  console.log(`Creating stream ${streamName}`)
 
   const client = await rabbit.connect({
     hostname: "localhost",
@@ -20,11 +20,13 @@ async function main() {
   await client.createStream({ stream: streamName, arguments: {} })
   const producer = await client.declarePublisher({ stream: streamName })
 
-  await producer.send(Buffer.from("ciao"))
+  await producer.send(Buffer.from("Test message"))
 
   await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message) => {
     console.log(`Received message ${message.content.toString()}`)
   })
+
+  await client.close()
 }
 
 main()

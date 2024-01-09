@@ -1,23 +1,22 @@
 # RabbitMQ client for the stream protocol for Node.JS
 
-# NOT READY FOR PRODUCTION - The client is HEAVILY work in progress
-
 [![Build Status](https://github.com/coders51/rabbitmq-stream-js-client/actions/workflows/main.yml/badge.svg)](https://github.com/coders51/rabbitmq-stream-js-client/actions)
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Installing via NPM](#installing-via-npm)
-- [Getting started](#getting-started)
-- [Usage](#usage)
-  - [Connect](#connect)
-  - [Basic Publish](#basic-publish)
-  - [Basic Consuming](#basic-consuming)
-- [Running Examples](#running-examples)
-- [Build from source](#build-from-source)
-- [Project Status](#project-status)
-- [Release Process](#release-process)
-- [MISC](#misc)
+- [RabbitMQ client for the stream protocol for Node.JS](#rabbitmq-client-for-the-stream-protocol-for-nodejs)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Installing via NPM](#installing-via-npm)
+  - [Getting started](#getting-started)
+  - [Usage](#usage)
+    - [Connect](#connect)
+    - [Basic Publish](#basic-publish)
+    - [Basic Consuming](#basic-consuming)
+  - [Running Examples](#running-examples)
+  - [Build from source](#build-from-source)
+  - [Project Status](#project-status)
+  - [MISC](#misc)
 
 ## Overview
 
@@ -31,7 +30,7 @@ npm install rabbitmq-stream-js-client
 
 ## Getting started
 
-A rapid getting started
+A quick getting started
 
 ```typescript
 const rabbit = require("rabbitmq-stream-js-client")
@@ -110,7 +109,7 @@ const connection = await connect({
 const consumerOptions = { stream: "stream-name", offset: Offset.next() }  // see docs for various offset types
 
 const consumer = await connection.declareConsumer(consumerOptions, (message: Message) => {
-  console.log(message.content) //it's a Buffer 
+  console.log(message.content) // it's a Buffer 
 })
 
 // ...
