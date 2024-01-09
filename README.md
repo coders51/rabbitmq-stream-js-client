@@ -15,12 +15,11 @@
     - [Basic Consuming](#basic-consuming)
   - [Running Examples](#running-examples)
   - [Build from source](#build-from-source)
-  - [Project Status](#project-status)
   - [MISC](#misc)
 
 ## Overview
 
-NOT READY FOR PRODUCTION - The client is HEAVILY work in progress.
+A client for the RabbitMQ stream protocol, written (and ready for) Typescript
 
 ## Installing via NPM
 
@@ -161,10 +160,6 @@ Check everything:
 ```shell
 npm run check
 ```
-
-## Project Status
-
-The client is HEAVILY work in progress. The API(s) could change prior to version `1.0.0`
 
 ## MISC
 
