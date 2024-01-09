@@ -22,7 +22,7 @@ async function main() {
 
   await producer.send(Buffer.from("Test message"))
 
-  await connection.declareConsumer({ stream: streamName, offset: Offset.first() }, (message) => {
+  await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message) => {
     console.log(`Received message ${message.content.toString()}`)
   })
 
