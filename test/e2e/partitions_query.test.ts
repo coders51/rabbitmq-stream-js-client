@@ -1,24 +1,26 @@
-import { Connection } from "../../src"
-import { createConnection } from "../support/fake_data"
+import { Client } from "../../src"
+import { createClient } from "../support/fake_data"
 import { expect } from "chai"
-import { startSuperStream, stopSuperStream, username, password } from "../support/util"
+import { username, password, maybeStopSuperStream, maybeStartSuperStream } from "../support/util"
 
-describe("PartitionsQuery command", () => {
-  let connection: Connection
+describe.only("PartitionsQuery command", () => {
+  let client: Client
   const superStream = "super-stream-test"
 
   beforeEach(async () => {
-    connection = await createConnection(username, password)
+    client = await createClient(username, password)
   })
 
   afterEach(async () => {
-    await connection.close()
-    await stopSuperStream(superStream)
+    await client.close()
+    await maybeStopSuperStream(superStream)
   })
 
   it("returns a list of stream names", async () => {
-    await startSuperStream(superStream)
-    const route = await connection.partitionsQuery({ superStream: superStream })
+    await maybeStartSuperStream(superStream)
+
+    const route = await client.partitionsQuery({ superStream: superStream })
+
     expect(route).contains("super-stream-test-0")
   }).timeout(10000)
 })
