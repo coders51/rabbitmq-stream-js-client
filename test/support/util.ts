@@ -242,7 +242,6 @@ export function startSuperStream(superStream: string) {
   return new Promise((res, rej) => {
     exec(
       `cd ${path} && docker-compose exec ${service} rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
-
       (error, stdout, stderr) => {
         if (error) {
           rej(`${error.message}`)

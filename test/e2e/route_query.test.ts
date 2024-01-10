@@ -16,6 +16,7 @@ describe("RouteQuery command", () => {
 
   afterEach(async () => {
     await client.close()
+
     await maybeStopSuperStream(superStream)
   })
 
