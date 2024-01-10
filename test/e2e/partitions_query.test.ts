@@ -3,7 +3,7 @@ import { createClient } from "../support/fake_data"
 import { expect } from "chai"
 import { username, password, maybeStopSuperStream, maybeStartSuperStream } from "../support/util"
 
-describe.only("PartitionsQuery command", () => {
+describe("PartitionsQuery command", () => {
   let client: Client
   const superStream = "super-stream-test"
 
