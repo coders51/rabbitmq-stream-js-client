@@ -268,5 +268,17 @@ export async function stopSuperStream(superStream: string) {
   })
 }
 
+export async function maybeStartSuperStream(superStream: string) {
+  try {
+    await startSuperStream(superStream)
+  } catch (e) {}
+}
+
+export async function maybeStopSuperStream(superStream: string) {
+  try {
+    await stopSuperStream(superStream)
+  } catch (e) {}
+}
+
 export const username = process.env.RABBITMQ_USER || "rabbit"
 export const password = process.env.RABBITMQ_PASSWORD || "rabbit"
