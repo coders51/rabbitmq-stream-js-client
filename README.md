@@ -132,6 +132,12 @@ run the docker-compose to launch a rabbit instance already stream enabled
 docker-compose up -d 
 ```
 
+add this line to your host file (on linux `/etc/hosts`) to correctly resolve rabbitmq
+
+```shell
+127.0.0.1       rabbitmq
+```
+
 then launch the examples
 
 ```shell
