@@ -30,13 +30,13 @@ describe("RouteQuery command", () => {
   it("throws when the super stream does not exist", async () => {
     const nonExistingStream = randomUUID()
 
-    expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: nonExistingStream }), Error)
+    await expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: nonExistingStream }), Error)
   })
 
   it("throws when the stream is not a super stream", async () => {
     const streamName = randomUUID()
     await rabbit.createStream(streamName)
 
-    expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: streamName }), Error)
+    await expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: streamName }), Error)
   })
 })
