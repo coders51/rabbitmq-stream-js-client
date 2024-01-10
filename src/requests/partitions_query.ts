@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class PartitionsQuery extends AbstractRequest {
   readonly responseKey = PartitionsResponse.key
-  readonly key = 0x0019
+  static readonly Key = 0x0019
+  static readonly Version = 1
+  readonly key = PartitionsQuery.Key
 
   constructor(private params: { superStream: string }) {
     super()
