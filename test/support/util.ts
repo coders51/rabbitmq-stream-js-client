@@ -229,39 +229,43 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
   })
 }
 
+function getRabbitServiceName() {
+  const nodes = getTestNodesFromEnv()
+  if (nodes.length > 1) return { path: "./cluster", service: "rabbit_node0" }
+
+  return { path: "./", service: "rabbitmq-stream" }
+}
+
 // Block until the exec is finished, so that our test doesn't assert before the super stream is created.
 // Does not do anything in CI, since CI creates super stream using `docker exec` in github action.
 export function startSuperStream(superStream: string) {
-  console.log("start super stream")
-  return new Promise((resolve) => {
+  const { path, service } = getRabbitServiceName()
+  return new Promise((res, rej) => {
     exec(
-      `docker-compose exec rabbitmq-stream rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
+      `cd ${path} && docker-compose exec ${service} rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
       (error, stdout, stderr) => {
         if (error) {
-          console.log(`error: ${error.message}`)
+          rej(`${error.message}`)
         }
-        resolve(stdout ? stdout : stderr)
+        res(stdout ? stdout : stderr)
       }
     )
   })
 }
 
 export async function stopSuperStream(superStream: string) {
-  console.log("stop super stream")
-  exec(
-    `docker-compose exec rabbitmq-stream rabbitmq-streams delete_super_stream ${superStream}`,
-    (error, stdout, stderr) => {
-      if (error) {
-        console.log(`error: ${error.message}`)
-        return
+  const { path, service } = getRabbitServiceName()
+  return new Promise((res, rej) => {
+    exec(
+      `cd ${path} && docker-compose exec ${service} rabbitmq-streams delete_super_stream ${superStream}`,
+      (error, stdout, stderr) => {
+        if (error) {
+          rej(`${error.message}`)
+        }
+        res(stdout ? stdout : stderr)
       }
-      if (stderr) {
-        console.log(`stderr: ${stderr}`)
-        return
-      }
-      console.log(`stdout: ${stdout}`)
-    }
-  )
+    )
+  })
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"
