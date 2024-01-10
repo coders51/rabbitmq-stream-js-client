@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class RouteQuery extends AbstractRequest {
   readonly responseKey = RouteResponse.key
-  readonly key = 0x0018
+  static readonly Key = 0x0018
+  static readonly Version = 1
+  readonly key = RouteQuery.Key
 
   constructor(private params: { routingKey: string; superStream: string }) {
     super()
