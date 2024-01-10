@@ -43,10 +43,14 @@ jobs:
           cache: "npm"
       - name: Enable RabbitMQ Plugins
         run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
+      - name: Log rabbit instance before restart
+        run: docker ps | grep rabbit
       - name: Restart RabbitMQ
         run: docker restart ${{ job.services.rabbitmq.id }}
       - name: Wait for rabbit instance restart
         run: sleep 5
+      - name: Log rabbit instance after restart
+        run: docker ps | grep rabbit
       - name: Create SuperStream
         run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-streams add_super_stream super-stream-test --partitions 2
       - run: npm ci
