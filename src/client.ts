@@ -58,6 +58,8 @@ import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_ve
 import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
 import { RouteQuery } from "./requests/route_query"
 import { RouteResponse } from "./responses/route_response"
+import { PartitionsQuery } from "./requests/partitions_query"
+import { PartitionsResponse } from "./responses/partitions_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -454,6 +456,15 @@ export class Client {
       throw new Error(`Route Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     this.logger.info(`Route Response for super stream ${params.superStream}, ${res.streams}`)
+    return res.streams
+  }
+
+  public async partitionsQuery(params: { superStream: string }) {
+    const res = await this.sendAndWait<PartitionsResponse>(new PartitionsQuery(params))
+    if (!res.ok) {
+      throw new Error(`Partitions Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`Partitions Response for super stream ${params.superStream}, ${res.streams}`)
     return res.streams
   }
 

@@ -29,6 +29,7 @@ describe("Versions", () => {
       { key: 20, maxVersion: 1, minVersion: 1 },
       { key: 12, maxVersion: 1, minVersion: 1 },
       { key: 24, maxVersion: 1, minVersion: 1 },
+      { key: 25, maxVersion: 1, minVersion: 1 },
       { key: 8, maxVersion: 1, minVersion: 1 },
       { key: 3, maxVersion: 1, minVersion: 1 },
       { key: 4, maxVersion: 1, minVersion: 1 },

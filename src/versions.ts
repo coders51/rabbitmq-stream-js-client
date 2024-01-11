@@ -31,6 +31,7 @@ const supportedRequests = [
   requests.TuneRequest,
   requests.UnsubscribeRequest,
   requests.RouteQuery,
+  requests.PartitionsQuery,
 ]
 
 const supportedResponses = [responses.DeliverResponse, responses.PublishConfirmResponse, responses.PublishErrorResponse]

@@ -46,6 +46,7 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { MetadataResponse } from "./responses/metadata_response"
 import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { RouteResponse } from "./responses/route_response"
+import { PartitionsResponse } from "./responses/partitions_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -599,6 +600,7 @@ export class ResponseDecoder {
     this.addFactoryFor(MetadataResponse)
     this.addFactoryFor(ExchangeCommandVersionsResponse)
     this.addFactoryFor(RouteResponse)
+    this.addFactoryFor(PartitionsResponse)
   }
 
   add(data: Buffer, getCompressionBy: (type: CompressionType) => Compression) {

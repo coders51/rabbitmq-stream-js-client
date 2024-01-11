@@ -228,7 +228,6 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
     return { host: host ?? "localhost", port: parseInt(port) ?? 5552 }
   })
 }
-
 function getRabbitServiceName() {
   const nodes = getTestNodesFromEnv()
   if (nodes.length > 1) return { path: "./cluster", service: "rabbit_node0" }
