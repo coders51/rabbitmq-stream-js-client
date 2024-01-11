@@ -56,6 +56,8 @@ import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
+import { RouteQuery } from "./requests/route_query"
+import { RouteResponse } from "./responses/route_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -444,6 +446,15 @@ export class Client {
 
   public get serverVersions() {
     return [...this.serverDeclaredVersions]
+  }
+
+  public async routeQuery(params: { routingKey: string; superStream: string }) {
+    const res = await this.sendAndWait<RouteResponse>(new RouteQuery(params))
+    if (!res.ok) {
+      throw new Error(`Route Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`Route Response for super stream ${params.superStream}, ${res.streams}`)
+    return res.streams
   }
 
   private askForCredit(params: CreditRequestParams): Promise<void> {
