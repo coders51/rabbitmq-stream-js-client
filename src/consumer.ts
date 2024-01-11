@@ -17,6 +17,7 @@ export class StreamConsumer implements Consumer {
   private stream: string
   public consumerId: number
   public consumerRef?: string
+  private disabled: boolean
 
   constructor(
     readonly handle: ConsumerFunc,
@@ -31,6 +32,7 @@ export class StreamConsumer implements Consumer {
     this.stream = params.stream
     this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef
+    this.disabled = false
   }
 
   async close(): Promise<void> {
@@ -49,5 +51,17 @@ export class StreamConsumer implements Consumer {
 
   public getConnectionInfo(): { host: string; port: number; id: string } {
     return this.client.getConnectionInfo()
+  }
+
+  disable() {
+    this.disabled = true
+  }
+
+  enable() {
+    this.disabled = false
+  }
+
+  isEnabled() {
+    return !this.disabled
   }
 }

@@ -27,6 +27,7 @@ import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import {
   DataReader,
+  RawConsumerUpdateQueryResponse,
   RawCreditResponse,
   RawDeliverResponse,
   RawHeartbeatResponse,
@@ -47,6 +48,7 @@ import { MetadataResponse } from "./responses/metadata_response"
 import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsResponse } from "./responses/partitions_response"
+import { ConsumerUpdateQueryResponse } from "./responses/consumer_update_query_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -63,6 +65,7 @@ export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
 export type PublishErrorListener = (confirm: PublishErrorResponse) => void
+export type ConsumerUpdateQueryListener = (metadata: ConsumerUpdateQueryResponse) => void
 
 type DeliveryResponseDecoded = {
   subscriptionId: number
@@ -78,6 +81,7 @@ type PossibleRawResponses =
   | RawCreditResponse
   | RawPublishConfirmResponse
   | RawPublishErrorResponse
+  | RawConsumerUpdateQueryResponse
 
 function decode(
   data: DataReader,
@@ -118,6 +122,14 @@ function decodeResponse(
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
     return { size, key, version, frameMax, heartbeat } as RawTuneResponse
+  }
+  if (key === ConsumerUpdateQueryResponse.key) {
+    const correlationId = dataResponse.readUInt32()
+    const subscriptionId = dataResponse.readUInt8()
+    const active = dataResponse.readUInt8()
+    const data = { size, key, version, correlationId, subscriptionId, active }
+    logger.info(inspect(data))
+    return data as RawConsumerUpdateQueryResponse
   }
   if (key === HeartbeatResponse.key) {
     return { key, version } as RawHeartbeatResponse
@@ -552,6 +564,10 @@ function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse
   return params.key === TuneResponse.key
 }
 
+function isConsumerUpdateQueryResponse(params: PossibleRawResponses): params is RawConsumerUpdateQueryResponse {
+  return params.key === ConsumerUpdateQueryResponse.key
+}
+
 function isHeartbeatResponse(params: PossibleRawResponses): params is RawHeartbeatResponse {
   return params.key === HeartbeatResponse.key
 }
@@ -620,6 +636,9 @@ export class ResponseDecoder {
       } else if (isTuneResponse(response)) {
         this.emitTuneResponseReceived(response)
         this.logger.debug(`tune received from the server: ${inspect(response)}`)
+      } else if (isConsumerUpdateQueryResponse(response)) {
+        this.emitter.emit("consumer_update_query", new ConsumerUpdateQueryResponse(response))
+        this.logger.debug(`consumer update query received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
@@ -641,14 +660,27 @@ export class ResponseDecoder {
     }
   }
 
+  public on(event: "consumer_update_query", listener: ConsumerUpdateQueryListener): void
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
   public on(event: "credit_response", listener: CreditListener): void
   public on(event: "publish_confirm", listener: PublishConfirmListener): void
   public on(event: "publish_error", listener: PublishErrorListener): void
   public on(event: "deliver", listener: DeliverListener): void
   public on(
-    event: "metadata_update" | "credit_response" | "publish_confirm" | "publish_error" | "deliver",
-    listener: MetadataUpdateListener | DeliverListener | CreditListener | PublishConfirmListener | PublishErrorListener
+    event:
+      | "metadata_update"
+      | "credit_response"
+      | "publish_confirm"
+      | "publish_error"
+      | "deliver"
+      | "consumer_update_query",
+    listener:
+      | MetadataUpdateListener
+      | DeliverListener
+      | CreditListener
+      | PublishConfirmListener
+      | PublishErrorListener
+      | ConsumerUpdateQueryListener
   ) {
     this.emitter.on(event, listener)
   }
@@ -672,7 +704,7 @@ export class ResponseDecoder {
     const value = this.responseFactories.get(key)
     // TODO: this undefined and verify of 3 should be removed when we have implemented the publish confirm command
     if (!value && key !== 3) {
-      throw new Error(`Unknown response ${key.toString(16)}`)
+      throw new Error(`Unknown response ${key}`)
     }
     return value
   }

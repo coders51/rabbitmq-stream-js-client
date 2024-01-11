@@ -38,6 +38,15 @@ export interface RawTuneResponse {
   heartbeat: number
 }
 
+export interface RawConsumerUpdateQueryResponse {
+  size: number
+  key: 0x001a
+  version: number
+  correlationId: number
+  subscriptionId: number
+  active: number
+}
+
 export interface RawDeliverResponse {
   size: number
   key: 0x0008

@@ -4,7 +4,7 @@ import { MessageProperties, Producer } from "../../src/producer"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Consumer } from "../../src"
-import { getTestNodesFromEnv } from "./util"
+import { createConsoleLog, getTestNodesFromEnv } from "./util"
 
 export function createProperties(): MessageProperties {
   return {
@@ -26,6 +26,10 @@ export function createProperties(): MessageProperties {
 
 export function createStreamName(): string {
   return `my-stream-${randomUUID()}`
+}
+
+export function createConsumerRef(): string {
+  return `my-consumer-${randomUUID()}`
 }
 
 export async function createPublisher(streamName: string, client: Client): Promise<Producer> {
@@ -56,15 +60,18 @@ export async function createClient(
   port?: number
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
-  return connect({
-    hostname: firstNode.host,
-    port: port ?? firstNode.port,
-    username,
-    password,
-    vhost: "/",
-    frameMax: frameMax ?? 0,
-    heartbeat: 0,
-    listeners: listeners,
-    bufferSizeSettings: bufferSizeSettings,
-  })
+  return connect(
+    {
+      hostname: firstNode.host,
+      port: port ?? firstNode.port,
+      username,
+      password,
+      vhost: "/",
+      frameMax: frameMax ?? 0,
+      heartbeat: 0,
+      listeners: listeners,
+      bufferSizeSettings: bufferSizeSettings,
+    },
+    createConsoleLog({ silent: false, level: "info" })
+  )
 }

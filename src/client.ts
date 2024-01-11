@@ -28,6 +28,7 @@ import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import {
+  ConsumerUpdateQueryListener,
   MetadataUpdateListener,
   PublishConfirmListener,
   PublishErrorListener,
@@ -60,6 +61,7 @@ import { RouteQuery } from "./requests/route_query"
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsQuery } from "./requests/partitions_query"
 import { PartitionsResponse } from "./responses/partitions_response"
+import { ConsumerUpdateQueryResponse } from "./responses/consumer_update_query_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -158,12 +160,13 @@ export class Client {
       })
     })
   }
+  public on(event: "consumer_update_query", listener: ConsumerUpdateQueryListener): void
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
   public on(event: "publish_confirm", listener: PublishConfirmListener): void
   public on(event: "publish_error", listener: PublishErrorListener): void
   public on(
-    event: "metadata_update" | "publish_confirm" | "publish_error",
-    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+    event: "metadata_update" | "publish_confirm" | "publish_error" | "consumer_update_query",
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener | ConsumerUpdateQueryListener
   ) {
     switch (event) {
       case "metadata_update":
@@ -179,6 +182,8 @@ export class Client {
         break
     }
   }
+
+  public on(event: "consumer")
 
   public async close(
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
@@ -256,6 +261,7 @@ export class Client {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
+    const properties: Record<string, string> = {}
     const client = await this.initNewClient(params.stream, false, params.connectionClosedListener)
     const consumer = new StreamConsumer(addOffsetFilterToHandle(handle, params.offset), {
       client,
@@ -265,18 +271,22 @@ export class Client {
     })
     this.consumers.set(consumerId, consumer)
 
+    if (params.singleActive) {
+      properties["single-active-consumer"] = "true"
+      properties["name"] = params.consumerRef!
+    }
+
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
+
     if (!res.ok) {
       this.consumers.delete(consumerId)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
     this.logger.info(
-      `New consumer created with stream name ${
-        params.stream
-      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
+      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
     return consumer
   }
@@ -317,6 +327,10 @@ export class Client {
 
   public get currentFrameMax() {
     return this.frameMax
+  }
+
+  public getConsumers() {
+    return Array.from(this.consumers.values())
   }
 
   public send(cmd: Request): Promise<void> {
@@ -697,6 +711,7 @@ export interface DeclareConsumerParams {
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
+  singleActive?: boolean
 }
 
 export interface SubscribeParams {
