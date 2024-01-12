@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import { Client } from "../../src"
-import { Message } from "../../src/producer"
+import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
@@ -26,8 +26,8 @@ describe("offset", () => {
   describe("reading", () => {
     it("if offset is first, all messages should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const messages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(publisher)
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.first() },
@@ -43,8 +43,8 @@ describe("offset", () => {
 
     it("if offset is next, only the messages sent after the subscription should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      await sendANumberOfRandomMessages(publisher)
       const nextMessage = "next message"
 
       await client.declareConsumer(
@@ -53,7 +53,7 @@ describe("offset", () => {
           receivedMessages.push(message)
         }
       )
-      await producer.send(Buffer.from(nextMessage))
+      await publisher.send(Buffer.from(nextMessage))
 
       await eventually(async () => {
         expect(receivedMessages).to.have.length(1)
@@ -64,10 +64,10 @@ describe("offset", () => {
 
     it("if offset is last, only the messages sent in the last batch and all subsequent ones should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const previousMessages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const previousMessages = await sendANumberOfRandomMessages(publisher)
       await wait(200)
-      const lastBatchMessages = await sendANumberOfRandomMessages(producer, previousMessages.length)
+      const lastBatchMessages = await sendANumberOfRandomMessages(publisher, previousMessages.length)
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.last() },
@@ -83,8 +83,8 @@ describe("offset", () => {
 
     it("if offset is of type numeric and value 0, all messages should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const messages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(publisher)
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(0n) },
@@ -100,8 +100,8 @@ describe("offset", () => {
 
     it("if offset is of type numeric, only the messages with offset higher or equal to the requested offset should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const messages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(publisher)
       const offset = Math.floor(Math.random() * messages.length)
 
       await client.declareConsumer(
@@ -122,10 +122,10 @@ describe("offset", () => {
 
     it("if offset is of type numeric and value greater than the number of messages, no messages should be read", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const messages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const messages = await sendANumberOfRandomMessages(publisher)
       const offset = messages.length + 1
-      await Promise.all(messages.map((m) => producer.send(Buffer.from(m))))
+      await Promise.all(messages.map((m) => publisher.send(Buffer.from(m))))
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(BigInt(offset)) },
@@ -141,11 +141,11 @@ describe("offset", () => {
 
     it("if offset is of type timestamp, all the messages belonging to batches sent earlier than the timestamp should be skipped", async () => {
       const receivedMessages: Message[] = []
-      const producer = await client.declarePublisher({ stream: testStreamName })
-      const previousMessages = await sendANumberOfRandomMessages(producer)
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+      const previousMessages = await sendANumberOfRandomMessages(publisher)
       await wait(10)
       const offset = new Date()
-      const laterMessages = await sendANumberOfRandomMessages(producer, previousMessages.length)
+      const laterMessages = await sendANumberOfRandomMessages(publisher, previousMessages.length)
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.timestamp(offset) },

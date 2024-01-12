@@ -1,5 +1,5 @@
 import { Client } from "./client"
-import { Message } from "./producer"
+import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
 export type ConsumerFunc = (message: Message) => void

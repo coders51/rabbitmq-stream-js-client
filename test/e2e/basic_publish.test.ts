@@ -1,7 +1,6 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { Client } from "../../src"
-import { Producer } from "../../src/producer"
+import { Client, Publisher } from "../../src"
 import { createClient, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password, getMessageFrom } from "../support/util"
@@ -12,7 +11,7 @@ describe("publish a message", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let streamName: string
-  let publisher: Producer
+  let publisher: Publisher
   let bufferSizeSettings: BufferSizeSettings | undefined = undefined
   let maxFrameSize: number | undefined = undefined
 

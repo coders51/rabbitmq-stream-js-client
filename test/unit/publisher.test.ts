@@ -10,7 +10,7 @@ import { eventually, password, username } from "../support/util"
 chaiUse(chaiAsPromised)
 chaiUse(spies)
 
-describe("Producer", () => {
+describe("Publisher", () => {
   const rabbit = new Rabbit(username, password)
   let testStreamName = ""
   let publisherRef: string

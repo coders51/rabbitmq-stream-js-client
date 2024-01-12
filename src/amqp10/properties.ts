@@ -1,4 +1,4 @@
-import { MessageProperties } from "../producer"
+import { MessageProperties } from "../publisher"
 import { readUTF8String } from "../response_decoder"
 import { DataReader } from "../responses/raw_response"
 import { range } from "../util"

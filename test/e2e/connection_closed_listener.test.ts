@@ -65,7 +65,7 @@ describe("connection closed callback", () => {
     }, 1000)
   }).timeout(5000)
 
-  it("if specified, is called also on producer and consumer socket events", async () => {
+  it("if specified, is called also on publisher and consumer socket events", async () => {
     const listener = (_hasError: boolean) => {
       return
     }

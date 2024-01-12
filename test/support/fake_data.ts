@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto"
 import { Client, ListenersParams, connect } from "../../src/client"
-import { MessageProperties, Producer } from "../../src/producer"
+import { MessageProperties } from "../../src/publisher"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
-import { Consumer } from "../../src"
+import { Consumer, Publisher } from "../../src"
 import { createConsoleLog, getTestNodesFromEnv } from "./util"
 
 export function createProperties(): MessageProperties {
@@ -32,7 +32,7 @@ export function createConsumerRef(): string {
   return `my-consumer-${randomUUID()}`
 }
 
-export async function createPublisher(streamName: string, client: Client): Promise<Producer> {
+export async function createPublisher(streamName: string, client: Client): Promise<Publisher> {
   const publisher = await client.declarePublisher({
     stream: streamName,
     publisherRef: `my-publisher-${randomUUID()}`,

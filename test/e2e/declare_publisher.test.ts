@@ -27,22 +27,22 @@ describe("declare publisher", () => {
   })
 
   it("declaring a publisher on an existing stream - the publisher should be created", async () => {
-    const producer = await createPublisher(streamName, client)
+    const publisher = await createPublisher(streamName, client)
 
     await eventually(async () => {
       expect(await rabbit.returnPublishers(streamName))
         .lengthOf(1)
-        .and.to.include(producer.ref)
+        .and.to.include(publisher.ref)
     }, 5000)
   }).timeout(10000)
 
   it("declaring a publisher on an existing stream with no publisherRef - the publisher should be created", async () => {
-    const producer = await createPublisher(streamName, client)
+    const publisher = await createPublisher(streamName, client)
 
     await eventually(async () => {
       expect(await rabbit.returnPublishers(streamName))
         .lengthOf(1)
-        .and.to.include(producer.ref)
+        .and.to.include(publisher.ref)
     }, 5000)
   }).timeout(10000)
 

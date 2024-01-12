@@ -1,6 +1,6 @@
 import { inspect } from "node:util"
 import { isDate } from "node:util/types"
-import { Message, MessageApplicationProperties, MessageProperties } from "../producer"
+import { Message, MessageApplicationProperties, MessageProperties } from "../publisher"
 import { DataWriter } from "../requests/data_writer"
 
 const FormatCodeType = {

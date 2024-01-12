@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import { Client, connect } from "../../src"
-import { Message } from "../../src/producer"
+import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { getAddressResolverFromEnv } from "../../src/util"
 import { createStreamName } from "../support/fake_data"
@@ -59,14 +59,14 @@ describe("address resolver", () => {
     }
   })
 
-  it("declaring a producer - should not throw", async () => {
+  it("declaring a publisher - should not throw", async () => {
     await client.declarePublisher({ stream: streamName })
   })
 
-  it("declaring a producer - the producer should be connected to the leader", async () => {
-    const producer = await client.declarePublisher({ stream: streamName })
+  it("declaring a publisher - the publisher should be connected to the leader", async () => {
+    const publisher = await client.declarePublisher({ stream: streamName })
 
-    const connectionInfo = producer.getConnectionInfo()
+    const connectionInfo = publisher.getConnectionInfo()
     const queueInfo = await rabbit.getQueueInfo(streamName)
     expect(extractNodeName(queueInfo.node)).to.be.eql(connectionInfo.host)
   })

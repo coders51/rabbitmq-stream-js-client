@@ -1,9 +1,9 @@
 import { inspect } from "util"
 import { Metrics } from "./metrics"
-import { Client, DeclarePublisherParams, Producer } from "rabbitmq-stream-js-client"
+import { Client, DeclarePublisherParams, Publisher } from "rabbitmq-stream-js-client"
 import { Logger } from "winston"
 
-export class PerfTestProducer {
+export class PerfTestPublisher {
   private readonly metrics = new Metrics()
   private payload: Buffer
   private readonly maxChunkSize: number = 1000
@@ -50,7 +50,7 @@ export class PerfTestProducer {
     }
   }
 
-  private async send(publisher: Producer) {
+  private async send(publisher: Publisher) {
     while (this.maxMessages === -1 || this.ctr < this.maxMessages) {
       const messageQuantity = this.maxMessages > 0 ? Math.min(this.maxChunkSize, this.maxMessages) : this.maxChunkSize
       for (let index = 0; index < messageQuantity; index++) {

@@ -1,5 +1,5 @@
 import { DataReader } from "../responses/raw_response"
-import { MessageHeader } from "../producer"
+import { MessageHeader } from "../publisher"
 import { range } from "../util"
 import { decodeFormatCode, decodeBooleanType } from "../response_decoder"
 

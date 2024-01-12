@@ -55,7 +55,7 @@ interface MessageOptions {
   messageAnnotations?: Record<string, string | number>
 }
 
-export interface Producer {
+export interface Publisher {
   send(message: Buffer, opts?: MessageOptions): Promise<boolean>
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<boolean>
   flush(): Promise<boolean>
@@ -70,7 +70,7 @@ export interface Producer {
 }
 
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
-export class StreamProducer implements Producer {
+export class StreamPublisher implements Publisher {
   private client: Client
   private stream: string
   readonly publisherId: number
