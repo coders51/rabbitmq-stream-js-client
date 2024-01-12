@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import { Client } from "../../src"
-import { Message } from "../../src/producer"
+import { Message } from "../../src/publisher"
 import { range } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
