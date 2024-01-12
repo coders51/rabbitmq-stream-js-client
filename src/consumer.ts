@@ -1,5 +1,6 @@
 import { Client } from "./client"
 import { Message } from "./producer"
+import { Offset } from "./requests/subscribe_request"
 
 export type ConsumerFunc = (message: Message) => void
 
@@ -17,6 +18,7 @@ export class StreamConsumer implements Consumer {
   private stream: string
   public consumerId: number
   public consumerRef?: string
+  public offset: Offset
 
   constructor(
     readonly handle: ConsumerFunc,
@@ -25,12 +27,14 @@ export class StreamConsumer implements Consumer {
       stream: string
       consumerId: number
       consumerRef?: string
+      offset: Offset
     }
   ) {
     this.client = params.client
     this.stream = params.stream
     this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef
+    this.offset = params.offset
   }
 
   async close(): Promise<void> {

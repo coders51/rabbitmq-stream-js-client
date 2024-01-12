@@ -60,6 +60,8 @@ import { RouteQuery } from "./requests/route_query"
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsQuery } from "./requests/partitions_query"
 import { PartitionsResponse } from "./responses/partitions_response"
+import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
+import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -126,6 +128,8 @@ export class Client {
   public start(): Promise<Client> {
     this.registerListeners(this.params.listeners)
     this.registerDelivers()
+    this.registerConsumerUpdateQuery()
+
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
@@ -256,27 +260,36 @@ export class Client {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
+    const properties: Record<string, string> = {}
     const client = await this.initNewClient(params.stream, false, params.connectionClosedListener)
     const consumer = new StreamConsumer(addOffsetFilterToHandle(handle, params.offset), {
       client,
       stream: params.stream,
       consumerId,
       consumerRef: params.consumerRef,
+      offset: params.offset,
     })
     this.consumers.set(consumerId, consumer)
 
+    if (params.singleActive && !params.consumerRef) {
+      throw new Error("consumerRef is mandatory when declaring a single active consumer")
+    }
+    if (params.singleActive) {
+      properties["single-active-consumer"] = "true"
+      properties["name"] = params.consumerRef!
+    }
+
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10 })
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
+
     if (!res.ok) {
       this.consumers.delete(consumerId)
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
 
     this.logger.info(
-      `New consumer created with stream name ${
-        params.stream
-      }, consumer id ${consumerId} and offset ${params.offset.toString()}`
+      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
     return consumer
   }
@@ -317,6 +330,10 @@ export class Client {
 
   public get currentFrameMax() {
     return this.frameMax
+  }
+
+  public getConsumers() {
+    return Array.from(this.consumers.values())
   }
 
   public send(cmd: Request): Promise<void> {
@@ -430,6 +447,7 @@ export class Client {
       new ExchangeCommandVersionsRequest(versions)
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
+
     checkServerDeclaredVersions(this.serverVersions, this.logger)
     return response
   }
@@ -594,6 +612,20 @@ export class Client {
     })
   }
 
+  private registerConsumerUpdateQuery() {
+    this.decoder.on("consumer_update_query", async (response: ConsumerUpdateQuery) => {
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (!consumer) {
+        this.logger.error(`On consumer_update_query no consumer found`)
+        return
+      }
+      this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
+      await this.send(
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
+      )
+    })
+  }
+
   private calculateFrameMaxSizeFrom(tuneResponseFrameMax: number) {
     if (this.frameMax === DEFAULT_UNLIMITED_FRAME_MAX) return tuneResponseFrameMax
     if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_MAX) return this.frameMax
@@ -697,6 +729,7 @@ export interface DeclareConsumerParams {
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
+  singleActive?: boolean
 }
 
 export interface SubscribeParams {
