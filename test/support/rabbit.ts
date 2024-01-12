@@ -160,13 +160,7 @@ export class Rabbit {
   }
 
   async createSuperStream(superStream: string, noOfPartitions = 3): Promise<number> {
-    try {
-      await this.deleteSuperStream(superStream)
-    } catch (e) {
-      if (!(e && typeof e === "object" && "message" in e && /Response code 404/.test(e.message as string))) {
-        throw e
-      }
-    }
+    await this.deleteSuperStream(superStream)
     const exchangeName = `${superStream}`
     const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
     await this.createExchange(exchangeName)
@@ -176,10 +170,16 @@ export class Rabbit {
   }
 
   async deleteSuperStream(superStream: string, noOfPartitions = 3) {
-    const exchangeName = `${superStream}`
-    await this.deleteExchange(exchangeName)
-    const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
-    await Promise.all(streamNames.map((sn) => this.deleteStream(sn)))
+    try {
+      const exchangeName = `${superStream}`
+      await this.deleteExchange(exchangeName)
+      const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
+      await Promise.all(streamNames.map((sn) => this.deleteStream(sn)))
+    } catch (e) {
+      if (!(e && typeof e === "object" && "message" in e && /Response code 404/.test(e.message as string))) {
+        throw e
+      }
+    }
   }
 
   async returnPublishers(streamName: string): Promise<string[]> {
