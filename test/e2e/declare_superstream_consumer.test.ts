@@ -11,12 +11,13 @@ describe("declare super stream consumer", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let noOfPartitions: number = 0
-  const testMessageContent = "test message"
+  let sender: (noOfMessages: number) => Promise<void>
 
   beforeEach(async () => {
     client = await createClient(username, password)
     superStreamName = createStreamName()
     noOfPartitions = await rabbit.createSuperStream(superStreamName)
+    sender = await messageSender(client, superStreamName, noOfPartitions)
   })
 
   afterEach(async () => {
@@ -47,9 +48,7 @@ describe("declare super stream consumer", () => {
   })
 
   it("declaring a super stream consumer on an existing super stream - read a message", async () => {
-    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
-    const publisher = await client.declarePublisher({ stream: `${superStreamName}-${Math.floor(Math.random() * 3)}` })
-    await publisher.send(Buffer.from(testMessageContent))
+    await sender(1)
     const messages: Message[] = []
 
     await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
@@ -59,17 +58,13 @@ describe("declare super stream consumer", () => {
     await eventually(() => {
       expect(messages).to.have.length(1)
       const [message] = messages
-      expect(message.content.toString()).to.be.eq(testMessageContent)
+      expect(message.content.toString()).to.be.eq(`${testMessageContent}-0`)
     })
   })
 
-  it("reading multiple messages", async () => {
+  it("reading multiple messages - each message should be read only once", async () => {
     const noOfMessages = 20
-    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
-    const publisher = await client.declarePublisher({ stream: `${superStreamName}-${Math.floor(Math.random() * 3)}` })
-    for (let i = 0; i < noOfMessages; i++) {
-      await publisher.send(Buffer.from(`testMessageContent-${i}`))
-    }
+    await sender(noOfMessages)
     const messages: Message[] = []
 
     await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
@@ -80,4 +75,37 @@ describe("declare super stream consumer", () => {
       expect(messages).to.have.length(noOfMessages)
     })
   })
+
+  it("reading multiple messages - the order should be preserved", async () => {
+    const noOfMessages = 20
+    await sender(noOfMessages)
+    const messages: Message[] = []
+
+    await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
+      messages.push(message)
+    })
+
+    await eventually(() => {
+      expect(range(noOfMessages).map((i) => `${testMessageContent}-${i}`)).to.deep.equal(
+        messages.map((m) => m.content.toString())
+      )
+    })
+  })
 })
+
+const testMessageContent = "test message"
+
+const messageSender = async (client: Client, superStreamName: string, noOfPartitions: number) => {
+  // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
+  const publisher = await client.declarePublisher({
+    stream: `${superStreamName}-${Math.floor(Math.random() * noOfPartitions)}`,
+  })
+
+  const sendMessages = async (noOfMessages: number) => {
+    for (let i = 0; i < noOfMessages; i++) {
+      await publisher.send(Buffer.from(`${testMessageContent}-${i}`))
+    }
+  }
+
+  return sendMessages
+}
