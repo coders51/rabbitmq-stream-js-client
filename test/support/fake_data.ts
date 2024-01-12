@@ -72,6 +72,6 @@ export async function createClient(
       listeners: listeners,
       bufferSizeSettings: bufferSizeSettings,
     },
-    createConsoleLog({ silent: false, level: "info" })
+    createConsoleLog({ silent: false, level: "warn" })
   )
 }

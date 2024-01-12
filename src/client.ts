@@ -28,7 +28,6 @@ import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { TuneRequest } from "./requests/tune_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import {
-  ConsumerUpdateQueryListener,
   MetadataUpdateListener,
   PublishConfirmListener,
   PublishErrorListener,
@@ -61,7 +60,8 @@ import { RouteQuery } from "./requests/route_query"
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsQuery } from "./requests/partitions_query"
 import { PartitionsResponse } from "./responses/partitions_response"
-import { ConsumerUpdateQueryResponse } from "./responses/consumer_update_query_response"
+import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
+import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -128,6 +128,8 @@ export class Client {
   public start(): Promise<Client> {
     this.registerListeners(this.params.listeners)
     this.registerDelivers()
+    this.registerConsumerUpdateQuery()
+
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
@@ -160,13 +162,12 @@ export class Client {
       })
     })
   }
-  public on(event: "consumer_update_query", listener: ConsumerUpdateQueryListener): void
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
   public on(event: "publish_confirm", listener: PublishConfirmListener): void
   public on(event: "publish_error", listener: PublishErrorListener): void
   public on(
-    event: "metadata_update" | "publish_confirm" | "publish_error" | "consumer_update_query",
-    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener | ConsumerUpdateQueryListener
+    event: "metadata_update" | "publish_confirm" | "publish_error",
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
   ) {
     switch (event) {
       case "metadata_update":
@@ -182,8 +183,6 @@ export class Client {
         break
     }
   }
-
-  public on(event: "consumer")
 
   public async close(
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
@@ -268,9 +267,13 @@ export class Client {
       stream: params.stream,
       consumerId,
       consumerRef: params.consumerRef,
+      offset: params.offset,
     })
     this.consumers.set(consumerId, consumer)
 
+    if (params.singleActive && !params.consumerRef) {
+      throw new Error("consumerRef is mandatory when declaring a single active consumer")
+    }
     if (params.singleActive) {
       properties["single-active-consumer"] = "true"
       properties["name"] = params.consumerRef!
@@ -444,6 +447,7 @@ export class Client {
       new ExchangeCommandVersionsRequest(versions)
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
+
     checkServerDeclaredVersions(this.serverVersions, this.logger)
     return response
   }
@@ -605,6 +609,20 @@ export class Client {
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
+    })
+  }
+
+  private registerConsumerUpdateQuery() {
+    this.decoder.on("consumer_update_query", async (response: ConsumerUpdateQuery) => {
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (!consumer) {
+        this.logger.error(`On consumer_update_query no consumer found`)
+        return
+      }
+      this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
+      await this.send(
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
+      )
     })
   }
 

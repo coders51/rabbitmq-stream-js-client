@@ -27,7 +27,7 @@ import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import {
   DataReader,
-  RawConsumerUpdateQueryResponse,
+  RawConsumerUpdateQueryResponse as RawConsumerUpdateQuery,
   RawCreditResponse,
   RawDeliverResponse,
   RawHeartbeatResponse,
@@ -48,7 +48,7 @@ import { MetadataResponse } from "./responses/metadata_response"
 import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsResponse } from "./responses/partitions_response"
-import { ConsumerUpdateQueryResponse } from "./responses/consumer_update_query_response"
+import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -65,7 +65,7 @@ export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
 export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
 export type PublishErrorListener = (confirm: PublishErrorResponse) => void
-export type ConsumerUpdateQueryListener = (metadata: ConsumerUpdateQueryResponse) => void
+export type ConsumerUpdateQueryListener = (metadata: ConsumerUpdateQuery) => void
 
 type DeliveryResponseDecoded = {
   subscriptionId: number
@@ -81,7 +81,7 @@ type PossibleRawResponses =
   | RawCreditResponse
   | RawPublishConfirmResponse
   | RawPublishErrorResponse
-  | RawConsumerUpdateQueryResponse
+  | RawConsumerUpdateQuery
 
 function decode(
   data: DataReader,
@@ -123,13 +123,13 @@ function decodeResponse(
     const heartbeat = dataResponse.readUInt32()
     return { size, key, version, frameMax, heartbeat } as RawTuneResponse
   }
-  if (key === ConsumerUpdateQueryResponse.key) {
+  if (key === ConsumerUpdateQuery.key) {
     const correlationId = dataResponse.readUInt32()
     const subscriptionId = dataResponse.readUInt8()
     const active = dataResponse.readUInt8()
     const data = { size, key, version, correlationId, subscriptionId, active }
     logger.info(inspect(data))
-    return data as RawConsumerUpdateQueryResponse
+    return data as RawConsumerUpdateQuery
   }
   if (key === HeartbeatResponse.key) {
     return { key, version } as RawHeartbeatResponse
@@ -564,8 +564,8 @@ function isTuneResponse(params: PossibleRawResponses): params is RawTuneResponse
   return params.key === TuneResponse.key
 }
 
-function isConsumerUpdateQueryResponse(params: PossibleRawResponses): params is RawConsumerUpdateQueryResponse {
-  return params.key === ConsumerUpdateQueryResponse.key
+function isConsumerUpdateQuery(params: PossibleRawResponses): params is RawConsumerUpdateQuery {
+  return params.key === ConsumerUpdateQuery.key
 }
 
 function isHeartbeatResponse(params: PossibleRawResponses): params is RawHeartbeatResponse {
@@ -636,8 +636,8 @@ export class ResponseDecoder {
       } else if (isTuneResponse(response)) {
         this.emitTuneResponseReceived(response)
         this.logger.debug(`tune received from the server: ${inspect(response)}`)
-      } else if (isConsumerUpdateQueryResponse(response)) {
-        this.emitter.emit("consumer_update_query", new ConsumerUpdateQueryResponse(response))
+      } else if (isConsumerUpdateQuery(response)) {
+        this.emitter.emit("consumer_update_query", new ConsumerUpdateQuery(response))
         this.logger.debug(`consumer update query received from the server: ${inspect(response)}`)
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))

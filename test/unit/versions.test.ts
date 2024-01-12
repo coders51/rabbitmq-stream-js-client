@@ -33,6 +33,7 @@ describe("Versions", () => {
       { key: 8, maxVersion: 1, minVersion: 1 },
       { key: 3, maxVersion: 1, minVersion: 1 },
       { key: 4, maxVersion: 1, minVersion: 1 },
+      { key: 26, maxVersion: 1, minVersion: 1 },
     ])
   })
 

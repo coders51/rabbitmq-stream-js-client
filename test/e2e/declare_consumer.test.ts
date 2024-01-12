@@ -20,11 +20,9 @@ import {
   password,
   createClassicPublisher,
   decodeMessageTesting,
-  wait,
 } from "../support/util"
 import { readFileSync } from "fs"
 import path from "path"
-import { inspect } from "util"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -42,12 +40,12 @@ describe("declare consumer", () => {
   })
 
   afterEach(async () => {
-    // try {
-    //   await client.close()
-    //   await rabbit.deleteStream(streamName)
-    //   await rabbit.closeAllConnections()
-    //   await rabbit.deleteAllQueues({ match: /my-stream-/ })
-    // } catch (e) {}
+    try {
+      await client.close()
+      await rabbit.deleteStream(streamName)
+      await rabbit.closeAllConnections()
+      await rabbit.deleteAllQueues({ match: /my-stream-/ })
+    } catch (e) {}
   })
 
   it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
@@ -61,31 +59,89 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
-  it.only(
-    "declaring a single active consumer on an existing stream - the one consumer should handle the message",
-    async () => {
-      const consumerRef = createConsumerRef()
-      await client.declareConsumer(
-        { stream: streamName, offset: Offset.next(), singleActive: true, consumerRef: consumerRef },
-        (message: Message) => console.log(`A ${message.content.toString()}`)
-      )
+  it("declaring multiple active consumer on an existing stream - only one consumer should handle the message", async () => {
+    const messages: Buffer[] = []
+    const consumerRef = createConsumerRef()
 
-      await client.declareConsumer(
-        { stream: streamName, offset: Offset.next(), singleActive: true, consumerRef: consumerRef },
-        (message: Message) => console.log(`B ${message.content.toString()}`)
-      )
+    await publisher.send(Buffer.from("hello"))
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
 
-      await client.declareConsumer(
-        { stream: streamName, offset: Offset.next(), singleActive: true, consumerRef: consumerRef },
-        (message: Message) => console.log(`C ${message.content.toString()}`)
-      )
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+  }).timeout(10000)
 
-      await publisher.send(Buffer.from("hello"))
+  it("declaring a single active consumer on an existing stream and a simple one - the active of the group  and the simple should handle the message", async () => {
+    const messages: Buffer[] = []
+    const consumerRef = createConsumerRef()
 
-      await wait(10000)
-      await eventually(() => expect(true).eql(true), 10000)
-    }
-  ).timeout(10000)
+    await publisher.send(Buffer.from("hello"))
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+      messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+
+    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
+  }).timeout(10000)
+
+  it("declaring two single active consumer group on an existing stream - the active of the groups should handle the message", async () => {
+    const messages: Buffer[] = []
+    const consumerRef = createConsumerRef()
+    const consumerRef1 = createConsumerRef()
+
+    await publisher.send(Buffer.from("hello"))
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
+      (message: Message) => messages.push(message.content)
+    )
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
+      (message: Message) => messages.push(message.content)
+    )
+
+    await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
+  }).timeout(10000)
+
+  it("declaring a single active consumer without reference on an existing stream - should throw an error", async () => {
+    const messages: Buffer[] = []
+
+    await publisher.send(Buffer.from("hello"))
+
+    await expectToThrowAsync(
+      async () => {
+        await client.declareConsumer(
+          { stream: streamName, offset: Offset.first(), singleActive: true },
+          (message: Message) => messages.push(message.content)
+        )
+      },
+      Error,
+      "consumerRef is mandatory when declaring a single active consumer"
+    )
+  }).timeout(10000)
 
   it("declaring a consumer on an existing stream - the consumer should handle more then one message", async () => {
     const messages: Buffer[] = []

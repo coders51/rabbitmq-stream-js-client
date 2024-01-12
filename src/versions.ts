@@ -34,7 +34,12 @@ const supportedRequests = [
   requests.PartitionsQuery,
 ]
 
-const supportedResponses = [responses.DeliverResponse, responses.PublishConfirmResponse, responses.PublishErrorResponse]
+const supportedResponses = [
+  responses.DeliverResponse,
+  responses.PublishConfirmResponse,
+  responses.PublishErrorResponse,
+  responses.ConsumerUpdateQuery,
+]
 
 function maybeAddMaxVersion(values: Map<Key, SimpleVersion>, key: Key, version: SimpleVersion) {
   const currentMaxValue = values.get(key)
