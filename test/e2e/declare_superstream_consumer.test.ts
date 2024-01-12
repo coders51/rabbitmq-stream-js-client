@@ -47,7 +47,7 @@ describe("declare super stream consumer", () => {
   })
 
   it("declaring a super stream consumer on an existing super stream - read a message", async () => {
-    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- Luca
+    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
     const publisher = await client.declarePublisher({ stream: `${superStreamName}-${Math.floor(Math.random() * 3)}` })
     await publisher.send(Buffer.from(testMessageContent))
     const messages: Message[] = []
@@ -65,7 +65,7 @@ describe("declare super stream consumer", () => {
 
   it("reading multiple messages", async () => {
     const noOfMessages = 20
-    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- Luca
+    // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
     const publisher = await client.declarePublisher({ stream: `${superStreamName}-${Math.floor(Math.random() * 3)}` })
     for (let i = 0; i < noOfMessages; i++) {
       await publisher.send(Buffer.from(`testMessageContent-${i}`))
