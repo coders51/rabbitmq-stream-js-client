@@ -3,13 +3,12 @@ import { AssertionError, expect } from "chai"
 import { inspect } from "node:util"
 import { createLogger, format, transports } from "winston"
 import { ApplicationProperties } from "../../src/amqp10/applicationProperties"
-import { exec } from "child_process"
-import { DataReader } from "../../src/responses/raw_response"
 import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
 import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Publisher } from "../../src/publisher"
 import { decodeFormatCode } from "../../src/response_decoder"
+import { DataReader } from "../../src/responses/raw_response"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
   return createLogger({
@@ -227,56 +226,6 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
     const [host, port] = n.split(":")
     return { host: host ?? "localhost", port: parseInt(port) ?? 5552 }
   })
-}
-function getRabbitServiceName() {
-  const nodes = getTestNodesFromEnv()
-  if (nodes.length > 1) return { path: "./cluster", service: "rabbit_node0" }
-
-  return { path: "./", service: "rabbitmq-stream" }
-}
-
-// Block until the exec is finished, so that our test doesn't assert before the super stream is created.
-// Does not do anything in CI, since CI creates super stream using `docker exec` in github action.
-export function startSuperStream(superStream: string) {
-  const { path, service } = getRabbitServiceName()
-  return new Promise((res, rej) => {
-    exec(
-      `cd ${path} && docker-compose exec ${service} rabbitmq-streams add_super_stream ${superStream} --partitions 2`,
-      (error, stdout, stderr) => {
-        if (error) {
-          rej(`${error.message}`)
-        }
-        res(stdout ? stdout : stderr)
-      }
-    )
-  })
-}
-
-export async function stopSuperStream(superStream: string) {
-  const { path, service } = getRabbitServiceName()
-  return new Promise((res, rej) => {
-    exec(
-      `cd ${path} && docker-compose exec ${service} rabbitmq-streams delete_super_stream ${superStream}`,
-      (error, stdout, stderr) => {
-        if (error) {
-          rej(`${error.message}`)
-        }
-        res(stdout ? stdout : stderr)
-      }
-    )
-  })
-}
-
-export async function maybeStartSuperStream(superStream: string) {
-  try {
-    await startSuperStream(superStream)
-  } catch (e) {}
-}
-
-export async function maybeStopSuperStream(superStream: string) {
-  try {
-    await stopSuperStream(superStream)
-  } catch (e) {}
 }
 
 export const username = process.env.RABBITMQ_USER || "rabbit"

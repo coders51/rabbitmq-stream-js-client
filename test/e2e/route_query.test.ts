@@ -1,7 +1,7 @@
 import { Client } from "../../src"
 import { createClient } from "../support/fake_data"
 import { expect } from "chai"
-import { username, password, maybeStopSuperStream, maybeStartSuperStream, expectToThrowAsync } from "../support/util"
+import { username, password, expectToThrowAsync } from "../support/util"
 import { randomUUID } from "crypto"
 import { Rabbit } from "../support/rabbit"
 
@@ -16,11 +16,11 @@ describe("RouteQuery command", () => {
 
   afterEach(async () => {
     await client.close()
-    await maybeStopSuperStream(superStream)
+    await rabbit.deleteSuperStream(superStream)
   })
 
   it("returns a list of stream names", async () => {
-    await maybeStartSuperStream(superStream)
+    await rabbit.createSuperStream(superStream)
 
     const route = await client.routeQuery({ routingKey: "0", superStream: superStream })
 

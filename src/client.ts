@@ -9,17 +9,21 @@ import { Heartbeat } from "./heartbeat"
 import { Logger, NullLogger } from "./logger"
 import { Message, Publisher, StreamPublisher } from "./publisher"
 import { CloseRequest } from "./requests/close_request"
+import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
+import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { MetadataRequest } from "./requests/metadata_request"
 import { OpenRequest } from "./requests/open_request"
+import { PartitionsQuery } from "./requests/partitions_query"
 import { PeerPropertiesRequest } from "./requests/peer_properties_request"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { BufferSizeParams, BufferSizeSettings, Request } from "./requests/request"
+import { RouteQuery } from "./requests/route_query"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
@@ -34,34 +38,31 @@ import {
   ResponseDecoder,
 } from "./response_decoder"
 import { CloseResponse } from "./responses/close_response"
+import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeliverResponse } from "./responses/deliver_response"
+import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
 import { OpenResponse } from "./responses/open_response"
+import { PartitionsResponse } from "./responses/partitions_response"
 import { PeerPropertiesResponse } from "./responses/peer_properties_response"
+import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { Response } from "./responses/response"
+import { RouteResponse } from "./responses/route_response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
+import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
+import { SuperStreamConsumer } from "./super_stream_consumer"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom, sample } from "./util"
-import { WaitingResponse } from "./waiting_response"
-import { StreamStatsResponse } from "./responses/stream_stats_response"
-import { DeliverResponse } from "./responses/deliver_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
-import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
-import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
-import { RouteQuery } from "./requests/route_query"
-import { RouteResponse } from "./responses/route_response"
-import { PartitionsQuery } from "./requests/partitions_query"
-import { PartitionsResponse } from "./responses/partitions_response"
-import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
-import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
+import { WaitingResponse } from "./waiting_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -216,6 +217,16 @@ export class Client {
     return streamInfos
   }
 
+  public async queryPartitions(params: QueryPartitionsParams): Promise<string[]> {
+    const { superStream } = params
+    const res = await this.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
+    if (!res.ok) {
+      throw new Error(`Query Partitions command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    this.logger.info(`Returned superstream partitions for superstream ${superStream}`)
+    return res.streams
+  }
+
   public async declarePublisher(params: DeclarePublisherParams): Promise<Publisher> {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
@@ -308,6 +319,11 @@ export class Client {
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
+  }
+
+  public async declareSuperStreamConsumer(superStream: string, handle: ConsumerFunc): Promise<SuperStreamConsumer> {
+    const partitions = await this.queryPartitions({ superStream })
+    return SuperStreamConsumer.create(handle, { locator: this, consumerRef: "test", partitions })
   }
 
   private async closeAllConsumers() {
@@ -752,6 +768,10 @@ export interface QueryOffsetParams {
 
 export interface QueryMetadataParams {
   streams: string[]
+}
+
+export interface QueryPartitionsParams {
+  superStream: string
 }
 
 export function connect(params: ConnectionParams, logger?: Logger): Promise<Client> {

@@ -1,5 +1,6 @@
 import got from "got"
 import { getTestNodesFromEnv } from "./util"
+import { range } from "../../src/util"
 
 interface RabbitConnectionResponse {
   name: string
@@ -127,6 +128,58 @@ export class Rabbit {
       username: this.username,
       password: this.password,
     })
+  }
+
+  createExchange(exchangeName: string) {
+    return got.put<unknown>(`http://${this.firstNode.host}:${this.port}/api/exchanges/%2F/${exchangeName}`, {
+      body: JSON.stringify({
+        type: "direct",
+        auto_delete: false,
+        durable: true,
+        arguments: { "x-super-stream-enabled": "true" },
+      }),
+      username: this.username,
+      password: this.password,
+      responseType: "json",
+    })
+  }
+
+  deleteExchange(exchangeName: string) {
+    return got.delete<unknown>(`http://${this.firstNode.host}:${this.port}/api/exchanges/%2F/${exchangeName}`, {
+      username: this.username,
+      password: this.password,
+    })
+  }
+
+  createBinding(exchange: string, stream: string, routingKey: string) {
+    return got.post<unknown>(`http://${this.firstNode.host}:${this.port}/api/bindings/%2F/e/${exchange}/q/${stream}`, {
+      body: JSON.stringify({ routing_key: routingKey, arguments: { "x-stream-partition-order": routingKey } }),
+      username: this.username,
+      password: this.password,
+    })
+  }
+
+  async createSuperStream(superStream: string, noOfPartitions = 3): Promise<number> {
+    await this.deleteSuperStream(superStream)
+    const exchangeName = `${superStream}`
+    const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
+    await this.createExchange(exchangeName)
+    await Promise.all(streamNames.map((sn) => this.createStream(sn)))
+    await Promise.all(streamNames.map((sn, i) => this.createBinding(exchangeName, sn, `${i}`)))
+    return noOfPartitions
+  }
+
+  async deleteSuperStream(superStream: string, noOfPartitions = 3) {
+    try {
+      const exchangeName = `${superStream}`
+      await this.deleteExchange(exchangeName)
+      const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
+      await Promise.all(streamNames.map((sn) => this.deleteStream(sn)))
+    } catch (e) {
+      if (!(e && typeof e === "object" && "message" in e && /Response code 404/.test(e.message as string))) {
+        throw e
+      }
+    }
   }
 
   async returnPublishers(streamName: string): Promise<string[]> {

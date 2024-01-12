@@ -82,6 +82,7 @@ export class StreamPublisher implements Publisher {
   private scheduled: NodeJS.Immediate | null
   private logger: Logger
   private maxChunkLength: number
+  private isClosed = false
 
   constructor(params: {
     client: Client
@@ -172,8 +173,11 @@ export class StreamPublisher implements Publisher {
   }
 
   public async close(): Promise<void> {
-    await this.flush()
-    await this.client.close()
+    if (!this.isClosed) {
+      await this.flush()
+      await this.client.close()
+    }
+    this.isClosed = true
   }
 
   private async enqueue(publishRequestMessage: PublishRequestMessage) {
