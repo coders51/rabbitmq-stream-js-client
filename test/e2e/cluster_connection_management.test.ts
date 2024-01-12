@@ -33,7 +33,7 @@ describe("connection management for clusters (applicable even on a single node)"
     expect(clientConnectionInfo.id).to.not.be.equal(consumerConnectionInfo.id)
   }).timeout(10000)
 
-  it("when we create a producer, a new connection is opened", async () => {
+  it("when we create a publisher, a new connection is opened", async () => {
     const clientConnectionInfo = client.getConnectionInfo()
 
     const publisher = await createPublisher(streamName, client)
@@ -42,7 +42,7 @@ describe("connection management for clusters (applicable even on a single node)"
     expect(clientConnectionInfo.id).to.not.be.equal(publisherConnectionInfo.id)
   }).timeout(10000)
 
-  it("when we create a producer, the connection should be done on the leader", async () => {
+  it("when we create a publisher, the connection should be done on the leader", async () => {
     const streamInfo = await rabbit.getQueue("%2F", streamName)
     const leader = streamInfo.node
     const [leaderHostName] = leader.split("@").slice(-1)
@@ -53,7 +53,7 @@ describe("connection management for clusters (applicable even on a single node)"
     expect(connectionInfo.host).to.be.equal(leaderHostName)
   }).timeout(10000)
 
-  it("closing the client closes all producers and consumers - no connection is left hanging", async () => {
+  it("closing the client closes all publisher and consumers - no connection is left hanging", async () => {
     await createConsumer(streamName, client)
     await createConsumer(streamName, client)
     await createPublisher(streamName, client)
@@ -61,6 +61,6 @@ describe("connection management for clusters (applicable even on a single node)"
     await client.close()
 
     expect(client.consumerCounts()).to.be.equal(0)
-    expect(client.producerCounts()).to.be.equal(0)
+    expect(client.publisherCounts()).to.be.equal(0)
   }).timeout(10000)
 })

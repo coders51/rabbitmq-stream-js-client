@@ -1,4 +1,4 @@
-import { Message } from "../producer"
+import { Message } from "../publisher"
 import { BufferDataWriter } from "../requests/abstract_request"
 import { RawDeliverResponse } from "./raw_response"
 import { Response } from "./response"

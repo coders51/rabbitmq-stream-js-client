@@ -8,7 +8,13 @@ import { Properties } from "./amqp10/properties"
 import { Compression, CompressionType } from "./compression"
 import { DecoderListenerFunc } from "./decoder_listener"
 import { Logger } from "./logger"
-import { Message, MessageAnnotations, MessageApplicationProperties, MessageHeader, MessageProperties } from "./producer"
+import {
+  Message,
+  MessageAnnotations,
+  MessageApplicationProperties,
+  MessageHeader,
+  MessageProperties,
+} from "./publisher"
 import { AbstractTypeClass } from "./responses/abstract_response"
 import { CloseResponse } from "./responses/close_response"
 import { CreateStreamResponse } from "./responses/create_stream_response"

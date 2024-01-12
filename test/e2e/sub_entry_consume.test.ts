@@ -1,19 +1,19 @@
 import { expect } from "chai"
-import { Client } from "../../src"
+import { Client, Publisher } from "../../src"
+import { CompressionType } from "../../src/compression"
 import { Consumer } from "../../src/consumer"
-import { Message, Producer } from "../../src/producer"
+import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
+import { range } from "../../src/util"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
-import { range } from "../../src/util"
-import { CompressionType } from "../../src/compression"
 
 describe("consume a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let streamName: string
-  let publisher: Producer
+  let publisher: Publisher
   let consumer: Consumer | undefined
 
   beforeEach(async () => {

@@ -1,4 +1,4 @@
-import { Message } from "../producer"
+import { Message } from "../publisher"
 
 export interface DataReader {
   readBufferOf(length: number): Buffer

@@ -1,13 +1,12 @@
 import { expect } from "chai"
-import { Client } from "../../src"
+import { Client, Publisher } from "../../src"
 import {
   Message,
   MessageAnnotations,
   MessageApplicationProperties,
   MessageProperties,
-  Producer,
   MessageHeader,
-} from "../../src/producer"
+} from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createClient, createConsumerRef, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
@@ -29,7 +28,7 @@ describe("declare consumer", () => {
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
-  let publisher: Producer
+  let publisher: Publisher
 
   beforeEach(async () => {
     client = await createClient(username, password)

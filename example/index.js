@@ -17,9 +17,9 @@ async function main() {
     heartbeat: 0,
   })
   await client.createStream({ stream: streamName, arguments: {} })
-  const producer = await client.declarePublisher({ stream: streamName })
+  const publisher = await client.declarePublisher({ stream: streamName })
 
-  await producer.send(Buffer.from("Test message"))
+  await publisher.send(Buffer.from("Test message"))
 
   await client.declareConsumer({ stream: streamName, offset: rabbit.Offset.first() }, (message) => {
     console.log(`Received message ${message.content.toString()}`)

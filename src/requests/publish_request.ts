@@ -1,5 +1,5 @@
 import { amqpEncode } from "../amqp10/encoder"
-import { Message } from "../producer"
+import { Message } from "../publisher"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 

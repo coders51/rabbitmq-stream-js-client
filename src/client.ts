@@ -7,7 +7,7 @@ import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Heartbeat } from "./heartbeat"
 import { Logger, NullLogger } from "./logger"
-import { Message, Producer, StreamProducer } from "./producer"
+import { Message, Publisher, StreamPublisher } from "./publisher"
 import { CloseRequest } from "./requests/close_request"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
@@ -75,7 +75,7 @@ export class Client {
   private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
-  private producers = new Map<number, { connection: Client; producer: StreamProducer }>()
+  private publishers = new Map<number, { client: Client; publisher: StreamPublisher }>()
   private compressions = new Map<CompressionType, Compression>()
   private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
@@ -188,9 +188,9 @@ export class Client {
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
   ): Promise<void> {
     this.logger.info(`Closing client...`)
-    if (this.producerCounts()) {
-      this.logger.info(`Stopping all producers...`)
-      await this.closeAllProducers()
+    if (this.publisherCounts()) {
+      this.logger.info(`Stopping all publishers...`)
+      await this.closeAllPublishers()
     }
     if (this.consumerCounts()) {
       this.logger.info(`Stopping all consumers...`)
@@ -216,7 +216,7 @@ export class Client {
     return streamInfos
   }
 
-  public async declarePublisher(params: DeclarePublisherParams): Promise<Producer> {
+  public async declarePublisher(params: DeclarePublisherParams): Promise<Publisher> {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
@@ -228,7 +228,7 @@ export class Client {
       await client.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    const producer = new StreamProducer({
+    const publisher = new StreamPublisher({
       client,
       stream: params.stream,
       publisherId: publisherId,
@@ -238,23 +238,23 @@ export class Client {
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
-    this.producers.set(publisherId, { producer, connection: client })
+    this.publishers.set(publisherId, { publisher: publisher, client: client })
     this.logger.info(
-      `New producer created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
 
-    return producer
+    return publisher
   }
 
   public async deletePublisher(publisherId: number) {
-    const producerConnection = this.producers.get(publisherId)?.connection ?? this
-    const res = await producerConnection.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    const publisherClient = this.publishers.get(publisherId)?.client ?? this
+    const res = await publisherClient.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await this.producers.get(publisherId)?.producer.close()
-    this.producers.delete(publisherId)
-    this.logger.info(`deleted producer with publishing id ${publisherId}`)
+    await this.publishers.get(publisherId)?.publisher.close()
+    this.publishers.delete(publisherId)
+    this.logger.info(`deleted publisher with publishing id ${publisherId}`)
     return res.ok
   }
 
@@ -315,17 +315,17 @@ export class Client {
     this.consumers = new Map<number, StreamConsumer>()
   }
 
-  private async closeAllProducers() {
-    await Promise.all([...this.producers.values()].map((c) => c.producer.close()))
-    this.producers = new Map<number, { connection: Client; producer: StreamProducer }>()
+  private async closeAllPublishers() {
+    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close()))
+    this.publishers = new Map<number, { client: Client; publisher: StreamPublisher }>()
   }
 
   public consumerCounts() {
     return this.consumers.size
   }
 
-  public producerCounts() {
-    return this.producers.size
+  public publisherCounts() {
+    return this.publishers.size
   }
 
   public get currentFrameMax() {

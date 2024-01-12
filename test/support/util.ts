@@ -8,7 +8,7 @@ import { DataReader } from "../../src/responses/raw_response"
 import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
-import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Producer } from "../../src/producer"
+import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Publisher } from "../../src/publisher"
 import { decodeFormatCode } from "../../src/response_decoder"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
@@ -213,10 +213,10 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
   return { content, messageProperties, messageHeader, applicationProperties, amqpValue, offset: BigInt(length) }
 }
 
-export const sendANumberOfRandomMessages = async (producer: Producer, offset = 0): Promise<string[]> => {
+export const sendANumberOfRandomMessages = async (publisher: Publisher, offset = 0): Promise<string[]> => {
   const noOfMessages = Math.floor(Math.random() * 10) + 1
   const messages = Array.from(Array(noOfMessages).keys()).map((_, i) => `Message number ${i + offset + 1}`)
-  await Promise.all(messages.map((m) => producer.send(Buffer.from(m))))
+  await Promise.all(messages.map((m) => publisher.send(Buffer.from(m))))
   return messages
 }
 

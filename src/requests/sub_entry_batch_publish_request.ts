@@ -1,6 +1,6 @@
 import { amqpEncode, messageSize } from "../amqp10/encoder"
 import { Compression, CompressionType } from "../compression"
-import { Message } from "../producer"
+import { Message } from "../publisher"
 import { AbstractRequest, BufferDataWriter } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 

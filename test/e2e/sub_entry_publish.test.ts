@@ -1,6 +1,5 @@
 import { expect } from "chai"
-import { Client } from "../../src"
-import { Producer } from "../../src/producer"
+import { Client, Publisher } from "../../src"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
@@ -10,7 +9,7 @@ describe("publish a batch of messages", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let streamName: string
-  let publisher: Producer
+  let publisher: Publisher
 
   beforeEach(async () => {
     client = await createClient(username, password)
