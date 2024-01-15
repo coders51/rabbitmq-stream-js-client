@@ -1,4 +1,4 @@
-import { Client } from "./client"
+import { Client, ConnectionInfo } from "./client"
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
@@ -8,7 +8,7 @@ export interface Consumer {
   close(): Promise<void>
   storeOffset(offsetValue: bigint): Promise<void>
   queryOffset(): Promise<bigint>
-  getConnectionInfo(): { host: string; port: number; id: string }
+  getConnectionInfo(): ConnectionInfo
   consumerId: number
   consumerRef?: string
 }
@@ -51,7 +51,8 @@ export class StreamConsumer implements Consumer {
     return this.client.queryOffset({ stream: this.stream, reference: this.consumerRef })
   }
 
-  public getConnectionInfo(): { host: string; port: number; id: string } {
-    return this.client.getConnectionInfo()
+  public getConnectionInfo(): ConnectionInfo {
+    const { host, port, id, readable, localPort } = this.client.getConnectionInfo()
+    return { host, port, id, readable, localPort }
   }
 }

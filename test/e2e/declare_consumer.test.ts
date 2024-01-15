@@ -8,7 +8,13 @@ import {
   MessageHeader,
 } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
-import { createClient, createConsumerRef, createPublisher, createStreamName } from "../support/fake_data"
+import {
+  createClient,
+  createConsumer,
+  createConsumerRef,
+  createPublisher,
+  createStreamName,
+} from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { range } from "../../src/util"
 import { BufferDataReader } from "../../src/response_decoder"
@@ -19,6 +25,7 @@ import {
   password,
   createClassicPublisher,
   decodeMessageTesting,
+  getTestNodesFromEnv,
 } from "../support/util"
 import { readFileSync } from "fs"
 import path from "path"
@@ -44,7 +51,7 @@ describe("declare consumer", () => {
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-    } catch (e) {}
+    } catch (_e) {}
   })
 
   it("declaring a consumer on an existing stream - the consumer should handle the message", async () => {
@@ -261,7 +268,20 @@ describe("declare consumer", () => {
       expect(message.messageHeader).eql(header)
       expect(message.amqpValue).eql(amqpValue)
     })
-  })
+  }).timeout(10000)
+
+  it("consumers for the same stream and node must share the underlying connection", async () => {
+    const consumersToCreate = getTestNodesFromEnv().length + 1
+    const counts = new Map<string, number>()
+    for (let i = 0; i < consumersToCreate; i++) {
+      const consumer = await createConsumer(streamName, client)
+      const { id } = consumer.getConnectionInfo()
+      counts.set(id, (counts.get(id) || 0) + 1)
+    }
+
+    const countConsumersSharingLocalPort = Array.from(counts.entries()).find(([_id, count]) => count > 1)
+    expect(countConsumersSharingLocalPort).not.undefined
+  }).timeout(10000)
 })
 
 function createProperties(): MessageProperties {

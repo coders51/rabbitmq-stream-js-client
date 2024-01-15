@@ -70,9 +70,20 @@ import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request
 import { lt, coerce } from "semver"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
+export type ConnectionInfo = {
+  host: string
+  port: number
+  id: string
+  readable?: boolean
+  writable?: boolean
+  localPort?: number
+}
+type ClientInstanceKey = string
 
 export class Client {
+  private id: string = randomUUID()
   private socket: Socket
+  private hostname: string
   private correlationId = 100
   private decoder: ResponseDecoder
   private receivedResponses: Response[] = []
@@ -90,6 +101,11 @@ export class Client {
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
   private readonly serverDeclaredVersions: Version[] = []
   private peerProperties: Record<string, string> = {}
+  private static ConsumerClients = new Map<ClientInstanceKey, Client[]>()
+  private static PublisherClients = new Map<ClientInstanceKey, Client[]>()
+  private refCount = 0
+  private leader: boolean
+  private streamName: string | undefined
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -100,6 +116,9 @@ export class Client {
       this.socket.connect(this.params.port, this.params.hostname)
     }
     if (params.socketTimeout) this.socket.setTimeout(params.socketTimeout)
+    this.hostname = params.hostname
+    this.leader = params.leader || false
+    this.streamName = params.streamName
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -194,21 +213,25 @@ export class Client {
   public async close(
     params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
   ): Promise<void> {
-    this.logger.info(`Closing client...`)
-    if (this.publisherCounts()) {
-      this.logger.info(`Stopping all publishers...`)
-      await this.closeAllPublishers()
+    this.logger.info(`${this.id} Closing client...`)
+    const refs = this.decrRefCount()
+    if (refs <= 0) {
+      if (this.publisherCounts()) {
+        this.logger.info(`Stopping all producers...`)
+        await this.closeAllPublishers()
+      }
+      if (this.consumerCounts()) {
+        this.logger.info(`Stopping all consumers...`)
+        await this.closeAllConsumers()
+      }
+      this.logger.info(`Stopping heartbeat...`)
+      this.heartbeat.stop()
+      this.logger.debug(`Close...`)
+      const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
+      this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
+      Client.RemoveCachedClient(this.leader, this.streamName, this.hostname)
+      this.socket.end()
     }
-    if (this.consumerCounts()) {
-      this.logger.info(`Stopping all consumers...`)
-      await this.closeAllConsumers()
-    }
-    this.logger.info(`Stopping heartbeat...`)
-    this.heartbeat.stop()
-    this.logger.debug(`Close...`)
-    const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
-    this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
-    this.socket.end()
   }
 
   public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
@@ -485,8 +508,15 @@ export class Client {
     return res.offsetValue
   }
 
-  public getConnectionInfo(): { host: string; port: number; id: string } {
-    return { host: this.serverEndpoint.host, port: this.serverEndpoint.port, id: this.connectionId }
+  public getConnectionInfo(): ConnectionInfo {
+    return {
+      host: this.serverEndpoint.host,
+      port: this.serverEndpoint.port,
+      id: this.connectionId,
+      readable: this.socket.readable,
+      writable: this.socket.writable,
+      localPort: this.socket.localPort,
+    }
   }
 
   private responseReceived<T extends Response>(response: T) {
@@ -723,9 +753,16 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
+    const cachedClient = Client.GetUsableCachedClient(leader, streamName, chosenNode.host)
+    if (cachedClient) {
+      cachedClient.incrRefCount()
+      return cachedClient
+    }
     const listeners = { ...this.params.listeners, connection_closed: connectionClosedListener }
-    const connectionParams = { ...this.params, listeners: listeners }
+    const connectionParams = { ...this.params, listeners: listeners, leader: leader, streamName: streamName }
     const newClient = await this.getConnectionOnChosenNode(chosenNode, connectionParams, metadata)
+    newClient.incrRefCount()
+    Client.CacheClient(leader, streamName, chosenNode.host, newClient)
     return newClient
   }
 
@@ -772,6 +809,40 @@ export class Client {
     bindingKeys.map((bk) => partitions.push(`${streamName}-${bk}`))
     return { partitions, streamBindingKeys: bindingKeys }
   }
+  private incrRefCount() {
+    return ++this.refCount
+  }
+
+  private decrRefCount() {
+    return --this.refCount
+  }
+
+  private static GetUsableCachedClient(leader: boolean, streamName: string, host: string) {
+    const m = leader ? Client.PublisherClients : Client.ConsumerClients
+    const k = Client.GetCacheKey(streamName, host)
+    const clients = m.get(k) || []
+    const client = clients.at(-1)
+    return client
+  }
+
+  private static CacheClient(leader: boolean, streamName: string, host: string, client: Client) {
+    const m = leader ? Client.PublisherClients : Client.ConsumerClients
+    const k = Client.GetCacheKey(streamName, host)
+    const currentlyCached = m.get(k) || []
+    currentlyCached.push(client)
+    m.set(k, currentlyCached)
+  }
+
+  private static RemoveCachedClient(leader: boolean, streamName: string | undefined, host: string) {
+    if (streamName === undefined) return
+    const m = leader ? Client.PublisherClients : Client.ConsumerClients
+    const k = Client.GetCacheKey(streamName, host)
+    m.delete(k)
+  }
+
+  private static GetCacheKey(streamName: string, host: string) {
+    return `${streamName}@${host}`
+  }
 }
 
 export type ListenersParams = {
@@ -807,6 +878,8 @@ export interface ConnectionParams {
   bufferSizeSettings?: BufferSizeSettings
   socketTimeout?: number
   addressResolver?: AddressResolverParams
+  leader?: boolean
+  streamName?: string
 }
 
 export interface DeclarePublisherParams {

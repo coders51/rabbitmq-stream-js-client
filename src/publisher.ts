@@ -1,6 +1,6 @@
 import { inspect } from "util"
 import { messageSize } from "./amqp10/encoder"
-import { Client } from "./client"
+import { Client, ConnectionInfo } from "./client"
 import { CompressionType } from "./compression"
 import { Logger } from "./logger"
 import { FrameSizeException } from "./requests/frame_size_exception"
@@ -63,7 +63,7 @@ export interface Publisher {
   on(event: "metadata_update", listener: MetadataUpdateListener): void
   on(event: "publish_confirm", listener: PublishConfirmCallback): void
   getLastPublishingId(): Promise<bigint>
-  getConnectionInfo(): { host: string; port: number; id: string }
+  getConnectionInfo(): ConnectionInfo
   close(): Promise<void>
   ref: string
   readonly publisherId: number
@@ -138,8 +138,9 @@ export class StreamPublisher implements Publisher {
     )
   }
 
-  public getConnectionInfo(): { host: string; port: number; id: string } {
-    return this.client.getConnectionInfo()
+  public getConnectionInfo(): ConnectionInfo {
+    const { host, port, id, writable, localPort } = this.client.getConnectionInfo()
+    return { host, port, id, writable, localPort }
   }
 
   public on(event: "metadata_update", listener: MetadataUpdateListener): void

@@ -53,4 +53,15 @@ describe("declare publisher", () => {
       "Stream was not found on any node"
     )
   })
+
+  it("producers for the same stream should share the underlying connection", async () => {
+    const publisher1 = await createPublisher(streamName, client)
+    const publisher2 = await await createPublisher(streamName, client)
+    const { localPort: localPort1 } = publisher1.getConnectionInfo()
+    const { localPort: localPort2 } = publisher2.getConnectionInfo()
+
+    expect(localPort1).not.undefined
+    expect(localPort2).not.undefined
+    expect(localPort1).eq(localPort2)
+  })
 })
