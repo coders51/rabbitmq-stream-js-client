@@ -145,17 +145,14 @@ const messages = [
 ]
 
 await publisher.sendSubEntries(messages)
-// ...
+/*
+  It is also possible to specify a compression when sending sub entries of messages:
+  e.g:  await publisher.sendSubEntries(messages, CompressionType.Gzip)
+
+  The current values for the compression types are CompressionType.None or CompressionType.Gzip
+*/
 
 await client.close()
-```
-
-#### With GzipCompression
-
----
-
-```typescript
-await publisher.sendSubEntries(messages, CompressionType.Gzip)
 ```
 
 ### Basic Consuming
@@ -169,7 +166,17 @@ const client = await connect({
   vhost: "/",
 })
 
-const consumerOptions = { stream: "stream-name", offset: Offset.next() } // see docs for various offset types
+const consumerOptions = { stream: "stream-name", offset: Offset.next() }
+/*
+  When creating a consumer the offset and the stream name are mandatory parameters.
+  The offset parameter can be created from one of the following functions:
+    - Offset.first()        ---> Start reading from the first available offset.
+    - Offset.next()         ---> Start reading from the next offset to be written.
+    - Offset.last()         ---> Start reading from the last chunk of messages in the stream.
+    - Offset.offset(x)      ---> Start reading from the specified offset. The parameter has to be a bigint.
+    - Offset.timestamp(t)   ---> Start reading from the messages stored after the timestamp t.
+
+*/
 
 const consumer = await client.declareConsumer(consumerOptions, (message: Message) => {
   console.log(message.content) // it's a Buffer
