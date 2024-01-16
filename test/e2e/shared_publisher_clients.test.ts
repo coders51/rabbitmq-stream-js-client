@@ -1,7 +1,7 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
 import { Client, Offset } from "../../src"
-import { Producer } from "../../src/producer"
+import { Publisher } from "../../src/publisher"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
@@ -10,7 +10,7 @@ describe("publish messages through multiple publishers", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let streamName: string
-  let publisher: Producer
+  let publisher: Publisher
 
   beforeEach(async () => {
     client = await createClient(username, password)
@@ -40,7 +40,7 @@ describe("publish messages through multiple publishers", () => {
     }
 
     expect(localPort).not.undefined
-    expect(publishers).satisfies((plist: Producer[]) =>
+    expect(publishers).satisfies((plist: Publisher[]) =>
       plist.every((p) => {
         const connInfo = p.getConnectionInfo()
         return connInfo.localPort === localPort && connInfo.writable === true

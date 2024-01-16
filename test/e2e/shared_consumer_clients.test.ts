@@ -1,16 +1,16 @@
 import { expect, spy } from "chai"
-import { Client, Offset, Producer } from "../../src"
+import { Client, Offset, Publisher } from "../../src"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
-import { Message } from "../../src/producer"
+import { Message } from "../../src/publisher"
 import { randomUUID } from "crypto"
 
 describe("consume messages through multiple consumers", () => {
   const rabbit = new Rabbit(username, password)
   const testStreamName = createStreamName()
   let client: Client
-  let publisher: Producer
+  let publisher: Publisher
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
