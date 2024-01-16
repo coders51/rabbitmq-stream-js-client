@@ -60,7 +60,14 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, removeFrom, sample } from "./util"
+import {
+  DEFAULT_FRAME_MAX,
+  DEFAULT_UNLIMITED_FRAME_MAX,
+  REQUIRED_MANAGEMENT_VERSION,
+  MAX_SHARED_CLIENT_INSTANCES,
+  removeFrom,
+  sample,
+} from "./util"
 import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
 import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
@@ -229,7 +236,7 @@ export class Client {
       this.logger.debug(`Close...`)
       const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
       this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
-      Client.RemoveCachedClient(this.leader, this.streamName, this.hostname)
+      Client.RemoveCachedClient(this)
       this.socket.end()
     }
   }
@@ -822,7 +829,8 @@ export class Client {
     const k = Client.GetCacheKey(streamName, host)
     const clients = m.get(k) || []
     const client = clients.at(-1)
-    return client
+    const refCount = client?.refCount
+    return refCount && refCount < MAX_SHARED_CLIENT_INSTANCES ? client : undefined
   }
 
   private static CacheClient(leader: boolean, streamName: string, host: string, client: Client) {
@@ -833,11 +841,18 @@ export class Client {
     m.set(k, currentlyCached)
   }
 
-  private static RemoveCachedClient(leader: boolean, streamName: string | undefined, host: string) {
+  private static RemoveCachedClient(client: Client) {
+    const leader = client.leader
+    const streamName = client.streamName
+    const host = client.hostname
     if (streamName === undefined) return
     const m = leader ? Client.PublisherClients : Client.ConsumerClients
     const k = Client.GetCacheKey(streamName, host)
-    m.delete(k)
+    const mappedClientList = m.get(k)
+    if (mappedClientList) {
+      const filtered = mappedClientList.filter((c) => c !== client)
+      m.set(k, filtered)
+    }
   }
 
   private static GetCacheKey(streamName: string, host: string) {

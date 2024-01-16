@@ -1,8 +1,9 @@
 import { expect } from "chai"
-import { Client } from "../../src"
+import { Client, Publisher } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { password, username } from "../support/util"
 import { createClient, createPublisher } from "../support/fake_data"
+import { MAX_SHARED_CLIENT_INSTANCES } from "../../src/util"
 
 describe("close publisher", () => {
   const rabbit = new Rabbit(username, password)
@@ -52,4 +53,45 @@ describe("close publisher", () => {
     expect(publisher1Info.writable).eql(false)
     expect(publisher2Info.writable).eql(false)
   })
+
+  it("if publishers for the same stream have different underlying clients, then closing one client does not affect the others publishers", async () => {
+    const publishersToCreate = MAX_SHARED_CLIENT_INSTANCES + 2
+    const publishers = new Map<number, Publisher[]>()
+    for (let i = 0; i < publishersToCreate; i++) {
+      const publisher = await createPublisher(testStreamName, client)
+      const { localPort } = publisher.getConnectionInfo()
+      const key = localPort || -1
+      const currentPublishers = publishers.get(key) || []
+      currentPublishers.push(publisher)
+      publishers.set(key, currentPublishers)
+    }
+    const localPort = Array.from(publishers.keys()).at(0)
+    const closingPublishersSubset = publishers.get(localPort!) || []
+    const otherPublishers: Publisher[] = []
+    for (const k of publishers.keys()) {
+      if (k !== localPort) {
+        otherPublishers.push(...(publishers.get(k) || []))
+      }
+    }
+
+    for (const p of closingPublishersSubset) {
+      await client.deletePublisher(p.publisherId)
+    }
+
+    expect(localPort).not.undefined
+    expect(closingPublishersSubset.length).gt(0)
+    expect(otherPublishers.length).gt(0)
+    expect(otherPublishers).satisfies((publisherArray: Publisher[]) =>
+      publisherArray.every((publisher) => {
+        const { writable } = publisher.getConnectionInfo()
+        return writable === true
+      })
+    )
+    expect(closingPublishersSubset).satisfies((publisherArray: Publisher[]) =>
+      publisherArray.every((publisher) => {
+        const { writable } = publisher.getConnectionInfo()
+        return writable !== true
+      })
+    )
+  }).timeout(5000)
 })
