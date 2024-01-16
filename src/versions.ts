@@ -10,12 +10,10 @@ type MappedVersions = Map<Key, Version>
 const supportedRequests = [
   requests.CloseRequest,
   requests.CreateStreamRequest,
-  requests.CreateSuperStreamRequest,
   requests.CreditRequest,
   requests.DeclarePublisherRequest,
   requests.DeletePublisherRequest,
   requests.DeleteStreamRequest,
-  requests.DeleteSuperStreamRequest,
   requests.ExchangeCommandVersionsRequest,
   requests.HeartbeatRequest,
   requests.MetadataRequest,
