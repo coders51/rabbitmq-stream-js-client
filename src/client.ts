@@ -63,6 +63,10 @@ import { SuperStreamConsumer } from "./super_stream_consumer"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom, sample } from "./util"
 import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
+import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
+import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
+import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
+import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -396,6 +400,44 @@ export class Client {
     return res.ok
   }
 
+  public async createSuperStream(
+    params: {
+      streamName: string
+      arguments: CreateStreamArguments
+    },
+    bindingKeys?: string[],
+    numberOfPartitions = 3
+  ): Promise<true> {
+    this.logger.debug(`Create Super Stream...`)
+    const { partitions, streamBindingKeys } = this.createSuperStreamPartitionsAndBindingKeys(
+      params.streamName,
+      numberOfPartitions,
+      bindingKeys
+    )
+    const res = await this.sendAndWait<CreateSuperStreamResponse>(
+      new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys })
+    )
+    if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
+      return true
+    }
+    if (!res.ok) {
+      throw new Error(`Create Super Stream command returned error with code ${res.code}`)
+    }
+
+    this.logger.debug(`Create Super Stream response: ${res.ok} - with arguments: '${inspect(params.arguments)}'`)
+    return res.ok
+  }
+
+  public async deleteSuperStream(params: { streamName: string }): Promise<true> {
+    this.logger.debug(`Delete Super Stream...`)
+    const res = await this.sendAndWait<DeleteSuperStreamResponse>(new DeleteSuperStreamRequest(params.streamName))
+    if (!res.ok) {
+      throw new Error(`Delete Super Stream command returned error with code ${res.code}`)
+    }
+    this.logger.debug(`Delete Super Stream response: ${res.ok} - '${inspect(params.streamName)}'`)
+    return res.ok
+  }
+
   public async queryPublisherSequence(params: { stream: string; publisherRef: string }): Promise<bigint> {
     const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
     if (!res.ok) {
@@ -694,6 +736,23 @@ export class Client {
       throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
     }
     return connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+  }
+
+  private createSuperStreamPartitionsAndBindingKeys(
+    streamName: string,
+    numberOfPartitions: number,
+    bindingKeys?: string[]
+  ) {
+    const partitions: string[] = []
+    if (!bindingKeys) {
+      for (let i = 0; i < numberOfPartitions; i++) {
+        partitions.push(`${streamName}-${i}`)
+      }
+      const streamBindingKeys = Array.from(Array(numberOfPartitions).keys()).map((n) => `${n}`)
+      return { partitions, streamBindingKeys }
+    }
+    bindingKeys.map((bk) => partitions.push(`${streamName}-${bk}`))
+    return { partitions, streamBindingKeys: bindingKeys }
   }
 }
 
