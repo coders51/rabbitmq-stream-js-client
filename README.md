@@ -12,7 +12,7 @@
     - [Connect](#connect)
     - [Connect through TLS/SSL](#connect-through-tls-ssl)
     - [Basic Publish](#basic-publish)
-    - [Batch Publishing](#batch-publishing)
+    - [Sub Batch Entry Publishing](#sub-batch-entry-publishing)
     - [Basic Consuming](#basic-consuming)
     - [Single Active Consumer](#single-active-consumer)
     - [Clustering](#clustering)
@@ -121,7 +121,7 @@ await publisher.send(Buffer.from("my message content"))
 await client.close()
 ```
 
-### Batch Publishing
+### Sub Batch Entry Publishing
 
 ```typescript
 const client = await connect({
@@ -175,7 +175,7 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
   console.log(message.content) // it's a Buffer
 })
 
-// declareConsumer works even with batch publishing and compression
+// declareConsumer works even with sub batch entry publishing and compression
 
 // ...
 
@@ -185,7 +185,7 @@ await client.close()
 ### Single Active Consumer
 
 It is possible to create a consumer as single active.
-For the given consumer reference only him will be able to consume messages
+For the given reference only one consumer will be able to consume messages
 
 ```typescript
 const consumerOptions = {
