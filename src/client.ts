@@ -322,8 +322,9 @@ export class Client {
   }
 
   public async declareSuperStreamConsumer(superStream: string, handle: ConsumerFunc): Promise<SuperStreamConsumer> {
+    const consumerRef = `${superStream}-${randomUUID()}`
     const partitions = await this.queryPartitions({ superStream })
-    return SuperStreamConsumer.create(handle, { locator: this, consumerRef: "test", partitions })
+    return SuperStreamConsumer.create(handle, { locator: this, consumerRef, partitions })
   }
 
   private async closeAllConsumers() {
@@ -679,10 +680,9 @@ export class Client {
       let currentAttempt = 0
       while (currentAttempt < maxAttempts) {
         this.logger.debug(`Attempting to connect using the address resolver - attempt ${currentAttempt + 1}`)
-        const client = await connect(
-          { ...connectionParams, hostname: resolver.endpoint.host, port: resolver.endpoint.port },
-          this.logger
-        )
+        const hostname = resolver.endpoint?.host ?? this.params.hostname
+        const port = resolver.endpoint?.port ?? this.params.port
+        const client = await connect({ ...connectionParams, hostname, port }, this.logger)
         if (client.serverEndpoint.host === chosenNode.host && client.serverEndpoint.port === chosenNode.port) {
           this.logger.debug(`Correct connection was found!`)
           return client
@@ -713,7 +713,7 @@ export interface SSLConnectionParams {
 export type AddressResolverParams =
   | {
       enabled: true
-      endpoint: { host: string; port: number }
+      endpoint?: { host: string; port: number }
     }
   | { enabled: false }
 
