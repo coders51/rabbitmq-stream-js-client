@@ -4,12 +4,25 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, getTestNodesFromEnv, password, username } from "../support/util"
 import { createClient, createConsumer } from "../support/fake_data"
-import { MAX_SHARED_CLIENT_INSTANCES } from "../../src/util"
+import { getMaxSharedClientInstances } from "../../src/util"
 
 describe("close consumer", () => {
   const rabbit = new Rabbit(username, password)
   const testStreamName = "test-stream"
   let client: Client
+  const previousMaxSharedClientInstances = process.env.MAX_SHARED_CLIENT_INSTANCES
+
+  before(() => {
+    process.env.MAX_SHARED_CLIENT_INSTANCES = "10"
+  })
+
+  after(() => {
+    if (previousMaxSharedClientInstances !== undefined) {
+      process.env.MAX_SHARED_CLIENT_INSTANCES = previousMaxSharedClientInstances
+      return
+    }
+    delete process.env.MAX_SHARED_CLIENT_INSTANCES
+  })
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
@@ -90,7 +103,7 @@ describe("close consumer", () => {
   }).timeout(5000)
 
   it("if consumers for the same stream have different underlying clients, then closing one client does not affect the others consumers", async () => {
-    const consumersToCreate = (MAX_SHARED_CLIENT_INSTANCES + 1) * (getTestNodesFromEnv().length + 1)
+    const consumersToCreate = (getMaxSharedClientInstances() + 1) * (getTestNodesFromEnv().length + 1)
     const consumers = new Map<number, Consumer[]>()
     for (let i = 0; i < consumersToCreate; i++) {
       const consumer = await createConsumer(testStreamName, client)

@@ -3,12 +3,25 @@ import { Client, Publisher } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { password, username } from "../support/util"
 import { createClient, createPublisher } from "../support/fake_data"
-import { MAX_SHARED_CLIENT_INSTANCES } from "../../src/util"
+import { getMaxSharedClientInstances } from "../../src/util"
 
 describe("close publisher", () => {
   const rabbit = new Rabbit(username, password)
   const testStreamName = "test-stream"
   let client: Client
+  const previousMaxSharedClientInstances = process.env.MAX_SHARED_CLIENT_INSTANCES
+
+  before(() => {
+    process.env.MAX_SHARED_CLIENT_INSTANCES = "10"
+  })
+
+  after(() => {
+    if (previousMaxSharedClientInstances !== undefined) {
+      process.env.MAX_SHARED_CLIENT_INSTANCES = previousMaxSharedClientInstances
+      return
+    }
+    delete process.env.MAX_SHARED_CLIENT_INSTANCES
+  })
 
   beforeEach(async () => {
     await rabbit.createStream(testStreamName)
@@ -55,7 +68,7 @@ describe("close publisher", () => {
   })
 
   it("if publishers for the same stream have different underlying clients, then closing one client does not affect the others publishers", async () => {
-    const publishersToCreate = MAX_SHARED_CLIENT_INSTANCES + 2
+    const publishersToCreate = getMaxSharedClientInstances() + 2
     const publishers = new Map<number, Publisher[]>()
     for (let i = 0; i < publishersToCreate; i++) {
       const publisher = await createPublisher(testStreamName, client)

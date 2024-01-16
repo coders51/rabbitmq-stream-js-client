@@ -64,7 +64,7 @@ import {
   DEFAULT_FRAME_MAX,
   DEFAULT_UNLIMITED_FRAME_MAX,
   REQUIRED_MANAGEMENT_VERSION,
-  MAX_SHARED_CLIENT_INSTANCES,
+  getMaxSharedClientInstances,
   removeFrom,
   sample,
 } from "./util"
@@ -108,8 +108,8 @@ export class Client {
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
   private readonly serverDeclaredVersions: Version[] = []
   private peerProperties: Record<string, string> = {}
-  private static ConsumerClients = new Map<ClientInstanceKey, Client[]>()
-  private static PublisherClients = new Map<ClientInstanceKey, Client[]>()
+  private static consumerClients = new Map<ClientInstanceKey, Client[]>()
+  private static publisherClients = new Map<ClientInstanceKey, Client[]>()
   private refCount = 0
   private leader: boolean
   private streamName: string | undefined
@@ -124,7 +124,7 @@ export class Client {
     }
     if (params.socketTimeout) this.socket.setTimeout(params.socketTimeout)
     this.hostname = params.hostname
-    this.leader = params.leader || false
+    this.leader = params.leader ?? false
     this.streamName = params.streamName
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
@@ -236,7 +236,7 @@ export class Client {
       this.logger.debug(`Close...`)
       const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
       this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
-      Client.RemoveCachedClient(this)
+      Client.removeCachedClient(this)
       this.socket.end()
     }
   }
@@ -760,7 +760,7 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedClient = Client.GetUsableCachedClient(leader, streamName, chosenNode.host)
+    const cachedClient = Client.getUsableCachedClient(leader, streamName, chosenNode.host)
     if (cachedClient) {
       cachedClient.incrRefCount()
       return cachedClient
@@ -769,7 +769,7 @@ export class Client {
     const connectionParams = { ...this.params, listeners: listeners, leader: leader, streamName: streamName }
     const newClient = await this.getConnectionOnChosenNode(chosenNode, connectionParams, metadata)
     newClient.incrRefCount()
-    Client.CacheClient(leader, streamName, chosenNode.host, newClient)
+    Client.cacheClient(leader, streamName, chosenNode.host, newClient)
     return newClient
   }
 
@@ -824,30 +824,30 @@ export class Client {
     return --this.refCount
   }
 
-  private static GetUsableCachedClient(leader: boolean, streamName: string, host: string) {
-    const m = leader ? Client.PublisherClients : Client.ConsumerClients
-    const k = Client.GetCacheKey(streamName, host)
+  private static getUsableCachedClient(leader: boolean, streamName: string, host: string) {
+    const m = leader ? Client.publisherClients : Client.consumerClients
+    const k = Client.getCacheKey(streamName, host)
     const clients = m.get(k) || []
     const client = clients.at(-1)
     const refCount = client?.refCount
-    return refCount && refCount < MAX_SHARED_CLIENT_INSTANCES ? client : undefined
+    return refCount && refCount < getMaxSharedClientInstances() ? client : undefined
   }
 
-  private static CacheClient(leader: boolean, streamName: string, host: string, client: Client) {
-    const m = leader ? Client.PublisherClients : Client.ConsumerClients
-    const k = Client.GetCacheKey(streamName, host)
+  private static cacheClient(leader: boolean, streamName: string, host: string, client: Client) {
+    const m = leader ? Client.publisherClients : Client.consumerClients
+    const k = Client.getCacheKey(streamName, host)
     const currentlyCached = m.get(k) || []
     currentlyCached.push(client)
     m.set(k, currentlyCached)
   }
 
-  private static RemoveCachedClient(client: Client) {
+  private static removeCachedClient(client: Client) {
     const leader = client.leader
     const streamName = client.streamName
     const host = client.hostname
     if (streamName === undefined) return
-    const m = leader ? Client.PublisherClients : Client.ConsumerClients
-    const k = Client.GetCacheKey(streamName, host)
+    const m = leader ? Client.publisherClients : Client.consumerClients
+    const k = Client.getCacheKey(streamName, host)
     const mappedClientList = m.get(k)
     if (mappedClientList) {
       const filtered = mappedClientList.filter((c) => c !== client)
@@ -855,7 +855,7 @@ export class Client {
     }
   }
 
-  private static GetCacheKey(streamName: string, host: string) {
+  private static getCacheKey(streamName: string, host: string) {
     return `${streamName}@${host}`
   }
 }
