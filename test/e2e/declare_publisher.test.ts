@@ -3,12 +3,26 @@ import { Client } from "../../src"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, username, password } from "../support/util"
+import { getMaxSharedClientInstances } from "../../src/util"
 
 describe("declare publisher", () => {
   let streamName: string
   let nonExistingStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
+  const previousMaxSharedClientInstances = process.env.MAX_SHARED_CLIENT_INSTANCES
+
+  before(() => {
+    process.env.MAX_SHARED_CLIENT_INSTANCES = "10"
+  })
+
+  after(() => {
+    if (previousMaxSharedClientInstances !== undefined) {
+      process.env.MAX_SHARED_CLIENT_INSTANCES = previousMaxSharedClientInstances
+      return
+    }
+    delete process.env.MAX_SHARED_CLIENT_INSTANCES
+  })
 
   beforeEach(async () => {
     client = await createClient(username, password)
@@ -53,4 +67,31 @@ describe("declare publisher", () => {
       "Stream was not found on any node"
     )
   })
+
+  it("publishers for the same stream should share the underlying connection", async () => {
+    const publisher1 = await createPublisher(streamName, client)
+    const publisher2 = await createPublisher(streamName, client)
+    const { localPort: localPort1 } = publisher1.getConnectionInfo()
+    const { localPort: localPort2 } = publisher2.getConnectionInfo()
+
+    expect(localPort1).not.undefined
+    expect(localPort2).not.undefined
+    expect(localPort1).eq(localPort2)
+  })
+
+  it("if a large number of publishers for the same stream is declared, eventually a new client is instantiated even for the same stream/node", async () => {
+    const publishersToCreate = getMaxSharedClientInstances() + 2
+    const counts = new Map<string, number>()
+    for (let i = 0; i < publishersToCreate; i++) {
+      const publisher = await createPublisher(streamName, client)
+      const { id } = publisher.getConnectionInfo()
+      counts.set(id, (counts.get(id) || 0) + 1)
+    }
+
+    const countPublishersOverLimit = Array.from(counts.entries()).find(
+      ([_id, count]) => count > getMaxSharedClientInstances()
+    )
+    expect(countPublishersOverLimit).is.undefined
+    expect(Array.from(counts.keys()).length).gt(1)
+  }).timeout(10000)
 })

@@ -16,6 +16,9 @@ export function range(count: number): number[] {
 export const DEFAULT_FRAME_MAX = 1048576
 export const DEFAULT_UNLIMITED_FRAME_MAX = 0
 export const REQUIRED_MANAGEMENT_VERSION = "3.13.0"
+export const getMaxSharedClientInstances = () => {
+  return +(process.env.MAX_SHARED_CLIENT_INSTANCES ?? 100)
+}
 
 export const getAddressResolverFromEnv = (): { host: string; port: number } => {
   const envValue = process.env.RABBIT_MQ_TEST_ADDRESS_BALANCER ?? "localhost:5552"
