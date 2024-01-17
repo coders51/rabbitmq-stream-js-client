@@ -1,5 +1,3 @@
-import { inspect } from "util"
-
 export function removeFrom<T>(l: T[], predicate: (x: T) => boolean): T | undefined {
   const i = l.findIndex(predicate)
   if (i === -1) return
