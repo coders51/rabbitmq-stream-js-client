@@ -13,7 +13,7 @@ describe("Delete Super Stream command", () => {
   before(async function () {
     client = await createClient(username, password)
     // eslint-disable-next-line no-invalid-this
-    if (lt(coerce(client.rabbitManagementVersion)!, "3.13.0")) this.skip
+    if (lt(coerce(client.rabbitManagementVersion)!, "3.13.0")) this.skip()
   })
 
   afterEach(async () => {
