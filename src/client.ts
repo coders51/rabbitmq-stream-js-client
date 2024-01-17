@@ -817,7 +817,7 @@ export class Client {
     return { partitions, streamBindingKeys: bindingKeys }
   }
   private incrRefCount() {
-    return ++this.refCount
+    ++this.refCount
   }
 
   private decrRefCount() {
