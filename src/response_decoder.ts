@@ -55,6 +55,8 @@ import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_ve
 import { RouteResponse } from "./responses/route_response"
 import { PartitionsResponse } from "./responses/partitions_response"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
+import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
+import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -612,7 +614,9 @@ export class ResponseDecoder {
     this.addFactoryFor(DeclarePublisherResponse)
     this.addFactoryFor(DeletePublisherResponse)
     this.addFactoryFor(CreateStreamResponse)
+    this.addFactoryFor(CreateSuperStreamResponse)
     this.addFactoryFor(DeleteStreamResponse)
+    this.addFactoryFor(DeleteSuperStreamResponse)
     this.addFactoryFor(QueryPublisherResponse)
     this.addFactoryFor(SubscribeResponse)
     this.addFactoryFor(UnsubscribeResponse)

@@ -169,11 +169,13 @@ export class Rabbit {
     return noOfPartitions
   }
 
-  async deleteSuperStream(superStream: string, noOfPartitions = 3) {
+  async deleteSuperStream(superStream: string, noOfPartitions = 3, bindingKeys?: string[]) {
     try {
       const exchangeName = `${superStream}`
       await this.deleteExchange(exchangeName)
-      const streamNames = range(noOfPartitions).map((i) => `${superStream}-${i}`)
+      const streamNames = bindingKeys
+        ? bindingKeys.map((bk) => `${superStream}-${bk}`)
+        : range(noOfPartitions).map((i) => `${superStream}-${i}`)
       await Promise.all(streamNames.map((sn) => this.deleteStream(sn)))
     } catch (e) {
       if (!(e && typeof e === "object" && "message" in e && /Response code 404/.test(e.message as string))) {
@@ -242,6 +244,18 @@ export class Rabbit {
       }
     )
     return ret.body
+  }
+
+  async getSuperStreamQueues(
+    vhost: string = "%2F",
+    name: string,
+    numberOfPartitions: number = 3,
+    bindingKeys?: string[]
+  ): Promise<RabbitQueueResponse[]> {
+    const streamNames = bindingKeys
+      ? bindingKeys.map((bk) => `${name}-${bk}`)
+      : range(numberOfPartitions).map((i) => `${name}-${i}`)
+    return Promise.all(streamNames.map(async (sn) => await this.getQueue(vhost, sn)))
   }
 
   async deleteQueue(vhost: string = "%2F", name: string): Promise<void> {

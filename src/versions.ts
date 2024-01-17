@@ -1,6 +1,8 @@
 import { Logger } from "./logger"
 import * as requests from "./requests/requests"
 import * as responses from "./responses/responses"
+import { REQUIRED_MANAGEMENT_VERSION } from "./util"
+import { lt, coerce } from "semver"
 
 export type Version = { key: number; minVersion: number; maxVersion: number }
 type Key = number
@@ -10,10 +12,12 @@ type MappedVersions = Map<Key, Version>
 const supportedRequests = [
   requests.CloseRequest,
   requests.CreateStreamRequest,
+  requests.CreateSuperStreamRequest,
   requests.CreditRequest,
   requests.DeclarePublisherRequest,
   requests.DeletePublisherRequest,
   requests.DeleteStreamRequest,
+  requests.DeleteSuperStreamRequest,
   requests.ExchangeCommandVersionsRequest,
   requests.HeartbeatRequest,
   requests.MetadataRequest,
@@ -50,7 +54,7 @@ function maybeAddMinVersion(values: Map<Key, SimpleVersion>, key: Key, version: 
   if (currentMinValue === undefined || currentMinValue > version) values.set(key, version)
 }
 
-function getClientSupportedVersions() {
+export function getClientSupportedVersions(serverVersion?: string) {
   const minValues = new Map<Key, SimpleVersion>()
   const maxValues = new Map<Key, SimpleVersion>()
 
@@ -71,10 +75,14 @@ function getClientSupportedVersions() {
     result.push({ key: k, minVersion: minVersion!, maxVersion: maxVersion! })
   }
 
+  if (serverVersion && lt(coerce(serverVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
+    return result.filter(
+      (r) => r.key !== requests.CreateSuperStreamRequest.Key && r.key !== requests.DeleteSuperStreamRequest.Key
+    )
+  }
+
   return result
 }
-
-export const clientSupportedVersions: Version[] = getClientSupportedVersions()
 
 function indexVersions(versions: Version[]) {
   const result = new Map<Key, Version>()
@@ -115,8 +123,8 @@ function checkVersions(side1Versions: MappedVersions, side2Versions: MappedVersi
   return result
 }
 
-export function checkServerDeclaredVersions(serverDeclaredVersions: Version[], logger: Logger) {
-  const indexedClientVersions = indexVersions(clientSupportedVersions)
+export function checkServerDeclaredVersions(serverDeclaredVersions: Version[], logger: Logger, serverVersion?: string) {
+  const indexedClientVersions = indexVersions(getClientSupportedVersions(serverVersion))
   const indexedServerVersions = indexVersions(serverDeclaredVersions)
   return (
     checkVersions(indexedClientVersions, indexedServerVersions, logger) &&
