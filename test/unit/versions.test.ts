@@ -1,17 +1,20 @@
 import { expect } from "chai"
-import { checkServerDeclaredVersions, clientSupportedVersions } from "../../src/versions"
+import { checkServerDeclaredVersions, getClientSupportedVersions } from "../../src/versions"
 import { NullLogger } from "../../src/logger"
 
 describe("Versions", () => {
+  const serverVersion = "3.13.0-rc.4"
   const logger = new NullLogger()
   it("client-side version declaration", () => {
-    expect(clientSupportedVersions.sort()).eql([
+    expect(getClientSupportedVersions(serverVersion).sort()).eql([
       { key: 22, maxVersion: 1, minVersion: 1 },
       { key: 13, maxVersion: 1, minVersion: 1 },
+      { key: 29, maxVersion: 1, minVersion: 1 },
       { key: 9, maxVersion: 1, minVersion: 1 },
       { key: 1, maxVersion: 1, minVersion: 1 },
       { key: 6, maxVersion: 1, minVersion: 1 },
       { key: 14, maxVersion: 1, minVersion: 1 },
+      { key: 30, maxVersion: 1, minVersion: 1 },
       { key: 27, maxVersion: 1, minVersion: 1 },
       { key: 23, maxVersion: 1, minVersion: 1 },
       { key: 15, maxVersion: 1, minVersion: 1 },

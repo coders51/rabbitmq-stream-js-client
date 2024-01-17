@@ -61,7 +61,7 @@ import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, removeFrom, sample } from "./util"
-import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
+import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
 import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
@@ -515,13 +515,13 @@ export class Client {
   }
 
   private async exchangeCommandVersions() {
-    const versions = clientSupportedVersions
+    const versions = getClientSupportedVersions(this.peerProperties.version)
     const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
       new ExchangeCommandVersionsRequest(versions)
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
 
-    checkServerDeclaredVersions(this.serverVersions, this.logger)
+    checkServerDeclaredVersions(this.serverVersions, this.logger, this.peerProperties.version)
     return response
   }
 
