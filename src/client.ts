@@ -60,13 +60,14 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom, sample } from "./util"
+import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, removeFrom, sample } from "./util"
 import { Version, checkServerDeclaredVersions, clientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
 import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
 import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
+import { lt, coerce } from "semver"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -88,6 +89,7 @@ export class Client {
   private connectionClosedListener: ConnectionClosedListener | undefined
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
   private readonly serverDeclaredVersions: Version[] = []
+  private peerProperties: Record<string, string> = {}
 
   private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
     if (params.frameMax) this.frameMax = params.frameMax
@@ -144,7 +146,7 @@ export class Client {
       })
       this.socket.on("connect", async () => {
         this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
-        await this.exchangeProperties()
+        this.peerProperties = (await this.exchangeProperties()).properties
         await this.auth({ username: this.params.username, password: this.params.password })
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
         await this.open({ virtualHost: this.params.vhost })
@@ -408,6 +410,12 @@ export class Client {
     bindingKeys?: string[],
     numberOfPartitions = 3
   ): Promise<true> {
+    if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
+      throw new Error(
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Create Super Stream Command. To create the stream use the cli`
+      )
+    }
+
     this.logger.debug(`Create Super Stream...`)
     const { partitions, streamBindingKeys } = this.createSuperStreamPartitionsAndBindingKeys(
       params.streamName,
@@ -429,6 +437,12 @@ export class Client {
   }
 
   public async deleteSuperStream(params: { streamName: string }): Promise<true> {
+    if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
+      throw new Error(
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Delete Super Stream Command. To delete the stream use the cli`
+      )
+    }
+
     this.logger.debug(`Delete Super Stream...`)
     const res = await this.sendAndWait<DeleteSuperStreamResponse>(new DeleteSuperStreamRequest(params.streamName))
     if (!res.ok) {
@@ -525,6 +539,10 @@ export class Client {
 
   public get serverVersions() {
     return [...this.serverDeclaredVersions]
+  }
+
+  public get rabbitManagementVersion() {
+    return this.peerProperties.version
   }
 
   public async routeQuery(params: { routingKey: string; superStream: string }) {

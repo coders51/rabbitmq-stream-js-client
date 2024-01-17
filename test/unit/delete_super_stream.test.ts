@@ -3,14 +3,17 @@ import { Client } from "../../src"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync, password, username } from "../support/util"
+import { coerce, lt } from "semver"
 
 describe("Delete Super Stream command", () => {
   const rabbit: Rabbit = new Rabbit(username, password)
   let client: Client
   const streamName = `stream_${(Math.random() * 10) | 0}`
 
-  beforeEach(async () => {
+  before(async function () {
     client = await createClient(username, password)
+    // eslint-disable-next-line no-invalid-this
+    if (lt(coerce(client.rabbitManagementVersion)!, "3.13.0")) this.skip
   })
 
   afterEach(async () => {
@@ -20,13 +23,12 @@ describe("Delete Super Stream command", () => {
     } catch (error) {}
   })
 
-  afterEach(async () => {
+  after(async () => {
     try {
       await client.close()
+      await rabbit.closeAllConnections()
     } catch (error) {}
   })
-
-  after(() => rabbit.closeAllConnections())
 
   it("delete a nonexisting super stream (raises error)", async () => {
     await expectToThrowAsync(

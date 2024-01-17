@@ -4,6 +4,7 @@ import { randomUUID } from "crypto"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { expectToThrowAsync, password, username } from "../support/util"
+import { coerce, lt } from "semver"
 
 describe("Super Stream", () => {
   const rabbit = new Rabbit(username, password)
@@ -17,8 +18,10 @@ describe("Super Stream", () => {
   }
   let client: Client
 
-  beforeEach(async () => {
+  before(async function () {
     client = await createClient(username, password)
+    // eslint-disable-next-line no-invalid-this
+    if (lt(coerce(client.rabbitManagementVersion)!, "3.13.0")) this.skip
   })
 
   afterEach(async () => {
@@ -27,13 +30,13 @@ describe("Super Stream", () => {
       await rabbit.deleteExchange(streamName)
     } catch (error) {}
   })
-  afterEach(async () => {
+
+  after(async () => {
     try {
       await client.close()
+      await rabbit.closeAllConnections()
     } catch (error) {}
   })
-
-  after(() => rabbit.closeAllConnections())
 
   describe("Create", () => {
     it("Should create a new Super Stream with 3 partitions by default", async () => {
