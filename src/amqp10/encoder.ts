@@ -39,7 +39,7 @@ type MessageAnnotationsList = { key: string; value: string | number }[]
 
 export function amqpEncode(
   writer: DataWriter,
-  { content, messageProperties, applicationProperties, messageAnnotations }: Message
+  { content, messageProperties, applicationProperties, messageAnnotations }: Message,
 ): void {
   writer.writeUInt32(messageSize({ content, messageProperties, applicationProperties, messageAnnotations }))
   writeMessageAnnotations(writer, toList(messageAnnotations))

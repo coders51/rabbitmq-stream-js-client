@@ -34,7 +34,7 @@ describe("Delete Super Stream command", () => {
     await expectToThrowAsync(
       () => client.deleteSuperStream({ streamName: "AAA" }),
       Error,
-      "Delete Super Stream command returned error with code 2"
+      "Delete Super Stream command returned error with code 2",
     )
   })
 

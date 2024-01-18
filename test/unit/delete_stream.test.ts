@@ -29,7 +29,7 @@ describe("Delete command", () => {
     await expectToThrowAsync(
       () => client?.deleteStream({ stream: "AAA" }),
       Error,
-      "Delete Stream command returned error with code 2"
+      "Delete Stream command returned error with code 2",
     )
   })
 
