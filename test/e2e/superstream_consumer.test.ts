@@ -6,7 +6,7 @@ import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
 
-describe("declare super stream consumer", () => {
+describe("super stream consumer", () => {
   let superStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
@@ -59,6 +59,16 @@ describe("declare super stream consumer", () => {
       expect(messages).to.have.length(1)
       const [message] = messages
       expect(message.content.toString()).to.be.eq(`${testMessageContent}-0`)
+    })
+  })
+
+  it("for a consumer the number of connections should be equals to the partitions' number", async () => {
+    await client.declareSuperStreamConsumer(superStreamName, (_) => {
+      return
+    })
+
+    await eventually(() => {
+      expect(client.consumerCounts()).to.be.eql(noOfPartitions)
     })
   })
 
