@@ -131,4 +131,22 @@ describe("super stream publisher", () => {
       expect(connections).to.have.length(1)
     }, 5000)
   }).timeout(5000)
+
+  it("closing the locator closes all connections", async () => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+      return opts.messageProperties?.messageId
+    })
+    for (let i = 0; i < noOfPartitions * 2; i++) {
+      await publisher.send(Buffer.from(`Hello world ${i}`), {
+        messageProperties: { messageId: randomUUID() },
+      })
+    }
+
+    await client.close()
+
+    await eventually(async () => {
+      const connections = await rabbit.getConnections()
+      expect(connections).to.have.length(0)
+    }, 5000)
+  }).timeout(5000)
 })
