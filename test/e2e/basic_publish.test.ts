@@ -1,11 +1,12 @@
 import { expect } from "chai"
 import { randomUUID } from "crypto"
-import { Client, Publisher } from "../../src"
+import { Client, Offset, Publisher } from "../../src"
 import { createClient, createProperties, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password, getMessageFrom } from "../support/util"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { FrameSizeException } from "../../src/requests/frame_size_exception"
+import { Message, MessageProperties } from "../../src/publisher"
 
 describe("publish a message", () => {
   const rabbit = new Rabbit(username, password)
@@ -74,6 +75,24 @@ describe("publish a message", () => {
     expect(messageProperties.contentType).eql(classicProperties.contentType)
     expect(messageProperties.messageId).eql(classicProperties.messageId)
     expect(messageProperties.userId?.toString()).eql(classicProperties.userId)
+  })
+
+  it("publish with partial properties", async () => {
+    const messageContent = `test${randomUUID()}`
+    let message: Message | undefined = undefined
+    const messageProperties: MessageProperties = { messageId: "test", subject: "test" }
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (msg) => {
+      message = msg
+    })
+
+    await publisher.send(Buffer.from(messageContent), { messageProperties })
+
+    await eventually(() => {
+      expect(message).not.to.be.undefined
+      expect(messageContent).eql(message!.content.toString())
+      expect(messageProperties.subject).eql(message?.messageProperties?.subject)
+      expect(messageProperties.messageId).eql(message?.messageProperties?.messageId)
+    })
   })
 
   it("with application properties and they are read from classic client", async () => {

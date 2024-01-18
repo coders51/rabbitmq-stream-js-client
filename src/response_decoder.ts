@@ -300,7 +300,6 @@ function decodeSubEntries(dataResponse: DataReader, compression: Compression, lo
 function decodeApplicationProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
-  if (!applicationPropertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
 }
@@ -308,7 +307,6 @@ function decodeApplicationProperties(dataResponse: DataReader) {
 function decodeMessageAnnotations(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const messageAnnotationsLength = decodeFormatCode(dataResponse, formatCode)
-  if (!messageAnnotationsLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return Annotations.parse(dataResponse, messageAnnotationsLength as number)
 }
@@ -317,7 +315,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
   dataResponse.rewind(3)
   const type = dataResponse.readInt8()
   if (type !== 0) {
-    throw new Error(`invalid composite header %#02x: ${type}`)
+    throw new Error(`invalid composite header: ${type}`)
   }
 
   const nextType = dataResponse.readInt8()
@@ -325,7 +323,6 @@ function decodeMessageProperties(dataResponse: DataReader) {
 
   const formatCode = dataResponse.readUInt8()
   const propertiesLength = decodeFormatCode(dataResponse, formatCode)
-  if (!propertiesLength) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
 
   return Properties.parse(dataResponse, propertiesLength as number)
 }
@@ -334,7 +331,7 @@ function decodeMessageHeader(dataResponse: DataReader) {
   dataResponse.rewind(3)
   const type = dataResponse.readInt8()
   if (type !== 0) {
-    throw new Error(`invalid composite header %#02x: ${type}`)
+    throw new Error(`invalid composite header: ${type}`)
   }
 
   // next, the composite type is encoded as an AMQP uint8

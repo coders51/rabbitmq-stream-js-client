@@ -7,6 +7,11 @@ export class Properties {
   public static parse(dataResponse: DataReader, fields: number): MessageProperties {
     return range(fields).reduce((acc: MessageProperties, index) => {
       if (dataResponse.isAtEnd()) return acc
+      const formatCode = dataResponse.readUInt8()
+      if (formatCode === 0x40) {
+        return acc
+      }
+      dataResponse.rewind(1)
       switch (index) {
         case 0:
           acc.messageId = readUTF8String(dataResponse)
