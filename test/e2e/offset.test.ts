@@ -33,7 +33,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.first() },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -51,7 +51,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.next() },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
       await publisher.send(Buffer.from(nextMessage))
 
@@ -73,7 +73,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.last() },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -90,7 +90,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(0n) },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -112,7 +112,7 @@ describe("offset", () => {
         },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -131,7 +131,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(BigInt(offset)) },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -151,7 +151,7 @@ describe("offset", () => {
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.timestamp(offset) },
         async (message: Message) => {
           receivedMessages.push(message)
-        }
+        },
       )
 
       await eventually(async () => {
@@ -168,7 +168,7 @@ describe("offset", () => {
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
-        }
+        },
       )
       const publisher = await client.declarePublisher({ stream: testStreamName })
 
@@ -186,12 +186,12 @@ describe("offset", () => {
         { stream: testStreamName, offset: Offset.first() },
         (_message: Message) => {
           return
-        }
+        },
       )
       await expectToThrowAsync(
         () => consumer.storeOffset(1n),
         Error,
-        "ConsumerReference must be defined in order to use this!"
+        "ConsumerReference must be defined in order to use this!",
       )
     })
   })
@@ -204,7 +204,7 @@ describe("offset", () => {
         async (message: Message) => {
           await consumer.storeOffset(message.offset!)
           offset = message.offset!
-        }
+        },
       )
       const publisher = await client.declarePublisher({ stream: testStreamName })
 
@@ -222,12 +222,12 @@ describe("offset", () => {
         { stream: testStreamName, offset: Offset.first() },
         (_message: Message) => {
           return
-        }
+        },
       )
       await expectToThrowAsync(
         () => consumer.queryOffset(),
         Error,
-        "ConsumerReference must be defined in order to use this!"
+        "ConsumerReference must be defined in order to use this!",
       )
     })
 
@@ -236,7 +236,7 @@ describe("offset", () => {
         { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
         (_message: Message) => {
           return
-        }
+        },
       )
       await rabbit.deleteStream(testStreamName)
       await expectToThrowAsync(() => consumer.queryOffset(), Error, `Query offset command returned error with code 2`)

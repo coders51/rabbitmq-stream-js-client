@@ -72,7 +72,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
 
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -85,15 +85,15 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -105,15 +105,15 @@ describe("declare consumer", () => {
 
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
@@ -127,19 +127,19 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
@@ -154,11 +154,11 @@ describe("declare consumer", () => {
       async () => {
         await client.declareConsumer(
           { stream: streamName, offset: Offset.first(), singleActive: true },
-          (message: Message) => messages.push(message.content)
+          (message: Message) => messages.push(message.content),
         )
       },
       Error,
-      "consumerRef is mandatory when declaring a single active consumer"
+      "consumerRef is mandatory when declaring a single active consumer",
     )
   }).timeout(10000)
 
@@ -169,7 +169,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
 
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
-      messages.push(message.content)
+      messages.push(message.content),
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world"), Buffer.from("world")]))
@@ -193,10 +193,10 @@ describe("declare consumer", () => {
     await expectToThrowAsync(
       () =>
         client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
-          console.log(message.content)
+          console.log(message.content),
         ),
       Error,
-      "Stream was not found on any node"
+      "Stream was not found on any node",
     )
   })
 
@@ -306,7 +306,7 @@ describe("declare consumer", () => {
     }
 
     const countConsumersOverLimit = Array.from(counts.entries()).find(
-      ([_id, count]) => count > getMaxSharedClientInstances()
+      ([_id, count]) => count > getMaxSharedClientInstances(),
     )
     expect(countConsumersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)

@@ -13,7 +13,10 @@ const OFFSET_TYPE = {
 export type OffsetType = keyof typeof OFFSET_TYPE
 
 export class Offset {
-  private constructor(public readonly type: OffsetType, public readonly value?: bigint) {}
+  private constructor(
+    public readonly type: OffsetType,
+    public readonly value?: bigint,
+  ) {}
 
   write(writer: DataWriter) {
     writer.writeUInt16(OFFSET_TYPE[this.type])
@@ -56,7 +59,7 @@ export class SubscribeRequest extends AbstractRequest {
       credit: number
       offset: Offset
       properties?: Record<string, string>
-    }
+    },
   ) {
     super()
     if (params.properties)

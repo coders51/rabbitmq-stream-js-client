@@ -23,8 +23,8 @@ describe("Buffer Data Writer functionalities", () => {
     b.writeString(stringPayload)
 
     const result = b.toBuffer()
-    const header = result.slice(0, 2)
-    const pl = result.slice(2)
+    const header = result.subarray(0, 2)
+    const pl = result.subarray(2)
     expect(header).eql(Buffer.from([0, 46]))
     expect(pl.length).eql(46)
     expect(pl.toString()).eql(stringPayload)
@@ -38,7 +38,7 @@ describe("Buffer Data Writer functionalities", () => {
     b.writeString(stringPayload)
 
     const result = b.toBuffer()
-    const pl = result.slice(2)
+    const pl = result.subarray(2)
     expect(pl.toString()).eql("a long string that requires th")
   })
 
@@ -48,7 +48,7 @@ describe("Buffer Data Writer functionalities", () => {
     const payload = Buffer.from(
       Array.from(Array(DEFAULT_FRAME_MAX + 1).keys())
         .map((_k) => "")
-        .join(",")
+        .join(","),
     )
 
     b.writeData(payload)

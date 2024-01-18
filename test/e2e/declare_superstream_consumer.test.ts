@@ -87,7 +87,7 @@ describe("declare super stream consumer", () => {
 
     await eventually(() => {
       expect(range(noOfMessages).map((i) => `${testMessageContent}-${i}`)).to.deep.equal(
-        messages.map((m) => m.content.toString())
+        messages.map((m) => m.content.toString()),
       )
     })
   })

@@ -74,7 +74,7 @@ describe("Super Stream", () => {
       await expectToThrowAsync(
         () => client.createSuperStream({ streamName: "", arguments: payload }),
         Error,
-        "Create Super Stream command returned error with code 17"
+        "Create Super Stream command returned error with code 17",
       )
     })
   })

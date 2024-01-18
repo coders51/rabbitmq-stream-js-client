@@ -97,7 +97,7 @@ describe("close consumer", () => {
         consumerArrays.every((consumer) => {
           const { readable } = consumer.getConnectionInfo()
           return readable !== true
-        })
+        }),
       )
     })
   }).timeout(5000)
@@ -133,14 +133,14 @@ describe("close consumer", () => {
       consumerArray.every((consumer) => {
         const { readable } = consumer.getConnectionInfo()
         return readable === true
-      })
+      }),
     )
     await eventually(() => {
       expect(closingConsumersSubset).satisfies((consumerArray: Consumer[]) =>
         consumerArray.every((consumer) => {
           const { readable } = consumer.getConnectionInfo()
           return readable !== true
-        })
+        }),
       )
     })
   }).timeout(5000)

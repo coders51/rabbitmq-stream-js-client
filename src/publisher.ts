@@ -134,7 +134,7 @@ export class StreamPublisher implements Publisher {
         compression: this.client.getCompression(compressionType),
         maxFrameSize: this.maxFrameSize,
         messages: messages,
-      })
+      }),
     )
   }
 
@@ -147,7 +147,7 @@ export class StreamPublisher implements Publisher {
   public on(event: "publish_confirm", listener: PublishConfirmCallback): void
   public on(
     event: "metadata_update" | "publish_confirm",
-    listener: MetadataUpdateListener | PublishConfirmCallback
+    listener: MetadataUpdateListener | PublishConfirmCallback,
   ): void {
     switch (event) {
       case "metadata_update":
@@ -157,7 +157,7 @@ export class StreamPublisher implements Publisher {
         const cb = listener as PublishConfirmCallback
         this.client.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
         this.client.on("publish_error", (error: PublishErrorResponse) =>
-          cb(error.publishingError.code, [error.publishingError.publishingId])
+          cb(error.publishingError.code, [error.publishingError.publishingId]),
         )
         break
       default:
@@ -210,7 +210,7 @@ export class StreamPublisher implements Publisher {
         new PublishRequest({
           publisherId: this.publisherId,
           messages: chunk,
-        })
+        }),
       )
     }
   }

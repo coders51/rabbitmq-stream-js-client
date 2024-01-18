@@ -114,7 +114,10 @@ export class Client {
   private leader: boolean
   private streamName: string | undefined
 
-  private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
+  private constructor(
+    private readonly logger: Logger,
+    private readonly params: ConnectionParams,
+  ) {
     if (params.frameMax) this.frameMax = params.frameMax
     if (params.ssl) {
       this.socket = tls.connect(params.port, params.hostname, { ...params.ssl, rejectUnauthorized: false })
@@ -139,7 +142,7 @@ export class Client {
     const compression = this.compressions.get(compressionType)
     if (!compression) {
       throw new Error(
-        "invalid compression or compression not yet implemented, to add a new compression use the specific api"
+        "invalid compression or compression not yet implemented, to add a new compression use the specific api",
       )
     }
 
@@ -166,7 +169,7 @@ export class Client {
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
-          `Error on client ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
+          `Error on client ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`,
         )
         return rej(err)
       })
@@ -200,7 +203,7 @@ export class Client {
   public on(event: "publish_error", listener: PublishErrorListener): void
   public on(
     event: "metadata_update" | "publish_confirm" | "publish_error",
-    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
+    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener,
   ) {
     switch (event) {
       case "metadata_update":
@@ -218,7 +221,7 @@ export class Client {
   }
 
   public async close(
-    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
+    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" },
   ): Promise<void> {
     this.logger.info(`${this.id} Closing client...`)
     const refs = this.decrRefCount()
@@ -269,7 +272,7 @@ export class Client {
 
     const client = await this.initNewClient(params.stream, true, params.connectionClosedListener)
     const res = await client.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
+      new DeclarePublisherRequest({ stream, publisherRef, publisherId }),
     )
     if (!res.ok) {
       await client.close()
@@ -287,7 +290,7 @@ export class Client {
     })
     this.publishers.set(publisherId, { publisher: publisher, client: client })
     this.logger.info(
-      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`,
     )
 
     return publisher
@@ -327,7 +330,7 @@ export class Client {
     }
 
     const res = await this.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties }),
     )
 
     if (!res.ok) {
@@ -336,7 +339,7 @@ export class Client {
     }
 
     this.logger.info(
-      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
+      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`,
     )
     return consumer
   }
@@ -396,7 +399,7 @@ export class Client {
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
           body.byteLength
-        }`
+        }`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
@@ -438,11 +441,11 @@ export class Client {
       arguments: CreateStreamArguments
     },
     bindingKeys?: string[],
-    numberOfPartitions = 3
+    numberOfPartitions = 3,
   ): Promise<true> {
     if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
       throw new Error(
-        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Create Super Stream Command. To create the stream use the cli`
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Create Super Stream Command. To create the stream use the cli`,
       )
     }
 
@@ -450,10 +453,10 @@ export class Client {
     const { partitions, streamBindingKeys } = this.createSuperStreamPartitionsAndBindingKeys(
       params.streamName,
       numberOfPartitions,
-      bindingKeys
+      bindingKeys,
     )
     const res = await this.sendAndWait<CreateSuperStreamResponse>(
-      new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys })
+      new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys }),
     )
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
       return true
@@ -469,7 +472,7 @@ export class Client {
   public async deleteSuperStream(params: { streamName: string }): Promise<true> {
     if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
       throw new Error(
-        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Delete Super Stream Command. To delete the stream use the cli`
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Delete Super Stream Command. To delete the stream use the cli`,
       )
     }
 
@@ -486,12 +489,12 @@ export class Client {
     const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
     if (!res.ok) {
       throw new Error(
-        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`
+        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`,
       )
     }
 
     this.logger.info(
-      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
+      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`,
     )
     return res.sequence
   }
@@ -554,7 +557,7 @@ export class Client {
   private async exchangeCommandVersions() {
     const versions = getClientSupportedVersions(this.peerProperties.version)
     const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
-      new ExchangeCommandVersionsRequest(versions)
+      new ExchangeCommandVersionsRequest(versions),
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
 
@@ -629,7 +632,7 @@ export class Client {
 
     this.logger.debug(`Start SASL PLAIN authentication ...`)
     const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
-      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
+      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" }),
     )
     this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
     if (!authResponse.ok) {
@@ -656,12 +659,12 @@ export class Client {
       const body = cmd.toBuffer(bufferSizeParams, correlationId)
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
-          body.toJSON()
-        )} length: ${body.byteLength}`
+          body.toJSON(),
+        )} length: ${body.byteLength}`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(
-          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`
+          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`,
         )
         if (err) {
           return rej(err)
@@ -678,8 +681,8 @@ export class Client {
       if (response.key !== key) {
         throw new Error(
           `Error con correlationId: ${correlationId} waiting key: ${key.toString(
-            16
-          )} found key: ${response.key.toString(16)} `
+            16,
+          )} found key: ${response.key.toString(16)} `,
         )
       }
       return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
@@ -735,7 +738,7 @@ export class Client {
       }
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
       await this.send(
-        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset }),
       )
     })
   }
@@ -753,7 +756,7 @@ export class Client {
   private async initNewClient(
     streamName: string,
     leader: boolean,
-    connectionClosedListener?: ConnectionClosedListener
+    connectionClosedListener?: ConnectionClosedListener,
   ): Promise<Client> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = chooseNode(metadata, leader)
@@ -776,7 +779,7 @@ export class Client {
   private async getConnectionOnChosenNode(
     chosenNode: { host: string; port: number },
     connectionParams: ConnectionParams,
-    metadata: StreamMetadata
+    metadata: StreamMetadata,
   ): Promise<Client> {
     if (this.params.addressResolver && this.params.addressResolver.enabled) {
       const maxAttempts = computeMaxAttempts(metadata)
@@ -803,7 +806,7 @@ export class Client {
   private createSuperStreamPartitionsAndBindingKeys(
     streamName: string,
     numberOfPartitions: number,
-    bindingKeys?: string[]
+    bindingKeys?: string[],
   ) {
     const partitions: string[] = []
     if (!bindingKeys) {

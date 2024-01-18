@@ -46,7 +46,7 @@ export async function createConsumer(streamName: string, client: Client): Promis
     { stream: streamName, offset: Offset.first(), consumerRef: `my-consumer-${id}` },
     () => {
       console.log(`Test consumer with id ${id} received a message`)
-    }
+    },
   )
   return consumer
 }
@@ -57,7 +57,7 @@ export async function createClient(
   listeners?: ListenersParams,
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings,
-  port?: number
+  port?: number,
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
   return connect({

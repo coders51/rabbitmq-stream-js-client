@@ -77,7 +77,7 @@ export function getClientSupportedVersions(serverVersion?: string) {
 
   if (serverVersion && lt(coerce(serverVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
     return result.filter(
-      (r) => r.key !== requests.CreateSuperStreamRequest.Key && r.key !== requests.DeleteSuperStreamRequest.Key
+      (r) => r.key !== requests.CreateSuperStreamRequest.Key && r.key !== requests.DeleteSuperStreamRequest.Key,
     )
   }
 
@@ -96,7 +96,7 @@ function checkVersion(
   minVersion: number,
   maxVersion: number,
   compared: Version | undefined,
-  logger: Logger
+  logger: Logger,
 ) {
   if (minVersion > 1 && compared === undefined) {
     logger.error(`For message key ${key.toString(16)} version mismatch between client and server`)

@@ -28,7 +28,7 @@ export class StreamConsumer implements Consumer {
       consumerId: number
       consumerRef?: string
       offset: Offset
-    }
+    },
   ) {
     this.client = params.client
     this.stream = params.stream

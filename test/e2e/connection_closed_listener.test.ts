@@ -76,7 +76,7 @@ describe("connection closed callback", () => {
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: listenerSpy },
       (_msg) => {
         return
-      }
+      },
     )
 
     await client.close()
