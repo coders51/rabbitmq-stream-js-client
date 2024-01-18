@@ -5,8 +5,9 @@ import { range } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, password, username } from "../support/util"
+import { randomUUID } from "crypto"
 
-describe("declare super stream consumer", () => {
+describe("super stream consumer", () => {
   let superStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
@@ -17,7 +18,7 @@ describe("declare super stream consumer", () => {
     client = await createClient(username, password)
     superStreamName = createStreamName()
     noOfPartitions = await rabbit.createSuperStream(superStreamName)
-    sender = await messageSender(client, superStreamName, noOfPartitions)
+    sender = await messageSender(client, superStreamName)
   })
 
   afterEach(async () => {
@@ -62,6 +63,16 @@ describe("declare super stream consumer", () => {
     })
   })
 
+  it("for a consumer the number of connections should be equals to the partitions' number", async () => {
+    await client.declareSuperStreamConsumer(superStreamName, (_) => {
+      return
+    })
+
+    await eventually(() => {
+      expect(client.consumerCounts()).to.be.eql(noOfPartitions)
+    })
+  })
+
   it("reading multiple messages - each message should be read only once", async () => {
     const noOfMessages = 20
     await sender(noOfMessages)
@@ -76,34 +87,28 @@ describe("declare super stream consumer", () => {
     })
   })
 
-  it("reading multiple messages - the order should be preserved", async () => {
-    const noOfMessages = 20
-    await sender(noOfMessages)
-    const messages: Message[] = []
-
-    await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
-      messages.push(message)
+  it("closing the locator closes all connections", async () => {
+    await client.declareSuperStreamConsumer(superStreamName, (_) => {
+      return
     })
 
-    await eventually(() => {
-      expect(range(noOfMessages).map((i) => `${testMessageContent}-${i}`)).to.deep.equal(
-        messages.map((m) => m.content.toString())
-      )
-    })
-  })
+    await client.close()
+
+    await eventually(async () => {
+      const connections = await rabbit.getConnections()
+      expect(connections).to.have.length(0)
+    }, 5000)
+  }).timeout(5000)
 })
 
 const testMessageContent = "test message"
 
-const messageSender = async (client: Client, superStreamName: string, noOfPartitions: number) => {
-  // TODO: swap with superstream publisher when it's done -- 11/01/24 -- LM
-  const publisher = await client.declarePublisher({
-    stream: `${superStreamName}-${Math.floor(Math.random() * noOfPartitions)}`,
-  })
+const messageSender = async (client: Client, superStreamName: string) => {
+  const publisher = await client.declareSuperStreamPublisher(superStreamName, () => randomUUID())
 
   const sendMessages = async (noOfMessages: number) => {
     for (let i = 0; i < noOfMessages; i++) {
-      await publisher.send(Buffer.from(`${testMessageContent}-${i}`))
+      await publisher.send(Buffer.from(`${testMessageContent}-${i}`), {})
     }
   }
 

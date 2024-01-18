@@ -49,7 +49,7 @@ export interface Message {
   offset?: bigint
 }
 
-interface MessageOptions {
+export interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
   messageAnnotations?: Record<string, string | number>
