@@ -33,7 +33,7 @@ describe("super stream publisher", () => {
     })
   })
 
-  it("declare a superstream publisher on a non-existant stream - should throw", async () => {
+  it("declare a superstream publisher on a non-existent stream - should throw", async () => {
     await expectToThrowAsync(
       async () => {
         await client.declareSuperStreamPublisher(createStreamName(), (_) => {
