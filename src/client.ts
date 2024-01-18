@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto"
 import { Socket } from "net"
 import tls from "node:tls"
+import { coerce, lt } from "semver"
 import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
@@ -11,10 +12,12 @@ import { Message, Publisher, StreamPublisher } from "./publisher"
 import { CloseRequest } from "./requests/close_request"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
+import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
 import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { MetadataRequest } from "./requests/metadata_request"
 import { OpenRequest } from "./requests/open_request"
@@ -40,9 +43,11 @@ import {
 import { CloseResponse } from "./responses/close_response"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
+import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
 import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
@@ -60,6 +65,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
+import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
 import {
   DEFAULT_FRAME_MAX,
   DEFAULT_UNLIMITED_FRAME_MAX,
@@ -70,11 +76,6 @@ import {
 } from "./util"
 import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
-import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
-import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
-import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
-import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
-import { lt, coerce } from "semver"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 export type ConnectionInfo = {
@@ -361,6 +362,13 @@ export class Client {
     const consumerRef = `${superStream}-${randomUUID()}`
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, { locator: this, consumerRef, partitions })
+  }
+
+  public async declareSuperStreamPublisher(
+    superStream: string,
+    keyExtractor: MessageKeyExtractorFunction
+  ): Promise<SuperStreamPublisher> {
+    return SuperStreamPublisher.create({ locator: this, superStream: superStream, keyExtractor })
   }
 
   private async closeAllConsumers() {
