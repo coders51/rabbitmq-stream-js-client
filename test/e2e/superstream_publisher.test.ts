@@ -98,6 +98,27 @@ describe("super stream publisher", () => {
     }, 2000)
   })
 
+  it("publish a message and receive a message when specifying the publishing id", async () => {
+    const messages: Message[] = []
+    await client.declareSuperStreamConsumer(superStreamName, (msg) => {
+      messages.push(msg)
+    })
+    const publisher = await client.declareSuperStreamPublisher(
+      superStreamName,
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      },
+      "publisher-ref"
+    )
+
+    await publisher.basicSend(1n, Buffer.from("Hello world"), { messageProperties: { messageId: "1" } })
+
+    await eventually(async () => {
+      expect(messages).to.have.length(1)
+      expect(await publisher.getLastPublishingId()).to.be.eql(1n)
+    }, 2000)
+  }).timeout(5000)
+
   it("publish several messages - they should be routed to different partitions", async () => {
     const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
@@ -149,4 +170,19 @@ describe("super stream publisher", () => {
       expect(connections).to.have.length(0)
     }, 5000)
   }).timeout(5000)
+
+  it("check the hashing algorithm - if it's properly implemented, the following should hold", async () => {
+    const publisher = await client.declareSuperStreamPublisher(
+      superStreamName,
+      (_, opts) => opts.messageProperties?.messageId
+    )
+    for (let i = 0; i < 20; i++) {
+      await publisher.basicSend(BigInt(i), Buffer.from("hello"), { messageProperties: { messageId: `hello${i}` } })
+    }
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-2`)).messages).to.eql(4)
+    }, 10000)
+  }).timeout(12000)
 })

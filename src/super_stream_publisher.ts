@@ -1,12 +1,14 @@
 import { Client } from "./client"
 import { murmur32 } from "./hash/murmur32"
 import { MessageOptions, Publisher } from "./publisher"
+import { bigIntMax } from "./util"
 
 export type MessageKeyExtractorFunction = (content: string, opts: MessageOptions) => string | undefined
 
 type SuperStreamPublisherParams = {
   locator: Client
   superStream: string
+  publisherRef?: string
   keyExtractor: MessageKeyExtractorFunction
 }
 
@@ -15,10 +17,12 @@ export class SuperStreamPublisher {
   private partitions: string[] = []
   private publishers: Map<string, Publisher> = new Map()
   private superStream: string
+  private publisherRef: string | undefined
   private keyExtractor: MessageKeyExtractorFunction
 
   private constructor(params: SuperStreamPublisherParams) {
     this.locator = params.locator
+    this.publisherRef = params.publisherRef
     this.superStream = params.superStream
     this.keyExtractor = params.keyExtractor
   }
@@ -44,6 +48,16 @@ export class SuperStreamPublisher {
     return publisher.send(message, opts)
   }
 
+  public async basicSend(publishingId: bigint, message: Buffer, opts: MessageOptions): Promise<boolean> {
+    const partition = await this.routeMessage(message, opts)
+    const publisher = await this.getPublisher(partition)
+    return publisher.basicSend(publishingId, message, opts)
+  }
+
+  public async getLastPublishingId(): Promise<bigint> {
+    return bigIntMax(await Promise.all([...this.publishers.values()].map((p) => p.getLastPublishingId()))) ?? 0n
+  }
+
   private async routeMessage(messageContent: Buffer, msg: MessageOptions): Promise<string> {
     const routingKey = this.keyExtractor(messageContent.toString(), msg)
     if (!routingKey) {
@@ -64,7 +78,7 @@ export class SuperStreamPublisher {
   }
 
   private async initPublisher(partition: string): Promise<Publisher> {
-    const publisher = await this.locator.declarePublisher({ stream: partition })
+    const publisher = await this.locator.declarePublisher({ stream: partition, publisherRef: this.publisherRef })
     this.publishers.set(partition, publisher)
     return publisher
   }

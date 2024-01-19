@@ -34,3 +34,8 @@ export const sample = <T>(items: (T | undefined)[]): T | undefined => {
   const index = Math.floor(Math.random() * actualItems.length)
   return actualItems[index]!
 }
+
+export const bigIntMax = (n: bigint[]): bigint | undefined => {
+  if (!n.length) return undefined
+  return n.reduce((acc, i) => (i > acc ? i : acc), n[0])
+}

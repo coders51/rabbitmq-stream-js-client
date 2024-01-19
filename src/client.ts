@@ -366,9 +366,10 @@ export class Client {
 
   public async declareSuperStreamPublisher(
     superStream: string,
-    keyExtractor: MessageKeyExtractorFunction
+    keyExtractor: MessageKeyExtractorFunction,
+    publisherRef?: string
   ): Promise<SuperStreamPublisher> {
-    return SuperStreamPublisher.create({ locator: this, superStream: superStream, keyExtractor })
+    return SuperStreamPublisher.create({ locator: this, superStream: superStream, keyExtractor, publisherRef })
   }
 
   private async closeAllConsumers() {
