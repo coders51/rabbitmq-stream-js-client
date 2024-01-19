@@ -55,7 +55,7 @@ describe("super stream publisher", () => {
   }).timeout(3000)
 
   it("publish a message without the routing key throws", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
     })
 
@@ -69,7 +69,7 @@ describe("super stream publisher", () => {
   })
 
   it("publish a message with an empty routing key throws", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_) => {
       return ""
     })
 
@@ -87,7 +87,7 @@ describe("super stream publisher", () => {
     await client.declareSuperStreamConsumer(superStreamName, (msg) => {
       messages.push(msg)
     })
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
     })
 
@@ -99,7 +99,7 @@ describe("super stream publisher", () => {
   })
 
   it("publish several messages - they should be routed to different partitions", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
     })
 
@@ -115,7 +115,7 @@ describe("super stream publisher", () => {
   }).timeout(5000)
 
   it("closing the superstream publisher closes all connections besides the locator", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
     })
     for (let i = 0; i < noOfPartitions * 2; i++) {
@@ -133,7 +133,7 @@ describe("super stream publisher", () => {
   }).timeout(5000)
 
   it("closing the locator closes all connections", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (opts: MessageOptions) => {
+    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
       return opts.messageProperties?.messageId
     })
     for (let i = 0; i < noOfPartitions * 2; i++) {

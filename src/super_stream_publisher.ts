@@ -2,7 +2,7 @@ import { Client } from "./client"
 import { murmurHash } from "./murmur"
 import { MessageOptions, Publisher } from "./publisher"
 
-export type MessageKeyExtractorFunction = (props: MessageOptions) => string | undefined
+export type MessageKeyExtractorFunction = (content: string, opts: MessageOptions) => string | undefined
 
 type SuperStreamPublisherParams = {
   locator: Client
@@ -40,13 +40,13 @@ export class SuperStreamPublisher {
   }
 
   public async send(message: Buffer, opts: MessageOptions): Promise<boolean> {
-    const partition = await this.routeMessage(opts)
+    const partition = await this.routeMessage(message, opts)
     const publisher = await this.getPublisher(partition)
     return publisher.send(message, opts)
   }
 
-  private async routeMessage(msg: MessageOptions): Promise<string> {
-    const routingKey = this.keyExtractor(msg)
+  private async routeMessage(messageContent: Buffer, msg: MessageOptions): Promise<string> {
+    const routingKey = this.keyExtractor(messageContent.toString(), msg)
     if (!routingKey) {
       throw new Error(`Routing key is empty or undefined with the provided extractor`)
     }
