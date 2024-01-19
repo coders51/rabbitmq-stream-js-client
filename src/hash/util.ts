@@ -8,11 +8,11 @@ export const imul32 = (a: number, b: number): number => {
 }
 
 export const rotl32 = (x: number, r: number): number => {
-  const rmod = r % 32
-  return ((x & ((1 << (32 - rmod)) - 1)) << rmod) | (x >>> (32 - rmod))
+  const rMod = r % 32
+  return ((x & ((1 << (32 - rMod)) - 1)) << rMod) | (x >>> (32 - rMod))
 }
 
-export const fmix32 = (hi: number): number => {
+export const fMix32 = (hi: number): number => {
   let h = hi
   h ^= h >>> 16
   h = imul32(h, 0x85ebca6b)

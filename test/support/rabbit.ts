@@ -160,8 +160,7 @@ export class Rabbit {
 
   async deleteSuperStream(superStream: string, noOfPartitions = 3, bindingKeys?: string[]) {
     try {
-      const exchangeName = `${superStream}`
-      await this.deleteExchange(exchangeName)
+      await this.deleteExchange(superStream)
       const streamNames = bindingKeys
         ? bindingKeys.map((bk) => `${superStream}-${bk}`)
         : range(noOfPartitions).map((i) => `${superStream}-${i}`)

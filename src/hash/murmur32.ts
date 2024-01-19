@@ -1,10 +1,10 @@
 // Original from https://github.com/flagUpDown/murmurhash-node, licensed ISC
 // Linted, cleaned up and properly typed for this project
 
-import { fmix32, imul32, rotl32, stringToBuffer } from "./util"
+import { fMix32, imul32, rotl32, stringToBuffer } from "./util"
 
-const MURMURHASH_C1 = 0xcc9e2d51
-const MURMURHASH_C2 = 0x1b873593
+const MURMUR_HASH_C1 = 0xcc9e2d51
+const MURMUR_HASH_C2 = 0x1b873593
 
 export const murmur32 = (key: string): number => {
   const seed = 104729 //  must be the same to all the clients to be compatible
@@ -20,9 +20,9 @@ export const murmur32 = (key: string): number => {
   while (i < bytes) {
     let k1 = bKey[i++] | (bKey[i++] << 8) | (bKey[i++] << 16) | (bKey[i++] << 24)
 
-    k1 = imul32(k1, MURMURHASH_C1)
+    k1 = imul32(k1, MURMUR_HASH_C1)
     k1 = ((k1 & 0x1ffff) << 15) | (k1 >>> 17)
-    k1 = imul32(k1, MURMURHASH_C2)
+    k1 = imul32(k1, MURMUR_HASH_C2)
 
     h1 ^= k1
     h1 = ((h1 & 0x7ffff) << 13) | (h1 >>> 19)
@@ -41,9 +41,9 @@ export const murmur32 = (key: string): number => {
       case 1:
         k1 ^= bKey[i]
 
-        k1 = imul32(k1, MURMURHASH_C1)
+        k1 = imul32(k1, MURMUR_HASH_C1)
         k1 = rotl32(k1, 15)
-        k1 = imul32(k1, MURMURHASH_C2)
+        k1 = imul32(k1, MURMUR_HASH_C2)
         h1 ^= k1
         break
     }
@@ -51,5 +51,5 @@ export const murmur32 = (key: string): number => {
   }
   h1 ^= len
 
-  return fmix32(h1) >>> 0
+  return fMix32(h1) >>> 0
 }
