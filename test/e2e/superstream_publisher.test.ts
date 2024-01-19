@@ -28,7 +28,7 @@ describe("super stream publisher", () => {
   })
 
   it("declare a superstream publisher on an existent stream - should not throw", async () => {
-    await client.declareSuperStreamPublisher(superStreamName, (_) => {
+    await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_) => {
       return ""
     })
   })
@@ -36,7 +36,7 @@ describe("super stream publisher", () => {
   it("declare a superstream publisher on a non-existent stream - should throw", async () => {
     await expectToThrowAsync(
       async () => {
-        await client.declareSuperStreamPublisher(createStreamName(), (_) => {
+        await client.declareSuperStreamPublisher({ superStream: createStreamName() }, (_) => {
           return ""
         })
       },
@@ -46,7 +46,7 @@ describe("super stream publisher", () => {
   })
 
   it("the actual publishers gets created lazily - without send, no publisher is actually instantiated", async () => {
-    await client.declareSuperStreamPublisher(superStreamName, (_) => {
+    await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_) => {
       return ""
     })
 
@@ -55,9 +55,12 @@ describe("super stream publisher", () => {
   }).timeout(3000)
 
   it("publish a message without the routing key throws", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
-      return opts.messageProperties?.messageId
-    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      }
+    )
 
     await expectToThrowAsync(
       async () => {
@@ -69,7 +72,7 @@ describe("super stream publisher", () => {
   })
 
   it("publish a message with an empty routing key throws", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_) => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_) => {
       return ""
     })
 
@@ -84,12 +87,15 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer(superStreamName, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
-      return opts.messageProperties?.messageId
-    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      }
+    )
 
     await publisher.send(Buffer.from("Hello world"), { messageProperties: { messageId: "1" } })
 
@@ -100,15 +106,14 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message when specifying the publishing id", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer(superStreamName, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
-      superStreamName,
+      { superStream: superStreamName, publisherRef: "publisher-ref" },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      },
-      "publisher-ref"
+      }
     )
 
     await publisher.basicSend(1n, Buffer.from("Hello world"), { messageProperties: { messageId: "1" } })
@@ -120,9 +125,12 @@ describe("super stream publisher", () => {
   }).timeout(5000)
 
   it("publish several messages - they should be routed to different partitions", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
-      return opts.messageProperties?.messageId
-    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      }
+    )
 
     for (let i = 0; i < noOfPartitions * 3; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
@@ -136,9 +144,12 @@ describe("super stream publisher", () => {
   }).timeout(5000)
 
   it("closing the superstream publisher closes all connections besides the locator", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
-      return opts.messageProperties?.messageId
-    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      }
+    )
     for (let i = 0; i < noOfPartitions * 2; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
         messageProperties: { messageId: randomUUID() },
@@ -154,9 +165,12 @@ describe("super stream publisher", () => {
   }).timeout(5000)
 
   it("closing the locator closes all connections", async () => {
-    const publisher = await client.declareSuperStreamPublisher(superStreamName, (_, opts: MessageOptions) => {
-      return opts.messageProperties?.messageId
-    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_, opts: MessageOptions) => {
+        return opts.messageProperties?.messageId
+      }
+    )
     for (let i = 0; i < noOfPartitions * 2; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
         messageProperties: { messageId: randomUUID() },
@@ -173,16 +187,63 @@ describe("super stream publisher", () => {
 
   it("check the hashing algorithm - if it's properly implemented, the following should hold", async () => {
     const publisher = await client.declareSuperStreamPublisher(
-      superStreamName,
+      { superStream: superStreamName },
       (_, opts) => opts.messageProperties?.messageId
     )
+
     for (let i = 0; i < 20; i++) {
       await publisher.basicSend(BigInt(i), Buffer.from("hello"), { messageProperties: { messageId: `hello${i}` } })
     }
+
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
       expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
       expect((await rabbit.getQueueInfo(`${superStreamName}-2`)).messages).to.eql(4)
     }, 10000)
   }).timeout(12000)
+
+  it("superstream publishing with key routing strategy - select an existing partition", async () => {
+    const messages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+      messages.push(msg)
+    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName, routingStrategy: "key" },
+      (_) => {
+        return "0"
+      }
+    )
+
+    for (let i = 0; i < noOfPartitions * 2; i++) {
+      await publisher.send(Buffer.from(`Hello world ${i}`), {
+        messageProperties: { messageId: randomUUID() },
+      })
+    }
+
+    await eventually(() => {
+      expect(messages).to.have.length(noOfPartitions * 2)
+    })
+  })
+
+  it("superstream publishing with key routing strategy - the routingKey is not an existing bindingKey for the superstream", async () => {
+    const messages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+      messages.push(msg)
+    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName, routingStrategy: "key" },
+      (_) => {
+        return "non-existent"
+      }
+    )
+    await expectToThrowAsync(
+      async () => {
+        await publisher.send(Buffer.from(`I will break`), {
+          messageProperties: { messageId: randomUUID() },
+        })
+      },
+      Error,
+      /The server did not return any partition for routing key/
+    )
+  })
 })

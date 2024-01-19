@@ -1,4 +1,4 @@
-import { Client } from "./client"
+import { Client, RoutingStrategy } from "./client"
 import { murmur32 } from "./hash/murmur32"
 import { MessageOptions, Publisher } from "./publisher"
 import { bigIntMax } from "./util"
@@ -9,6 +9,7 @@ type SuperStreamPublisherParams = {
   locator: Client
   superStream: string
   publisherRef?: string
+  routingStrategy?: RoutingStrategy
   keyExtractor: MessageKeyExtractorFunction
 }
 
@@ -19,11 +20,13 @@ export class SuperStreamPublisher {
   private superStream: string
   private publisherRef: string | undefined
   private keyExtractor: MessageKeyExtractorFunction
+  private routingStrategy: RoutingStrategy
 
   private constructor(params: SuperStreamPublisherParams) {
     this.locator = params.locator
     this.publisherRef = params.publisherRef
     this.superStream = params.superStream
+    this.routingStrategy = params.routingStrategy ?? "hash"
     this.keyExtractor = params.keyExtractor
   }
 
@@ -63,10 +66,23 @@ export class SuperStreamPublisher {
     if (!routingKey) {
       throw new Error(`Routing key is empty or undefined with the provided extractor`)
     }
-    const hash = murmur32(routingKey)
-    const partitionIndex = hash % this.partitions.length
-    const partition = this.partitions[partitionIndex]!
-    return partition
+    if (this.routingStrategy === "hash") {
+      const hash = murmur32(routingKey)
+      const partitionIndex = hash % this.partitions.length
+      return this.partitions[partitionIndex]!
+    } else {
+      const targetPartitions = await this.locator.routeQuery({ routingKey, superStream: this.superStream })
+      if (!targetPartitions.length) {
+        throw new Error(`The server did not return any partition for routing key: ${routingKey}`)
+      }
+      for (const tp of targetPartitions) {
+        const foundPartition = this.partitions.find((p) => p === tp)
+        if (foundPartition) return foundPartition
+      }
+      throw new Error(
+        `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
+      )
+    }
   }
 
   private async getPublisher(partition: string): Promise<Publisher> {

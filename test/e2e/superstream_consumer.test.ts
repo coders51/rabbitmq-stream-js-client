@@ -43,7 +43,7 @@ describe("super stream consumer", () => {
   })
 
   it("declaring a super stream consumer on an existing super stream - no error is thrown", async () => {
-    await client.declareSuperStreamConsumer(superStreamName, (_message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_message: Message) => {
       return
     })
   })
@@ -52,7 +52,7 @@ describe("super stream consumer", () => {
     await sender(1)
     const messages: Message[] = []
 
-    await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
       messages.push(message)
     })
 
@@ -64,7 +64,7 @@ describe("super stream consumer", () => {
   })
 
   it("for a consumer the number of connections should be equals to the partitions' number", async () => {
-    await client.declareSuperStreamConsumer(superStreamName, (_) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
       return
     })
 
@@ -78,7 +78,7 @@ describe("super stream consumer", () => {
     await sender(noOfMessages)
     const messages: Message[] = []
 
-    await client.declareSuperStreamConsumer(superStreamName, (message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
       messages.push(message)
     })
 
@@ -88,7 +88,7 @@ describe("super stream consumer", () => {
   })
 
   it("closing the locator closes all connections", async () => {
-    await client.declareSuperStreamConsumer(superStreamName, (_) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
       return
     })
 
@@ -104,7 +104,7 @@ describe("super stream consumer", () => {
 const testMessageContent = "test message"
 
 const messageSender = async (client: Client, superStreamName: string) => {
-  const publisher = await client.declareSuperStreamPublisher(superStreamName, () => randomUUID())
+  const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, () => randomUUID())
 
   const sendMessages = async (noOfMessages: number) => {
     for (let i = 0; i < noOfMessages; i++) {
