@@ -1,5 +1,5 @@
 import { Client } from "./client"
-import { murmurHash } from "./murmur"
+import { murmur32 } from "./hash/murmur32"
 import { MessageOptions, Publisher } from "./publisher"
 
 export type MessageKeyExtractorFunction = (content: string, opts: MessageOptions) => string | undefined
@@ -16,7 +16,6 @@ export class SuperStreamPublisher {
   private publishers: Map<string, Publisher> = new Map()
   private superStream: string
   private keyExtractor: MessageKeyExtractorFunction
-  private readonly murmur32Seed = 104729 //  must be the same to all the clients to be compatible
 
   private constructor(params: SuperStreamPublisherParams) {
     this.locator = params.locator
@@ -50,7 +49,7 @@ export class SuperStreamPublisher {
     if (!routingKey) {
       throw new Error(`Routing key is empty or undefined with the provided extractor`)
     }
-    const hash = murmurHash(this.murmur32Seed)(routingKey)
+    const hash = murmur32(routingKey)
     const partitionIndex = hash % this.partitions.length
     const partition = this.partitions[partitionIndex]!
     return partition
