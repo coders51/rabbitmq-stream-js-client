@@ -1,5 +1,5 @@
+import { BufferDataWriter } from "../requests/buffer_data_writer"
 import { MetadataInfo, RawMetadataUpdateResponse } from "./raw_response"
-import { BufferDataWriter } from "../requests/abstract_request"
 import { Response } from "./response"
 
 export class MetadataUpdateResponse implements Response {

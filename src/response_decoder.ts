@@ -36,6 +36,7 @@ import {
   RawConsumerUpdateQueryResponse as RawConsumerUpdateQuery,
   RawCreditResponse,
   RawDeliverResponse,
+  RawDeliverResponseV2,
   RawHeartbeatResponse,
   RawMetadataUpdateResponse,
   RawPublishConfirmResponse,
@@ -57,6 +58,7 @@ import { PartitionsResponse } from "./responses/partitions_response"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
 import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
+import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 
 // Frame => Size (Request | Response | Command)
 //   Size => uint32 (size without the 4 bytes of the size element)
@@ -71,12 +73,14 @@ const UINT32_SIZE = 4
 export type MetadataUpdateListener = (metadata: MetadataUpdateResponse) => void
 export type CreditListener = (creditResponse: CreditResponse) => void
 export type DeliverListener = (response: DeliverResponse) => void
+export type DeliverV2Listener = (response: DeliverResponseV2) => void
 export type PublishConfirmListener = (confirm: PublishConfirmResponse) => void
 export type PublishErrorListener = (confirm: PublishErrorResponse) => void
 export type ConsumerUpdateQueryListener = (metadata: ConsumerUpdateQuery) => void
 
 type DeliveryResponseDecoded = {
   subscriptionId: number
+  committedChunkId?: bigint
   messages: Message[]
 }
 
@@ -86,6 +90,7 @@ type PossibleRawResponses =
   | RawHeartbeatResponse
   | RawMetadataUpdateResponse
   | RawDeliverResponse
+  | RawDeliverResponseV2
   | RawCreditResponse
   | RawPublishConfirmResponse
   | RawPublishErrorResponse
@@ -115,13 +120,30 @@ function decodeResponse(
 ): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
-  if (key === DeliverResponse.key) {
+  if (key === DeliverResponse.key && version === 1) {
     const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, getCompressionBy, logger)
     const response: RawDeliverResponse = {
       size,
       key: key as DeliverResponse["key"],
       version,
       subscriptionId,
+      messages,
+    }
+    return response
+  }
+  if (key === DeliverResponseV2.key && version === 2) {
+    const { subscriptionId, committedChunkId, messages } = decodeDeliverResponse(
+      dataResponse,
+      getCompressionBy,
+      logger,
+      version
+    )
+    const response: RawDeliverResponseV2 = {
+      size,
+      key: key as DeliverResponse["key"],
+      version,
+      subscriptionId,
+      committedChunkId: committedChunkId!,
       messages,
     }
     return response
@@ -193,9 +215,11 @@ function decodeResponse(
 function decodeDeliverResponse(
   dataResponse: DataReader,
   getCompressionBy: (type: CompressionType) => Compression,
-  logger: Logger
+  logger: Logger,
+  version: 1 | 2 = 1
 ): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
+  const committedChunkId = version === 2 ? dataResponse.readUInt64() : undefined
   const magicVersion = dataResponse.readInt8()
   const chunkType = dataResponse.readInt8()
   const numEntries = dataResponse.readUInt16()
@@ -211,6 +235,7 @@ function decodeDeliverResponse(
 
   const messages: Message[] = []
   const data = {
+    committedChunkId,
     magicVersion,
     chunkType,
     numEntries,
@@ -237,7 +262,7 @@ function decodeDeliverResponse(
     messages.push(...decodeSubEntries(dataResponse, compression, logger))
   }
 
-  return { subscriptionId, messages }
+  return { subscriptionId, committedChunkId, messages }
 }
 
 const EmptyBuffer = Buffer.from("")
@@ -581,8 +606,12 @@ function isMetadataUpdateResponse(params: PossibleRawResponses): params is RawMe
   return params.key === MetadataUpdateResponse.key
 }
 
-function isDeliverResponse(params: PossibleRawResponses): params is RawDeliverResponse {
-  return params.key === DeliverResponse.key
+function isDeliverResponseV1(params: PossibleRawResponses): params is RawDeliverResponse {
+  return params.key === DeliverResponse.key && params.version === DeliverResponse.Version
+}
+
+function isDeliverResponseV2(params: PossibleRawResponses): params is RawDeliverResponseV2 {
+  return params.key === DeliverResponseV2.key && params.version === DeliverResponseV2.Version
 }
 
 function isCreditResponse(params: PossibleRawResponses): params is RawCreditResponse {
@@ -649,9 +678,12 @@ export class ResponseDecoder {
       } else if (isMetadataUpdateResponse(response)) {
         this.emitter.emit("metadata_update", new MetadataUpdateResponse(response))
         this.logger.debug(`metadata update received from the server: ${inspect(response)}`)
-      } else if (isDeliverResponse(response)) {
-        this.emitter.emit("deliver", new DeliverResponse(response))
-        this.logger.debug(`deliver received from the server: ${inspect(response)}`)
+      } else if (isDeliverResponseV1(response)) {
+        this.emitter.emit("deliverV1", new DeliverResponse(response))
+        this.logger.debug(`deliverV1 received from the server: ${inspect(response)}`)
+      } else if (isDeliverResponseV2(response)) {
+        this.emitter.emit("deliverV2", new DeliverResponseV2(response))
+        this.logger.debug(`deliverV2 received from the server: ${inspect(response)}`)
       } else if (isCreditResponse(response)) {
         this.logger.debug(`credit received from the server: ${inspect(response)}`)
         this.emitter.emit("credit_response", new CreditResponse(response))
@@ -672,18 +704,21 @@ export class ResponseDecoder {
   public on(event: "credit_response", listener: CreditListener): void
   public on(event: "publish_confirm", listener: PublishConfirmListener): void
   public on(event: "publish_error", listener: PublishErrorListener): void
-  public on(event: "deliver", listener: DeliverListener): void
+  public on(event: "deliverV1", listener: DeliverListener): void
+  public on(event: "deliverV2", listener: DeliverV2Listener): void
   public on(
     event:
       | "metadata_update"
       | "credit_response"
       | "publish_confirm"
       | "publish_error"
-      | "deliver"
+      | "deliverV1"
+      | "deliverV2"
       | "consumer_update_query",
     listener:
       | MetadataUpdateListener
       | DeliverListener
+      | DeliverV2Listener
       | CreditListener
       | PublishConfirmListener
       | PublishErrorListener

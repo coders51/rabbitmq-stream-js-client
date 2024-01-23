@@ -1,4 +1,4 @@
-import { BufferDataWriter } from "../requests/abstract_request"
+import { BufferDataWriter } from "../requests/buffer_data_writer"
 import { RawConsumerUpdateQueryResponse as RawConsumerUpdateQuery } from "./raw_response"
 import { Response } from "./response"
 

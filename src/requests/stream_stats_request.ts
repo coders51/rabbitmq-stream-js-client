@@ -3,10 +3,8 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class StreamStatsRequest extends AbstractRequest {
-  readonly responseKey = StreamStatsResponse.key
   static readonly Key = 0x001c
   static readonly Version = 1
-  readonly key = StreamStatsRequest.Key
 
   constructor(private streamName: string) {
     super()
@@ -14,5 +12,15 @@ export class StreamStatsRequest extends AbstractRequest {
 
   writeContent(writer: DataWriter) {
     writer.writeString(this.streamName)
+  }
+
+  get key(): number {
+    return StreamStatsRequest.Key
+  }
+  get responseKey(): number {
+    return StreamStatsResponse.key
+  }
+  get version(): number {
+    return StreamStatsRequest.Version
   }
 }

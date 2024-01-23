@@ -3,10 +3,8 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class SaslAuthenticateRequest extends AbstractRequest {
-  readonly responseKey = SaslAuthenticateResponse.key
   static readonly Key = 0x0013
   static readonly Version = 1
-  readonly key = SaslAuthenticateRequest.Key
 
   constructor(private params: { mechanism: string; username: string; password: string }) {
     super()
@@ -19,5 +17,15 @@ export class SaslAuthenticateRequest extends AbstractRequest {
     writer.writeData(this.params.username)
     writer.writeUInt8(0)
     writer.writeData(this.params.password)
+  }
+
+  get key(): number {
+    return SaslAuthenticateRequest.Key
+  }
+  get responseKey(): number {
+    return SaslAuthenticateResponse.key
+  }
+  get version(): number {
+    return SaslAuthenticateRequest.Version
   }
 }

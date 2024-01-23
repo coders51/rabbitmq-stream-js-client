@@ -11,10 +11,8 @@ export interface CreateSuperStreamParams {
 }
 
 export class CreateSuperStreamRequest extends AbstractRequest {
-  readonly responseKey = CreateSuperStreamResponse.key
   static readonly Key = 0x001d
   static readonly Version = 1
-  readonly key = CreateSuperStreamRequest.Key
   private readonly _arguments: { key: keyof CreateStreamArguments; value: string | number }[] = []
   private readonly streamName: string
   private readonly partitions: string[]
@@ -46,5 +44,15 @@ export class CreateSuperStreamRequest extends AbstractRequest {
       writer.writeString(key)
       writer.writeString(value.toString())
     })
+  }
+
+  get key(): number {
+    return CreateSuperStreamRequest.Key
+  }
+  get responseKey(): number {
+    return CreateSuperStreamResponse.key
+  }
+  get version(): number {
+    return CreateSuperStreamRequest.Version
   }
 }

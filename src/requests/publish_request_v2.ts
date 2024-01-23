@@ -1,22 +1,16 @@
 import { amqpEncode } from "../amqp10/encoder"
-import { Message } from "../publisher"
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
-
-export type PublishRequestMessage = {
-  publishingId: bigint
-  filterValue?: string
-  message: Message
-}
+import { PublishRequestMessage } from "./publish_request"
 
 interface PublishRequestParams {
   publisherId: number
   messages: Array<PublishRequestMessage>
 }
 
-export class PublishRequest extends AbstractRequest {
+export class PublishRequestV2 extends AbstractRequest {
   static readonly Key = 0x02
-  static readonly Version = 1
+  static readonly Version = 2
 
   constructor(private params: PublishRequestParams) {
     super()
@@ -25,19 +19,20 @@ export class PublishRequest extends AbstractRequest {
   protected writeContent(writer: DataWriter): void {
     writer.writeUInt8(this.params.publisherId)
     writer.writeUInt32(this.params.messages.length)
-    this.params.messages.forEach(({ publishingId, message }) => {
+    this.params.messages.forEach(({ publishingId, filterValue, message }) => {
       writer.writeUInt64(publishingId)
+      filterValue ? writer.writeString(filterValue) : writer.writeInt16(-1)
       amqpEncode(writer, message)
     })
   }
 
   get key(): number {
-    return PublishRequest.Key
+    return PublishRequestV2.Key
   }
   get responseKey(): number {
     return -1
   }
   get version(): number {
-    return PublishRequest.Version
+    return PublishRequestV2.Version
   }
 }

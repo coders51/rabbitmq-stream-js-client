@@ -3,10 +3,8 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class PartitionsQuery extends AbstractRequest {
-  readonly responseKey = PartitionsResponse.key
   static readonly Key = 0x0019
   static readonly Version = 1
-  readonly key = PartitionsQuery.Key
 
   constructor(private params: { superStream: string }) {
     super()
@@ -14,5 +12,15 @@ export class PartitionsQuery extends AbstractRequest {
 
   writeContent(writer: DataWriter) {
     writer.writeString(this.params.superStream)
+  }
+
+  get key(): number {
+    return PartitionsQuery.Key
+  }
+  get responseKey(): number {
+    return PartitionsResponse.key
+  }
+  get version(): number {
+    return PartitionsQuery.Version
   }
 }

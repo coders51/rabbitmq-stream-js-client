@@ -3,10 +3,8 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class MetadataRequest extends AbstractRequest {
-  readonly responseKey = MetadataResponse.key
   static readonly Key = 0x000f
   static readonly Version = 1
-  readonly key = MetadataRequest.Key
 
   constructor(private params: { streams: string[] }) {
     super()
@@ -17,5 +15,15 @@ export class MetadataRequest extends AbstractRequest {
     this.params.streams.forEach((s) => {
       writer.writeString(s)
     })
+  }
+
+  get key(): number {
+    return MetadataRequest.Key
+  }
+  get responseKey(): number {
+    return MetadataResponse.key
+  }
+  get version(): number {
+    return MetadataRequest.Version
   }
 }

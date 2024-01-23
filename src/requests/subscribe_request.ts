@@ -45,8 +45,6 @@ export class Offset {
 export class SubscribeRequest extends AbstractRequest {
   static readonly Key = 0x0007
   static readonly Version = 1
-  readonly key = SubscribeRequest.Key
-  readonly responseKey = SubscribeResponse.key
   private readonly _properties: { key: string; value: string }[] = []
 
   constructor(
@@ -73,5 +71,15 @@ export class SubscribeRequest extends AbstractRequest {
       writer.writeString(key)
       writer.writeString(value)
     })
+  }
+
+  get key(): number {
+    return SubscribeRequest.Key
+  }
+  get responseKey(): number {
+    return SubscribeResponse.key
+  }
+  get version(): number {
+    return SubscribeRequest.Version
   }
 }

@@ -25,6 +25,7 @@ const supportedRequests = [
   requests.OpenRequest,
   requests.PeerPropertiesRequest,
   requests.PublishRequest,
+  requests.PublishRequestV2,
   requests.QueryOffsetRequest,
   requests.QueryPublisherRequest,
   requests.SaslAuthenticateRequest,
@@ -40,6 +41,7 @@ const supportedRequests = [
 
 const supportedResponses = [
   responses.DeliverResponse,
+  responses.DeliverResponseV2,
   responses.PublishConfirmResponse,
   responses.PublishErrorResponse,
   responses.ConsumerUpdateQuery,
@@ -76,9 +78,15 @@ export function getClientSupportedVersions(serverVersion?: string) {
   }
 
   if (serverVersion && lt(coerce(serverVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
-    return result.filter(
-      (r) => r.key !== requests.CreateSuperStreamRequest.Key && r.key !== requests.DeleteSuperStreamRequest.Key
+    const filteredResult = result.filter(
+      (r) => ![requests.CreateSuperStreamRequest.Key, requests.DeleteSuperStreamRequest.Key].includes(r.key)
     )
+    return filteredResult.map((r) => {
+      if (r.key === requests.PublishRequest.Key || r.key === responses.DeliverResponse.key) {
+        return { key: r.key, minVersion: r.minVersion, maxVersion: 1 }
+      }
+      return r
+    })
   }
 
   return result

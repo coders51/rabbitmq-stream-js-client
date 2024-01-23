@@ -41,6 +41,7 @@ import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request
 import { lt, coerce } from "semver"
 import { ConnectionInfo, Connection, errorMessageOf } from "./connection"
 import { ConnectionPool } from "./connection_pool"
+import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -125,7 +126,7 @@ export class Client {
     return res.streams
   }
 
-  public async declarePublisher(params: DeclarePublisherParams): Promise<Publisher> {
+  public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
@@ -137,16 +138,23 @@ export class Client {
       await connection.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    const publisher = new StreamPublisher({
-      connection: connection,
-      stream: params.stream,
-      publisherId: publisherId,
-      publisherRef: params.publisherRef,
-      boot: params.boot,
-      maxFrameSize: this.maxFrameSize,
-      maxChunkLength: params.maxChunkLength,
-      logger: this.logger,
-    })
+    if (filter && !connection.filteringEnabled) {
+      await connection.close()
+      throw new Error(`Broker does not support message filtering.`)
+    }
+    const publisher = new StreamPublisher(
+      {
+        connection: connection,
+        stream: params.stream,
+        publisherId: publisherId,
+        publisherRef: params.publisherRef,
+        boot: params.boot,
+        maxFrameSize: this.maxFrameSize,
+        maxChunkLength: params.maxChunkLength,
+        logger: this.logger,
+      },
+      filter
+    )
     this.publishers.set(publisherId, { publisher: publisher, connection: connection })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -411,16 +419,16 @@ export class Client {
   }
 
   private getDeliverCallback() {
-    return async (response: DeliverResponse) => {
-      const consumer = this.consumers.get(response.subscriptionId)
+    return async (deliverVersion: "deliverV1" | "deliverV2", deliverResponse: DeliverResponse | DeliverResponseV2) => {
+      const consumer = this.consumers.get(deliverResponse.subscriptionId)
       if (!consumer) {
-        this.logger.error(`On deliver no consumer found`)
+        this.logger.error(`On ${deliverVersion} no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerRef}`)
-      this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
-      response.messages.map((x) => consumer.handle(x))
+      this.logger.debug(`on ${deliverVersion} -> ${consumer.consumerRef}`)
+      this.logger.debug(`deliverResponse.messages.length: ${deliverResponse.messages.length}`)
+      await this.askForCredit({ credit: 1, subscriptionId: deliverResponse.subscriptionId })
+      deliverResponse.messages.map((x) => consumer.handle(x))
     }
   }
 
