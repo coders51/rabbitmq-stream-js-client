@@ -3,7 +3,7 @@ import { Client, Publisher } from "../../src"
 import { Rabbit } from "../support/rabbit"
 import { password, username } from "../support/util"
 import { createClient, createPublisher } from "../support/fake_data"
-import { getMaxSharedClientInstances } from "../../src/util"
+import { getMaxSharedConnectionInstances } from "../../src/util"
 
 describe("close publisher", () => {
   const rabbit = new Rabbit(username, password)
@@ -68,7 +68,7 @@ describe("close publisher", () => {
   })
 
   it("if publishers for the same stream have different underlying clients, then closing one client does not affect the others publishers", async () => {
-    const publishersToCreate = getMaxSharedClientInstances() + 2
+    const publishersToCreate = getMaxSharedConnectionInstances() + 2
     const publishers = new Map<number, Publisher[]>()
     for (let i = 0; i < publishersToCreate; i++) {
       const publisher = await createPublisher(testStreamName, client)

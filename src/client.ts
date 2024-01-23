@@ -1,250 +1,115 @@
 import { randomUUID } from "crypto"
-import { Socket } from "net"
-import tls from "node:tls"
-import { coerce, lt } from "semver"
 import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
-import { Heartbeat } from "./heartbeat"
 import { Logger, NullLogger } from "./logger"
 import { Message, Publisher, StreamPublisher } from "./publisher"
-import { CloseRequest } from "./requests/close_request"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
-import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
-import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
-import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { MetadataRequest } from "./requests/metadata_request"
-import { OpenRequest } from "./requests/open_request"
 import { PartitionsQuery } from "./requests/partitions_query"
-import { PeerPropertiesRequest } from "./requests/peer_properties_request"
-import { QueryOffsetRequest } from "./requests/query_offset_request"
-import { QueryPublisherRequest } from "./requests/query_publisher_request"
-import { BufferSizeParams, BufferSizeSettings, Request } from "./requests/request"
+import { BufferSizeSettings, Request } from "./requests/request"
 import { RouteQuery } from "./requests/route_query"
-import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
-import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
-import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
-import { TuneRequest } from "./requests/tune_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import {
-  MetadataUpdateListener,
-  PublishConfirmListener,
-  PublishErrorListener,
-  ResponseDecoder,
-} from "./response_decoder"
-import { CloseResponse } from "./responses/close_response"
+import { MetadataUpdateListener, PublishConfirmListener, PublishErrorListener } from "./response_decoder"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
-import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
-import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
-import { ExchangeCommandVersionsResponse } from "./responses/exchange_command_versions_response"
 import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
-import { OpenResponse } from "./responses/open_response"
 import { PartitionsResponse } from "./responses/partitions_response"
-import { PeerPropertiesResponse } from "./responses/peer_properties_response"
-import { QueryOffsetResponse } from "./responses/query_offset_response"
-import { QueryPublisherResponse } from "./responses/query_publisher_response"
-import { Response } from "./responses/response"
 import { RouteResponse } from "./responses/route_response"
-import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
-import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
-import { TuneResponse } from "./responses/tune_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
-import {
-  DEFAULT_FRAME_MAX,
-  DEFAULT_UNLIMITED_FRAME_MAX,
-  REQUIRED_MANAGEMENT_VERSION,
-  getMaxSharedClientInstances,
-  removeFrom,
-  sample,
-} from "./util"
-import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
-import { WaitingResponse } from "./waiting_response"
+import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
+import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
+import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
+import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
+import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
+import { lt, coerce } from "semver"
+import { ConnectionInfo, ConnectionProxy, errorMessageOf } from "./connection_proxy"
+import { ConnectionProxyPool } from "./connection_proxy_pool"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
-export type ConnectionInfo = {
-  host: string
-  port: number
-  id: string
-  readable?: boolean
-  writable?: boolean
-  localPort?: number
-}
-type ClientInstanceKey = string
+
+export type ClosingParams = { closingCode: number; closingReason: string }
 
 export class Client {
   private id: string = randomUUID()
-  private socket: Socket
-  private hostname: string
-  private correlationId = 100
-  private decoder: ResponseDecoder
-  private receivedResponses: Response[] = []
-  private waitingResponses: WaitingResponse<never>[] = []
   private publisherId = 0
-  private heartbeat: Heartbeat
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
-  private publishers = new Map<number, { client: Client; publisher: StreamPublisher }>()
+  private publishers = new Map<number, { connection: ConnectionProxy; publisher: StreamPublisher }>()
   private compressions = new Map<CompressionType, Compression>()
-  private readonly bufferSizeSettings: BufferSizeSettings
-  private frameMax: number = DEFAULT_FRAME_MAX
-  private connectionId: string
-  private connectionClosedListener: ConnectionClosedListener | undefined
-  private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
-  private readonly serverDeclaredVersions: Version[] = []
-  private peerProperties: Record<string, string> = {}
-  private static consumerClients = new Map<ClientInstanceKey, Client[]>()
-  private static publisherClients = new Map<ClientInstanceKey, Client[]>()
-  private refCount = 0
-  private leader: boolean
-  private streamName: string | undefined
+  private readonly connectionProxy: ConnectionProxy
 
-  private constructor(private readonly logger: Logger, private readonly params: ConnectionParams) {
-    if (params.frameMax) this.frameMax = params.frameMax
-    if (params.ssl) {
-      this.socket = tls.connect(params.port, params.hostname, { ...params.ssl, rejectUnauthorized: false })
-    } else {
-      this.socket = new Socket()
-      this.socket.connect(this.params.port, this.params.hostname)
-    }
-    if (params.socketTimeout) this.socket.setTimeout(params.socketTimeout)
-    this.hostname = params.hostname
-    this.leader = params.leader ?? false
-    this.streamName = params.streamName
-    this.heartbeat = new Heartbeat(this, this.logger)
+  private constructor(
+    private readonly logger: Logger,
+    private readonly params: ClientParams,
+    connectionProxy?: ConnectionProxy
+  ) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
-    this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
-    this.bufferSizeSettings = params.bufferSizeSettings || {}
-    this.connectionId = randomUUID()
-    this.connectionClosedListener = params.listeners?.connection_closed
+    this.connectionProxy = connectionProxy ?? this.getLocatorConnection()
+    this.connectionProxy.incrRefCount()
   }
 
   getCompression(compressionType: CompressionType) {
-    const compression = this.compressions.get(compressionType)
-    if (!compression) {
-      throw new Error(
-        "invalid compression or compression not yet implemented, to add a new compression use the specific api"
-      )
-    }
-
-    return compression
+    return this.connectionProxy.getCompression(compressionType)
   }
 
   registerCompression(compression: Compression) {
-    const c = this.compressions.get(compression.getType())
-    if (c) {
-      throw new Error("compression already implemented")
-    }
-    this.compressions.set(compression.getType(), compression)
-  }
-
-  static async connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
-    return new Client(logger ?? new NullLogger(), params).start()
+    this.connectionProxy.registerCompression(compression)
   }
 
   public start(): Promise<Client> {
-    this.registerListeners(this.params.listeners)
-    this.registerDelivers()
-    this.registerConsumerUpdateQuery()
-
-    return new Promise((res, rej) => {
-      this.socket.on("error", (err) => {
-        this.logger.warn(
-          `Error on client ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
-        )
-        return rej(err)
-      })
-      this.socket.on("connect", async () => {
-        this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
-        this.peerProperties = (await this.exchangeProperties()).properties
-        await this.auth({ username: this.params.username, password: this.params.password })
-        const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
-        await this.open({ virtualHost: this.params.vhost })
-        this.heartbeat.start(heartbeat)
-        await this.exchangeCommandVersions()
-        return res(this)
-      })
-      this.socket.on("drain", () => this.logger.warn(`Draining ${this.params.hostname}:${this.params.port}`))
-      this.socket.on("timeout", () => {
-        this.logger.error(`Timeout ${this.params.hostname}:${this.params.port}`)
-        return rej(new Error(`Timeout ${this.params.hostname}:${this.params.port}`))
-      })
-      this.socket.on("data", (data) => {
-        this.heartbeat.reportLastMessageReceived()
-        this.received(data)
-      })
-      this.socket.on("close", (had_error) => {
-        this.logger.info(`Close event on socket, close cloud had_error? ${had_error}`)
-        if (this.connectionClosedListener) this.connectionClosedListener(had_error)
-      })
-    })
-  }
-  public on(event: "metadata_update", listener: MetadataUpdateListener): void
-  public on(event: "publish_confirm", listener: PublishConfirmListener): void
-  public on(event: "publish_error", listener: PublishErrorListener): void
-  public on(
-    event: "metadata_update" | "publish_confirm" | "publish_error",
-    listener: MetadataUpdateListener | PublishConfirmListener | PublishErrorListener
-  ) {
-    switch (event) {
-      case "metadata_update":
-        this.decoder.on("metadata_update", listener as MetadataUpdateListener)
-        break
-      case "publish_confirm":
-        this.decoder.on("publish_confirm", listener as PublishConfirmListener)
-        break
-      case "publish_error":
-        this.decoder.on("publish_error", listener as PublishErrorListener)
-        break
-      default:
-        break
-    }
+    return this.connectionProxy.start().then(
+      (_res) => {
+        return this
+      },
+      (rej) => {
+        if (rej instanceof Error) throw rej
+        throw new Error(`${inspect(rej)}`)
+      }
+    )
   }
 
-  public async close(
-    params: { closingCode: number; closingReason: string } = { closingCode: 0, closingReason: "" }
-  ): Promise<void> {
+  public async close(params: ClosingParams = { closingCode: 0, closingReason: "" }) {
     this.logger.info(`${this.id} Closing client...`)
-    const refs = this.decrRefCount()
-    if (refs <= 0) {
-      if (this.publisherCounts()) {
-        this.logger.info(`Stopping all producers...`)
-        await this.closeAllPublishers()
-      }
-      if (this.consumerCounts()) {
-        this.logger.info(`Stopping all consumers...`)
-        await this.closeAllConsumers()
-      }
-      this.logger.info(`Stopping heartbeat...`)
-      this.heartbeat.stop()
-      this.logger.debug(`Close...`)
-      const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
-      this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
-      Client.removeCachedClient(this)
-      this.socket.end()
+    if (this.publisherCounts()) {
+      this.logger.info(`Stopping all producers...`)
+      await this.closeAllPublishers()
+    }
+    if (this.consumerCounts()) {
+      this.logger.info(`Stopping all consumers...`)
+      await this.closeAllConsumers()
+    }
+    this.connectionProxy.decrRefCount()
+    await this.closeConnectionIfUnused(this.connectionProxy, params)
+  }
+
+  private async closeConnectionIfUnused(connectionProxy: ConnectionProxy, params: ClosingParams) {
+    if (connectionProxy.refCount <= 0) {
+      ConnectionProxyPool.removeCachedConnectionProxy(this.connectionProxy)
+      await this.connectionProxy.close(params)
     }
   }
 
   public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
     const { streams } = params
-    const res = await this.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
+    const res = await this.connectionProxy.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
     if (!res.ok) {
       throw new Error(`Query Metadata command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -256,7 +121,7 @@ export class Client {
 
   public async queryPartitions(params: QueryPartitionsParams): Promise<string[]> {
     const { superStream } = params
-    const res = await this.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
+    const res = await this.connectionProxy.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
     if (!res.ok) {
       throw new Error(`Query Partitions command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -268,25 +133,25 @@ export class Client {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
-    const client = await this.initNewClient(params.stream, true, params.connectionClosedListener)
-    const res = await client.sendAndWait<DeclarePublisherResponse>(
+    const connectionProxy = await this.getConnection(params.stream, true, params.connectionClosedListener)
+    const res = await connectionProxy.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
-      await client.close()
+      await connectionProxy.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     const publisher = new StreamPublisher({
-      client,
+      connection: connectionProxy,
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
       boot: params.boot,
-      maxFrameSize: this.frameMax,
+      maxFrameSize: this.maxFrameSize,
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
-    this.publishers.set(publisherId, { publisher: publisher, client: client })
+    this.publishers.set(publisherId, { publisher: publisher, connection: connectionProxy })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
@@ -295,8 +160,8 @@ export class Client {
   }
 
   public async deletePublisher(publisherId: number) {
-    const publisherClient = this.publishers.get(publisherId)?.client ?? this
-    const res = await publisherClient.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
+    const publisherConnection = this.publishers.get(publisherId)?.connection ?? this.connectionProxy
+    const res = await publisherConnection.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -309,9 +174,9 @@ export class Client {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const properties: Record<string, string> = {}
-    const client = await this.initNewClient(params.stream, false, params.connectionClosedListener)
+    const client = await this.getConnection(params.stream, false, params.connectionClosedListener)
     const consumer = new StreamConsumer(addOffsetFilterToHandle(handle, params.offset), {
-      client,
+      connection: client,
       stream: params.stream,
       consumerId,
       consumerRef: params.consumerRef,
@@ -327,7 +192,7 @@ export class Client {
       properties["name"] = params.consumerRef!
     }
 
-    const res = await this.sendAndWait<SubscribeResponse>(
+    const res = await this.connectionProxy.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
 
@@ -348,7 +213,7 @@ export class Client {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
     }
-    const res = await this.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    const res = await this.connectionProxy.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -387,7 +252,7 @@ export class Client {
 
   private async closeAllPublishers() {
     await Promise.all([...this.publishers.values()].map((c) => c.publisher.close()))
-    this.publishers = new Map<number, { client: Client; publisher: StreamPublisher }>()
+    this.publishers = new Map<number, { connection: ConnectionProxy; publisher: StreamPublisher }>()
   }
 
   public consumerCounts() {
@@ -398,36 +263,17 @@ export class Client {
     return this.publishers.size
   }
 
-  public get currentFrameMax() {
-    return this.frameMax
-  }
-
   public getConsumers() {
     return Array.from(this.consumers.values())
   }
 
   public send(cmd: Request): Promise<void> {
-    return new Promise((res, rej) => {
-      const bufferSizeParams = this.getBufferSizeParams()
-      const body = cmd.toBuffer(bufferSizeParams)
-      this.logger.debug(
-        `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
-          body.byteLength
-        }`
-      )
-      this.socket.write(body, (err) => {
-        this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
-        if (err) {
-          return rej(err)
-        }
-        return res()
-      })
-    })
+    return this.connectionProxy.send(cmd)
   }
 
   public async createStream(params: { stream: string; arguments?: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
-    const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    const res = await this.connectionProxy.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
       return true
     }
@@ -441,7 +287,7 @@ export class Client {
 
   public async deleteStream(params: { stream: string }): Promise<true> {
     this.logger.debug(`Delete Stream...`)
-    const res = await this.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
+    const res = await this.connectionProxy.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
     if (!res.ok) {
       throw new Error(`Delete Stream command returned error with code ${res.code}`)
     }
@@ -469,7 +315,7 @@ export class Client {
       numberOfPartitions,
       bindingKeys
     )
-    const res = await this.sendAndWait<CreateSuperStreamResponse>(
+    const res = await this.connectionProxy.sendAndWait<CreateSuperStreamResponse>(
       new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys })
     )
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
@@ -491,7 +337,9 @@ export class Client {
     }
 
     this.logger.debug(`Delete Super Stream...`)
-    const res = await this.sendAndWait<DeleteSuperStreamResponse>(new DeleteSuperStreamRequest(params.streamName))
+    const res = await this.connectionProxy.sendAndWait<DeleteSuperStreamResponse>(
+      new DeleteSuperStreamRequest(params.streamName)
+    )
     if (!res.ok) {
       throw new Error(`Delete Super Stream command returned error with code ${res.code}`)
     }
@@ -499,22 +347,8 @@ export class Client {
     return res.ok
   }
 
-  public async queryPublisherSequence(params: { stream: string; publisherRef: string }): Promise<bigint> {
-    const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
-    if (!res.ok) {
-      throw new Error(
-        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`
-      )
-    }
-
-    this.logger.info(
-      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
-    )
-    return res.sequence
-  }
-
   public async streamStatsRequest(streamName: string) {
-    const res = await this.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
+    const res = await this.connectionProxy.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
     if (!res.ok) {
       throw new Error(`Stream Stats command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -522,65 +356,12 @@ export class Client {
     return res.statistics
   }
 
-  public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
-    this.logger.debug(`Query Offset...`)
-    const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
-    if (!res.ok) {
-      throw new Error(`Query offset command returned error with code ${res.code}`)
-    }
-    this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
-    return res.offsetValue
-  }
-
   public getConnectionInfo(): ConnectionInfo {
-    return {
-      host: this.serverEndpoint.host,
-      port: this.serverEndpoint.port,
-      id: this.connectionId,
-      readable: this.socket.readable,
-      writable: this.socket.writable,
-      localPort: this.socket.localPort,
-    }
-  }
-
-  private responseReceived<T extends Response>(response: T) {
-    const wr = removeFrom(this.waitingResponses as WaitingResponse<T>[], (x) => x.waitingFor(response))
-    return wr ? wr.resolve(response) : this.receivedResponses.push(response)
-  }
-
-  private received(data: Buffer) {
-    this.logger.debug(`Receiving ${data.length} (${data.readUInt32BE()}) bytes ... ${inspect(data)}`)
-    this.decoder.add(data, (ct) => this.getCompression(ct))
-  }
-
-  private async tune(heartbeatInterval: number): Promise<{ heartbeat: number }> {
-    const tuneResponse = await this.waitResponse<TuneResponse>({ correlationId: -1, key: TuneResponse.key })
-    this.logger.debug(`TUNE response -> ${inspect(tuneResponse)}`)
-    const heartbeat = extractHeartbeatInterval(heartbeatInterval, tuneResponse)
-
-    return new Promise((res, rej) => {
-      this.frameMax = this.calculateFrameMaxSizeFrom(tuneResponse.frameMax)
-      const request = new TuneRequest({ frameMax: this.frameMax, heartbeat })
-      this.socket.write(request.toBuffer(), (err) => {
-        this.logger.debug(`Write COMPLETED for cmd TUNE: ${inspect(tuneResponse)} - err: ${err}`)
-        return err ? rej(err) : res({ heartbeat })
-      })
-    })
-  }
-
-  private async exchangeCommandVersions() {
-    const versions = getClientSupportedVersions(this.peerProperties.version)
-    const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
-      new ExchangeCommandVersionsRequest(versions)
-    )
-    this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
-
-    checkServerDeclaredVersions(this.serverVersions, this.logger, this.peerProperties.version)
-    return response
+    return this.connectionProxy.getConnectionInfo()
   }
 
   public async subscribe(params: SubscribeParams): Promise<SubscribeResponse> {
-    const res = await this.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
+    const res = await this.connectionProxy.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
     if (!res.ok) {
       throw new Error(`Subscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -588,19 +369,19 @@ export class Client {
   }
 
   public get maxFrameSize() {
-    return this.frameMax
+    return this.connectionProxy.maxFrameSize ?? DEFAULT_FRAME_MAX
   }
 
   public get serverVersions() {
-    return [...this.serverDeclaredVersions]
+    return this.connectionProxy.serverVersions
   }
 
   public get rabbitManagementVersion() {
-    return this.peerProperties.version
+    return this.connectionProxy.rabbitManagementVersion
   }
 
   public async routeQuery(params: { routingKey: string; superStream: string }) {
-    const res = await this.sendAndWait<RouteResponse>(new RouteQuery(params))
+    const res = await this.connectionProxy.sendAndWait<RouteResponse>(new RouteQuery(params))
     if (!res.ok) {
       throw new Error(`Route Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -609,7 +390,7 @@ export class Client {
   }
 
   public async partitionsQuery(params: { superStream: string }) {
-    const res = await this.sendAndWait<PartitionsResponse>(new PartitionsQuery(params))
+    const res = await this.connectionProxy.sendAndWait<PartitionsResponse>(new PartitionsQuery(params))
     if (!res.ok) {
       throw new Error(`Partitions Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -619,96 +400,6 @@ export class Client {
 
   private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
-  }
-
-  public storeOffset(params: StoreOffsetParams): Promise<void> {
-    return this.send(new StoreOffsetRequest(params))
-  }
-
-  private async exchangeProperties(): Promise<PeerPropertiesResponse> {
-    this.logger.debug(`Exchange peer properties ...`)
-    const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
-    if (!res.ok) {
-      throw new Error(`Unable to exchange peer properties ${res.code} `)
-    }
-    this.logger.debug(`server properties: ${inspect(res.properties)}`)
-    return res
-  }
-
-  private async auth(params: { username: string; password: string }) {
-    this.logger.debug(`Start authentication process ...`)
-    this.logger.debug(`Start SASL handshake ...`)
-    const handshakeResponse = await this.sendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
-    this.logger.debug(`Mechanisms: ${handshakeResponse.mechanisms}`)
-    if (!handshakeResponse.mechanisms.find((m) => m === "PLAIN")) {
-      throw new Error(`Unable to find PLAIN mechanism in ${handshakeResponse.mechanisms}`)
-    }
-
-    this.logger.debug(`Start SASL PLAIN authentication ...`)
-    const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
-      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
-    )
-    this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
-    if (!authResponse.ok) {
-      throw new Error(`Unable Authenticate -> ${authResponse.code}`)
-    }
-
-    return authResponse
-  }
-
-  private async open(params: { virtualHost: string }) {
-    this.logger.debug(`Open ...`)
-    const res = await this.sendAndWait<OpenResponse>(new OpenRequest(params))
-    this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
-    const advertisedHost = res.properties["advertised_host"] ?? ""
-    const advertisedPort = parseInt(res.properties["advertised_port"] ?? "5552")
-    this.serverEndpoint = { host: advertisedHost, port: advertisedPort }
-    return res
-  }
-
-  private sendAndWait<T extends Response>(cmd: Request): Promise<T> {
-    return new Promise((res, rej) => {
-      const correlationId = this.incCorrelationId()
-      const bufferSizeParams = this.getBufferSizeParams()
-      const body = cmd.toBuffer(bufferSizeParams, correlationId)
-      this.logger.debug(
-        `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
-          body.toJSON()
-        )} length: ${body.byteLength}`
-      )
-      this.socket.write(body, (err) => {
-        this.logger.debug(
-          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`
-        )
-        if (err) {
-          return rej(err)
-        }
-        this?.heartbeat?.reportLastMessageSent()
-        res(this.waitResponse<T>({ correlationId, key: cmd.responseKey }))
-      })
-    })
-  }
-
-  private waitResponse<T extends Response>({ correlationId, key }: { correlationId: number; key: number }): Promise<T> {
-    const response = removeFrom(this.receivedResponses, (r) => r.correlationId === correlationId)
-    if (response) {
-      if (response.key !== key) {
-        throw new Error(
-          `Error con correlationId: ${correlationId} waiting key: ${key.toString(
-            16
-          )} found key: ${response.key.toString(16)} `
-        )
-      }
-      return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
-    }
-    return new Promise((resolve, reject) => {
-      this.waitingResponses.push(new WaitingResponse<T>(correlationId, key, { resolve, reject }))
-    })
-  }
-
-  private incCorrelationId() {
-    this.correlationId += 1
-    return this.correlationId
   }
 
   private incPublisherId() {
@@ -723,14 +414,8 @@ export class Client {
     return consumerId
   }
 
-  private registerListeners(listeners?: ListenersParams) {
-    if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
-    if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
-    if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
-  }
-
-  private registerDelivers() {
-    this.decoder.on("deliver", async (response: DeliverResponse) => {
+  private getDeliverCallback() {
+    return async (response: DeliverResponse) => {
       const consumer = this.consumers.get(response.subscriptionId)
       if (!consumer) {
         this.logger.error(`On deliver no consumer found`)
@@ -740,11 +425,11 @@ export class Client {
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
-    })
+    }
   }
 
-  private registerConsumerUpdateQuery() {
-    this.decoder.on("consumer_update_query", async (response: ConsumerUpdateQuery) => {
+  private getConsumerUpdateCallback() {
+    return async (response: ConsumerUpdateQuery) => {
       const consumer = this.consumers.get(response.subscriptionId)
       if (!consumer) {
         this.logger.error(`On consumer_update_query no consumer found`)
@@ -754,67 +439,41 @@ export class Client {
       await this.send(
         new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
       )
-    })
+    }
   }
 
-  private calculateFrameMaxSizeFrom(tuneResponseFrameMax: number) {
-    if (this.frameMax === DEFAULT_UNLIMITED_FRAME_MAX) return tuneResponseFrameMax
-    if (tuneResponseFrameMax === DEFAULT_UNLIMITED_FRAME_MAX) return this.frameMax
-    return Math.min(this.frameMax, tuneResponseFrameMax)
+  private getLocatorConnection() {
+    const connectionParams = this.buildConnectionParams(false, "", this.params.listeners?.connection_closed)
+    return ConnectionProxy.create(connectionParams, this.logger)
   }
 
-  private getBufferSizeParams(): BufferSizeParams {
-    return { maxSize: this.frameMax, ...this.bufferSizeSettings }
-  }
-
-  private async initNewClient(
+  private async getConnection(
     streamName: string,
     leader: boolean,
     connectionClosedListener?: ConnectionClosedListener
-  ): Promise<Client> {
+  ): Promise<ConnectionProxy> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = chooseNode(metadata, leader)
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedClient = Client.getUsableCachedClient(leader, streamName, chosenNode.host)
-    if (cachedClient) {
-      cachedClient.incrRefCount()
-      return cachedClient
-    }
-    const listeners = { ...this.params.listeners, connection_closed: connectionClosedListener }
-    const connectionParams = { ...this.params, listeners: listeners, leader: leader, streamName: streamName }
-    const newClient = await this.getConnectionOnChosenNode(chosenNode, connectionParams, metadata)
-    newClient.incrRefCount()
-    Client.cacheClient(leader, streamName, chosenNode.host, newClient)
-    return newClient
-  }
+    const cachedConnectionProxy = ConnectionProxyPool.getUsableCachedConnectionProxy(
+      leader,
+      streamName,
+      chosenNode.host
+    )
+    if (cachedConnectionProxy) return cachedConnectionProxy
 
-  private async getConnectionOnChosenNode(
-    chosenNode: { host: string; port: number },
-    connectionParams: ConnectionParams,
-    metadata: StreamMetadata
-  ): Promise<Client> {
-    if (this.params.addressResolver && this.params.addressResolver.enabled) {
-      const maxAttempts = computeMaxAttempts(metadata)
-      const resolver = this.params.addressResolver
-      let currentAttempt = 0
-      while (currentAttempt < maxAttempts) {
-        this.logger.debug(`Attempting to connect using the address resolver - attempt ${currentAttempt + 1}`)
-        const hostname = resolver.endpoint?.host ?? this.params.hostname
-        const port = resolver.endpoint?.port ?? this.params.port
-        const client = await connect({ ...connectionParams, hostname, port }, this.logger)
-        if (client.serverEndpoint.host === chosenNode.host && client.serverEndpoint.port === chosenNode.port) {
-          this.logger.debug(`Correct connection was found!`)
-          return client
-        }
-        this.logger.debug(`The node found was not the right one - closing the connection`)
-        await client.close()
-        currentAttempt++
-      }
-      throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
-    }
-    return connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+    const newConnectionProxy = await this.getConnectionOnChosenNode(
+      leader,
+      streamName,
+      chosenNode,
+      metadata,
+      connectionClosedListener
+    )
+
+    ConnectionProxyPool.cacheConnectionProxy(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
+    return newConnectionProxy
   }
 
   private createSuperStreamPartitionsAndBindingKeys(
@@ -833,51 +492,61 @@ export class Client {
     bindingKeys.map((bk) => partitions.push(`${streamName}-${bk}`))
     return { partitions, streamBindingKeys: bindingKeys }
   }
-  private incrRefCount() {
-    ++this.refCount
-  }
 
-  private decrRefCount() {
-    return --this.refCount
-  }
-
-  private static getUsableCachedClient(leader: boolean, streamName: string, host: string) {
-    const m = leader ? Client.publisherClients : Client.consumerClients
-    const k = Client.getCacheKey(streamName, host)
-    const clients = m.get(k) || []
-    const client = clients.at(-1)
-    const refCount = client?.refCount
-    return refCount && refCount < getMaxSharedClientInstances() ? client : undefined
-  }
-
-  private static cacheClient(leader: boolean, streamName: string, host: string, client: Client) {
-    const m = leader ? Client.publisherClients : Client.consumerClients
-    const k = Client.getCacheKey(streamName, host)
-    const currentlyCached = m.get(k) || []
-    currentlyCached.push(client)
-    m.set(k, currentlyCached)
-  }
-
-  private static removeCachedClient(client: Client) {
-    const leader = client.leader
-    const streamName = client.streamName
-    const host = client.hostname
-    if (streamName === undefined) return
-    const m = leader ? Client.publisherClients : Client.consumerClients
-    const k = Client.getCacheKey(streamName, host)
-    const mappedClientList = m.get(k)
-    if (mappedClientList) {
-      const filtered = mappedClientList.filter((c) => c !== client)
-      m.set(k, filtered)
+  private buildConnectionParams(
+    leader: boolean,
+    streamName: string,
+    connectionClosedListener?: ConnectionClosedListener
+  ) {
+    const connectionListeners = {
+      ...this.params.listeners,
+      connection_closed: connectionClosedListener,
+      deliver: this.getDeliverCallback(),
+      consumer_update_query: this.getConsumerUpdateCallback(),
     }
+    return { ...this.params, listeners: connectionListeners, leader: leader, streamName: streamName }
   }
 
-  private static getCacheKey(streamName: string, host: string) {
-    return `${streamName}@${host}`
+  private async getConnectionOnChosenNode(
+    leader: boolean,
+    streamName: string,
+    chosenNode: { host: string; port: number },
+    metadata: StreamMetadata,
+    connectionClosedListener?: ConnectionClosedListener
+  ): Promise<ConnectionProxy> {
+    const connectionParams = this.buildConnectionParams(leader, streamName, connectionClosedListener)
+    if (this.params.addressResolver && this.params.addressResolver.enabled) {
+      const maxAttempts = computeMaxAttempts(metadata)
+      const resolver = this.params.addressResolver
+      let currentAttempt = 0
+      while (currentAttempt < maxAttempts) {
+        this.logger.debug(`Attempting to connect using the address resolver - attempt ${currentAttempt + 1}`)
+        const hostname = resolver.endpoint?.host ?? this.params.hostname
+        const port = resolver.endpoint?.port ?? this.params.port
+        const connection = await ConnectionProxy.connect({ ...connectionParams, hostname, port }, this.logger)
+        const { host: connectionHost, port: connectionPort } = connection.getConnectionInfo()
+        if (connectionHost === chosenNode.host && connectionPort === chosenNode.port) {
+          this.logger.debug(`Correct connection was found!`)
+          return connection
+        }
+        this.logger.debug(`The node found was not the right one - closing the connection`)
+        await connection.close()
+        currentAttempt++
+      }
+      throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
+    }
+    return ConnectionProxy.connect(
+      { ...connectionParams, hostname: chosenNode.host, port: chosenNode.port },
+      this.logger
+    )
+  }
+
+  static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
+    return new Client(logger ?? new NullLogger(), params).start()
   }
 }
 
-export type ListenersParams = {
+export type ClientListenersParams = {
   metadata_update?: MetadataUpdateListener
   publish_confirm?: PublishConfirmListener
   publish_error?: PublishErrorListener
@@ -897,7 +566,7 @@ export type AddressResolverParams =
     }
   | { enabled: false }
 
-export interface ConnectionParams {
+export interface ClientParams {
   hostname: string
   port: number
   username: string
@@ -905,7 +574,7 @@ export interface ConnectionParams {
   vhost: string
   frameMax?: number
   heartbeat?: number
-  listeners?: ListenersParams
+  listeners?: ClientListenersParams
   ssl?: SSLConnectionParams
   bufferSizeSettings?: BufferSizeSettings
   socketTimeout?: number
@@ -968,25 +637,8 @@ export interface QueryPartitionsParams {
   superStream: string
 }
 
-export function connect(params: ConnectionParams, logger?: Logger): Promise<Client> {
+export function connect(params: ClientParams, logger?: Logger): Promise<Client> {
   return Client.connect(params, logger)
-}
-
-function errorMessageOf(code: number): string {
-  switch (code) {
-    case 0x02:
-      return "Stream does not exist"
-    case 0x06:
-      return "Stream not available"
-    case 0x12:
-      return "Publisher does not exist"
-    default:
-      return "Unknown error"
-  }
-}
-
-function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
-  return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
 }
 
 const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): ConsumerFunc => {

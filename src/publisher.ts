@@ -1,6 +1,5 @@
 import { inspect } from "util"
 import { messageSize } from "./amqp10/encoder"
-import { Client, ConnectionInfo } from "./client"
 import { CompressionType } from "./compression"
 import { Logger } from "./logger"
 import { FrameSizeException } from "./requests/frame_size_exception"
@@ -10,6 +9,8 @@ import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
+import { ConnectionInfo, ConnectionProxy } from "./connection_proxy"
+import { ConnectionProxyPool } from "./connection_proxy_pool"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -71,7 +72,7 @@ export interface Publisher {
 
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class StreamPublisher implements Publisher {
-  private client: Client
+  private connection: ConnectionProxy
   private stream: string
   readonly publisherId: number
   protected publisherRef: string
@@ -85,7 +86,7 @@ export class StreamPublisher implements Publisher {
   private closed = false
 
   constructor(params: {
-    client: Client
+    connection: ConnectionProxy
     stream: string
     publisherId: number
     publisherRef?: string
@@ -94,7 +95,7 @@ export class StreamPublisher implements Publisher {
     maxChunkLength?: number
     logger: Logger
   }) {
-    this.client = params.client
+    this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef || ""
@@ -105,6 +106,7 @@ export class StreamPublisher implements Publisher {
     this.scheduled = null
     this.logger = params.logger
     this.maxChunkLength = params.maxChunkLength || 100
+    this.connection.incrRefCount()
   }
 
   async send(message: Buffer, opts: MessageOptions = {}) {
@@ -127,11 +129,11 @@ export class StreamPublisher implements Publisher {
   }
 
   async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
-    return this.client.send(
+    return this.connection.send(
       new SubEntryBatchPublishRequest({
         publisherId: this.publisherId,
         publishingId: this.publishingId,
-        compression: this.client.getCompression(compressionType),
+        compression: this.connection.getCompression(compressionType),
         maxFrameSize: this.maxFrameSize,
         messages: messages,
       })
@@ -139,7 +141,7 @@ export class StreamPublisher implements Publisher {
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    const { host, port, id, writable, localPort } = this.client.getConnectionInfo()
+    const { host, port, id, writable, localPort } = this.connection.getConnectionInfo()
     return { host, port, id, writable, localPort }
   }
 
@@ -151,12 +153,12 @@ export class StreamPublisher implements Publisher {
   ): void {
     switch (event) {
       case "metadata_update":
-        this.client.on("metadata_update", listener as MetadataUpdateListener)
+        this.connection.on("metadata_update", listener as MetadataUpdateListener)
         break
       case "publish_confirm":
         const cb = listener as PublishConfirmCallback
-        this.client.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
-        this.client.on("publish_error", (error: PublishErrorResponse) =>
+        this.connection.on("publish_confirm", (confirm: PublishConfirmResponse) => cb(null, confirm.publishingIds))
+        this.connection.on("publish_error", (error: PublishErrorResponse) =>
           cb(error.publishingError.code, [error.publishingError.publishingId])
         )
         break
@@ -166,7 +168,7 @@ export class StreamPublisher implements Publisher {
   }
 
   getLastPublishingId(): Promise<bigint> {
-    return this.client.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
+    return this.connection.queryPublisherSequence({ stream: this.stream, publisherRef: this.publisherRef })
   }
 
   get ref() {
@@ -176,7 +178,10 @@ export class StreamPublisher implements Publisher {
   public async close(): Promise<void> {
     if (!this.closed) {
       await this.flush()
-      await this.client.close()
+      this.connection.decrRefCount()
+      if (ConnectionProxyPool.removeIfUnused(this.connection)) {
+        await this.connection.close()
+      }
     }
     this.closed = true
   }
@@ -206,7 +211,7 @@ export class StreamPublisher implements Publisher {
   private async sendBuffer() {
     const chunk = this.popChunk()
     if (chunk.length > 0) {
-      await this.client.send(
+      await this.connection.send(
         new PublishRequest({
           publisherId: this.publisherId,
           messages: chunk,

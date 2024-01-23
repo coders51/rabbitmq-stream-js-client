@@ -3,7 +3,7 @@ import { Client } from "../../src"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, username, password } from "../support/util"
-import { getMaxSharedClientInstances } from "../../src/util"
+import { getMaxSharedConnectionInstances } from "../../src/util"
 
 describe("declare publisher", () => {
   let streamName: string
@@ -80,7 +80,7 @@ describe("declare publisher", () => {
   })
 
   it("if a large number of publishers for the same stream is declared, eventually a new client is instantiated even for the same stream/node", async () => {
-    const publishersToCreate = getMaxSharedClientInstances() + 2
+    const publishersToCreate = getMaxSharedConnectionInstances() + 2
     const counts = new Map<string, number>()
     for (let i = 0; i < publishersToCreate; i++) {
       const publisher = await createPublisher(streamName, client)
@@ -89,7 +89,7 @@ describe("declare publisher", () => {
     }
 
     const countPublishersOverLimit = Array.from(counts.entries()).find(
-      ([_id, count]) => count > getMaxSharedClientInstances()
+      ([_id, count]) => count > getMaxSharedConnectionInstances()
     )
     expect(countPublishersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)

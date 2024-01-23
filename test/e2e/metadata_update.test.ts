@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { Client, ListenersParams } from "../../src"
+import { Client, ClientListenersParams } from "../../src"
 import { MetadataUpdateResponse } from "../../src/responses/metadata_update_response"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
@@ -13,7 +13,7 @@ describe("update the metadata from the server", () => {
 
   beforeEach(async () => {
     metadataUpdateResponses.length = 0
-    const listeners: ListenersParams = {
+    const listeners: ClientListenersParams = {
       metadata_update: (data) => metadataUpdateResponses.push(data),
     }
     client = await createClient(username, password, listeners)

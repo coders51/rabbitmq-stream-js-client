@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto"
-import { Client, ListenersParams, connect } from "../../src/client"
+import { Client, ClientListenersParams, connect } from "../../src/client"
 import { MessageProperties } from "../../src/publisher"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
@@ -54,7 +54,7 @@ export async function createConsumer(streamName: string, client: Client): Promis
 export async function createClient(
   username: string,
   password: string,
-  listeners?: ListenersParams,
+  listeners?: ClientListenersParams,
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings,
   port?: number
