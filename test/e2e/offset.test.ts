@@ -4,7 +4,15 @@ import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync, password, sendANumberOfRandomMessages, username, wait } from "../support/util"
+import {
+  always,
+  eventually,
+  expectToThrowAsync,
+  password,
+  sendANumberOfRandomMessages,
+  username,
+  wait,
+} from "../support/util"
 
 describe("offset", () => {
   const rabbit = new Rabbit(username, password)
@@ -125,7 +133,6 @@ describe("offset", () => {
       const publisher = await client.declarePublisher({ stream: testStreamName })
       const messages = await sendANumberOfRandomMessages(publisher)
       const offset = messages.length + 1
-      await Promise.all(messages.map((m) => publisher.send(Buffer.from(m))))
 
       await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.offset(BigInt(offset)) },
@@ -134,10 +141,10 @@ describe("offset", () => {
         }
       )
 
-      await eventually(async () => {
+      await always(async () => {
         expect(receivedMessages).to.have.length(0)
-      })
-    })
+      }, 5000)
+    }).timeout(10000)
 
     it("if offset is of type timestamp, all the messages belonging to batches sent earlier than the timestamp should be skipped", async () => {
       const receivedMessages: Message[] = []
