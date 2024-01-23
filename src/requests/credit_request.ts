@@ -8,9 +8,7 @@ export type CreditRequestParams = {
 
 export class CreditRequest extends AbstractRequest {
   static readonly Key = 0x09
-  readonly key = CreditRequest.Key
   static readonly Version = 1
-  readonly responseKey = -1
 
   constructor(private params: CreditRequestParams) {
     super()
@@ -19,5 +17,15 @@ export class CreditRequest extends AbstractRequest {
   protected writeContent(writer: DataWriter): void {
     writer.writeUInt8(this.params.subscriptionId)
     writer.writeUInt16(this.params.credit)
+  }
+
+  get key(): number {
+    return CreditRequest.Key
+  }
+  get responseKey(): number {
+    return -1
+  }
+  get version(): number {
+    return CreditRequest.Version
   }
 }

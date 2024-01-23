@@ -16,8 +16,6 @@ export const PROPERTIES = {
 export class PeerPropertiesRequest extends AbstractRequest {
   static readonly Key = 0x11
   static readonly Version = 1
-  readonly key = PeerPropertiesRequest.Key
-  readonly responseKey = PeerPropertiesResponse.key
   private readonly _properties: { key: string; value: string }[] = []
 
   constructor(properties: Record<string, string> = PROPERTIES) {
@@ -31,5 +29,15 @@ export class PeerPropertiesRequest extends AbstractRequest {
       writer.writeString(key)
       writer.writeString(value)
     })
+  }
+
+  get key(): number {
+    return PeerPropertiesRequest.Key
+  }
+  get responseKey(): number {
+    return PeerPropertiesResponse.key
+  }
+  get version(): number {
+    return PeerPropertiesRequest.Version
   }
 }

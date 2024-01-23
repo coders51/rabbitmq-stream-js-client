@@ -3,10 +3,8 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class DeletePublisherRequest extends AbstractRequest {
-  readonly responseKey = DeletePublisherResponse.key
   static readonly Key = 0x0006
   static readonly Version = 1
-  readonly key = DeletePublisherRequest.Key
 
   constructor(private publisherId: number) {
     super()
@@ -14,5 +12,15 @@ export class DeletePublisherRequest extends AbstractRequest {
 
   writeContent(writer: DataWriter) {
     writer.writeUInt8(this.publisherId)
+  }
+
+  get key(): number {
+    return DeletePublisherRequest.Key
+  }
+  get responseKey(): number {
+    return DeletePublisherResponse.key
+  }
+  get version(): number {
+    return DeletePublisherRequest.Version
   }
 }

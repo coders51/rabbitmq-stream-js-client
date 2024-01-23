@@ -11,10 +11,8 @@ export interface CreateStreamArguments {
 }
 
 export class CreateStreamRequest extends AbstractRequest {
-  readonly responseKey = CreateStreamResponse.key
   static readonly Key = 0x000d
   static readonly Version = 1
-  readonly key = CreateStreamRequest.Key
   private readonly _arguments: { key: keyof CreateStreamArguments; value: string | number }[] = []
   private readonly stream: string
 
@@ -39,5 +37,15 @@ export class CreateStreamRequest extends AbstractRequest {
       writer.writeString(key)
       writer.writeString(value.toString())
     })
+  }
+
+  get key(): number {
+    return CreateStreamRequest.Key
+  }
+  get responseKey(): number {
+    return CreateStreamResponse.key
+  }
+  get version(): number {
+    return CreateStreamRequest.Version
   }
 }
