@@ -5,8 +5,10 @@ import { Message, MessageOptions } from "../../src/publisher"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, password, username, wait } from "../support/util"
+import { CompressionType } from "../../src/compression"
+import { range } from "../../src/util"
 
-describe("super stream publisher", () => {
+describe.only("super stream publisher", () => {
   let superStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
@@ -245,5 +247,90 @@ describe("super stream publisher", () => {
       Error,
       /The server did not return any partition for routing key/
     )
+  })
+
+  it("publishing a batch of messages without compression - should not raise error", async () => {
+    const messageContents = range(5).map((_, i) => `Hello world ${i}`)
+    const messages = messageContents.map((m, i) => ({
+      content: Buffer.from(m),
+      messageProperties: { messageId: `${i}` },
+    }))
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_, opts) => {
+      return opts.messageProperties?.messageId ?? "-1"
+    })
+
+    await publisher.sendSubEntries(messages, CompressionType.None)
+  })
+
+  it("publishing a batch of messages without compression - receive the same number of messages", async () => {
+    const receivedMessages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    const messageContents = range(5).map((_, i) => `Hello world ${i}`)
+    const messages = messageContents.map((m, i) => ({
+      content: Buffer.from(m),
+      messageProperties: { messageId: `${i}` },
+    }))
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_, opts) => {
+      return opts.messageProperties?.messageId ?? "-1"
+    })
+
+    await publisher.sendSubEntries(messages, CompressionType.None)
+
+    await eventually(async () => {
+      expect(receivedMessages.length).eql(messages.length)
+    }, 5000)
+  })
+
+  it("publishing a batch of messages with compression - should not raise error", async () => {
+    const messageContents = range(5).map((_, i) => `Hello world ${i}`)
+    const messages = messageContents.map((m, i) => ({
+      content: Buffer.from(m),
+      messageProperties: { messageId: `${i}` },
+    }))
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_, opts) => {
+      return opts.messageProperties?.messageId ?? "-1"
+    })
+
+    await publisher.sendSubEntries(messages, CompressionType.Gzip)
+  })
+
+  it("publishing a batch of messages with compression - receive the same number of messages", async () => {
+    const receivedMessages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    const messageContents = range(5).map((_, i) => `Hello world ${i}`)
+    const messages = messageContents.map((m, i) => ({
+      content: Buffer.from(m),
+      messageProperties: { messageId: `${i}` },
+    }))
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_, opts) => {
+      return opts.messageProperties?.messageId ?? "-1"
+    })
+
+    await publisher.sendSubEntries(messages, CompressionType.Gzip)
+
+    await eventually(async () => {
+      expect(receivedMessages.length).eql(messages.length)
+    }, 5000)
+  })
+
+  it("publishing a batch of messages with compression - content is readable", async () => {
+    const receivedMessages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    const messageContents = range(5).map((_, i) => `Hello world ${i}`)
+    const messages = messageContents.map((m, i) => ({
+      content: Buffer.from(m),
+      messageProperties: { messageId: `${i}` },
+    }))
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName }, (_, opts) => {
+      return opts.messageProperties?.messageId ?? "-1"
+    })
+
+    await publisher.sendSubEntries(messages, CompressionType.Gzip)
+
+    await eventually(async () => {
+      for (const rm of receivedMessages) {
+        expect(rm.content.toString()).to.match(/Hello world \d/)
+      }
+    }, 5000)
   })
 })
