@@ -222,15 +222,13 @@ The address resolver is going to give us a node leader for a Producer and a node
 replica for the consumer, otherwise it will close the connection and retry.
 
 ```typescript
-const firstNode = "node0:5562" // can be taken from envs
-const resolver = getAddressResolverFromEnv()
 const client = await connect({
   hostname: "node0",
   port: 5562,
   username: "rabbit",
   password: "rabbit",
   vhost: "/",
-  addressResolver: { enabled: true, endpoint: resolver },
+  addressResolver: { enabled: true },
 })
 
 const streamName = "my-stream"
