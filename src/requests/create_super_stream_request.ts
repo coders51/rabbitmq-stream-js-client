@@ -7,7 +7,7 @@ export interface CreateSuperStreamParams {
   streamName: string
   partitions: string[]
   bindingKeys: string[]
-  arguments: CreateStreamArguments
+  arguments?: CreateStreamArguments
 }
 
 export class CreateSuperStreamRequest extends AbstractRequest {
@@ -22,13 +22,14 @@ export class CreateSuperStreamRequest extends AbstractRequest {
 
   constructor(params: CreateSuperStreamParams) {
     super()
-    this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
-      return {
-        key,
-        value: params.arguments[key] ?? "",
-      }
-    })
-
+    if (params.arguments) {
+      this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
+        return {
+          key,
+          value: params.arguments![key] ?? "",
+        }
+      })
+    }
     this.streamName = params.streamName
     this.partitions = params.partitions
     this.bindingKeys = params.bindingKeys
@@ -40,7 +41,7 @@ export class CreateSuperStreamRequest extends AbstractRequest {
     this.partitions.forEach((partition) => writer.writeString(partition))
     writer.writeInt32(this.bindingKeys.length)
     this.bindingKeys.forEach((bindingKey) => writer.writeString(bindingKey))
-    writer.writeUInt32(this._arguments.length)
+    writer.writeUInt32(this._arguments?.length ?? 0)
     this._arguments.forEach(({ key, value }) => {
       writer.writeString(key)
       writer.writeString(value.toString())

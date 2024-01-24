@@ -425,7 +425,7 @@ export class Client {
     })
   }
 
-  public async createStream(params: { stream: string; arguments: CreateStreamArguments }): Promise<true> {
+  public async createStream(params: { stream: string; arguments?: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
     const res = await this.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
@@ -452,7 +452,7 @@ export class Client {
   public async createSuperStream(
     params: {
       streamName: string
-      arguments: CreateStreamArguments
+      arguments?: CreateStreamArguments
     },
     bindingKeys?: string[],
     numberOfPartitions = 3

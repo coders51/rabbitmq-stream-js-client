@@ -18,21 +18,23 @@ export class CreateStreamRequest extends AbstractRequest {
   private readonly _arguments: { key: keyof CreateStreamArguments; value: string | number }[] = []
   private readonly stream: string
 
-  constructor(params: { stream: string; arguments: CreateStreamArguments }) {
+  constructor(params: { stream: string; arguments?: CreateStreamArguments }) {
     super()
-    this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
-      return {
-        key,
-        value: params.arguments[key] ?? "",
-      }
-    })
+    if (params.arguments) {
+      this._arguments = (Object.keys(params.arguments) as Array<keyof CreateStreamArguments>).map((key) => {
+        return {
+          key,
+          value: params.arguments![key] ?? "",
+        }
+      })
+    }
 
     this.stream = params.stream
   }
 
   writeContent(writer: DataWriter) {
     writer.writeString(this.stream)
-    writer.writeUInt32(this._arguments.length)
+    writer.writeUInt32(this._arguments?.length ?? 0)
     this._arguments.forEach(({ key, value }) => {
       writer.writeString(key)
       writer.writeString(value.toString())
