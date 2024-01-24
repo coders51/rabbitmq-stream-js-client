@@ -243,7 +243,36 @@ await client.close()
 
 ### Super Stream
 
-Work in progress ⚠️
+It is possible to create a super stream directly through the client only if you are using the latest (3.13.0-rc) management version.
+Currently we do not support batch publishing and compression - that feature is coming soon
+
+```typescript
+const client = await rabbit.connect({
+  hostname: "localhost",
+  port: 5552,
+  username: rabbitUser,
+  password: rabbitPassword,
+  vhost: "/",
+  heartbeat: 0,
+})
+await client.createSuperStream({ streamName: "super-stream-example" })
+await sleep(200) // Waiting for partitions to be created
+
+const routingKeyExtractor = (content, msgOptions) => msgOptions.messageProperties.messageId
+const publisher = await client.declareSuperStreamPublisher({ superStream: "super-stream-example" }, routingKeyExtractor)
+
+await publisher.send(Buffer.from("Test message 1"), { messageProperties: { messageId: "1" } })
+await publisher.send(Buffer.from("Test message 2"), { messageProperties: { messageId: "2" } })
+await publisher.send(Buffer.from("Test message 3"), { messageProperties: { messageId: "3" } })
+
+await client.declareSuperStreamConsumer({ superStream: "super-stream-example" }, (message) => {
+  console.log(`Received message ${message.content.toString()}`)
+})
+
+await sleep(2000)
+
+await client.close()
+```
 
 ### Filtering
 
