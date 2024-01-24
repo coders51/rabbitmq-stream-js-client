@@ -8,7 +8,7 @@ import { eventually, expectToThrowAsync, password, username, wait } from "../sup
 import { CompressionType } from "../../src/compression"
 import { range } from "../../src/util"
 
-describe.only("super stream publisher", () => {
+describe("super stream publisher", () => {
   let superStreamName: string
   const rabbit = new Rabbit(username, password)
   let client: Client
