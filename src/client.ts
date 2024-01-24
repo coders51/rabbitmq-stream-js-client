@@ -358,17 +358,26 @@ export class Client {
     return res.ok
   }
 
-  public async declareSuperStreamConsumer(superStream: string, handle: ConsumerFunc): Promise<SuperStreamConsumer> {
+  public async declareSuperStreamConsumer(
+    { superStream }: DeclareSuperStreamConsumerParams,
+    handle: ConsumerFunc
+  ): Promise<SuperStreamConsumer> {
     const consumerRef = `${superStream}-${randomUUID()}`
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, { locator: this, consumerRef, partitions })
   }
 
   public async declareSuperStreamPublisher(
-    superStream: string,
+    { superStream, publisherRef, routingStrategy }: DeclareSuperStreamPublisherParams,
     keyExtractor: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
-    return SuperStreamPublisher.create({ locator: this, superStream: superStream, keyExtractor })
+    return SuperStreamPublisher.create({
+      locator: this,
+      superStream: superStream,
+      keyExtractor,
+      publisherRef,
+      routingStrategy,
+    })
   }
 
   private async closeAllConsumers() {
@@ -913,12 +922,24 @@ export interface DeclarePublisherParams {
   connectionClosedListener?: ConnectionClosedListener
 }
 
+export type RoutingStrategy = "key" | "hash"
+
+export interface DeclareSuperStreamPublisherParams {
+  superStream: string
+  publisherRef?: string
+  routingStrategy?: RoutingStrategy
+}
+
 export interface DeclareConsumerParams {
   stream: string
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
   singleActive?: boolean
+}
+
+export interface DeclareSuperStreamConsumerParams {
+  superStream: string
 }
 
 export interface SubscribeParams {

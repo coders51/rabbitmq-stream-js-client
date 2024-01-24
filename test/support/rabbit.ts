@@ -91,17 +91,6 @@ export class Rabbit {
     return ret.body
   }
 
-  async getMessages(queue: string) {
-    // I think it's not possible to execute on stream queue
-    const ret = await got.post<unknown>(`http://${this.firstNode.host}:${this.port}/api/queues/%2F/${queue}/get`, {
-      username: this.username,
-      password: this.password,
-      responseType: "json",
-      body: JSON.stringify({ count: 100, ackmode: "ack_requeue_false", encoding: "auto", truncate: 50000 }),
-    })
-    return ret.body
-  }
-
   async getConnections(): Promise<RabbitConnectionResponse[]> {
     const ret = await got.get<RabbitConnectionResponse[]>(
       `http://${this.firstNode.host}:${this.port}/api/connections`,
@@ -171,8 +160,7 @@ export class Rabbit {
 
   async deleteSuperStream(superStream: string, noOfPartitions = 3, bindingKeys?: string[]) {
     try {
-      const exchangeName = `${superStream}`
-      await this.deleteExchange(exchangeName)
+      await this.deleteExchange(superStream)
       const streamNames = bindingKeys
         ? bindingKeys.map((bk) => `${superStream}-${bk}`)
         : range(noOfPartitions).map((i) => `${superStream}-${i}`)

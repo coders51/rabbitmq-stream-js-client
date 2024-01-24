@@ -9,7 +9,7 @@ export class RouteResponse extends AbstractResponse {
     super(response)
     this.verifyKey(RouteResponse)
 
-    const numStreams = this.response.payload.readInt32()
+    const numStreams = this.response.payload.readUInt32()
     for (let i = 0; i < numStreams; i++) {
       this.streams.push(this.response.payload.readString())
     }
