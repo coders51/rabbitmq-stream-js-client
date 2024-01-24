@@ -74,11 +74,10 @@ export class SuperStreamPublisher {
       })
     )
 
-    // init all publishers
-    const publishersMap: Map<string, Publisher> = new Map()
+    // init all publishers, in sequence in order to avoid instantiating two publishers for the same node
     const partitions = [...messagesByPartition.keys()]
     for (const p of partitions) {
-      publishersMap.set(p, await this.getPublisher(p))
+      await this.getPublisher(p)
     }
 
     // send all messages in parallel
