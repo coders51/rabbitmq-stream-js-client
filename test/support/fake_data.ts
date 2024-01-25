@@ -4,7 +4,7 @@ import { MessageProperties } from "../../src/publisher"
 import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Consumer, Publisher } from "../../src"
-import { createConsoleLog, getTestNodesFromEnv } from "./util"
+import { getTestNodesFromEnv } from "./util"
 
 export function createProperties(): MessageProperties {
   return {

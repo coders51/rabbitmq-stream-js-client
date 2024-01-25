@@ -7,7 +7,7 @@ import { PublishRequest, PublishRequestMessage } from "./requests/publish_reques
 import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
-import { DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION } from "./util"
+import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
 import { ConnectionInfo, Connection } from "./connection"
 import { ConnectionPool } from "./connection_pool"
