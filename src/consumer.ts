@@ -1,3 +1,4 @@
+import { ConsumerFilter } from "./client"
 import { ConnectionInfo, Connection } from "./connection"
 import { ConnectionPool } from "./connection_pool"
 import { Message } from "./publisher"
@@ -29,7 +30,8 @@ export class StreamConsumer implements Consumer {
       consumerId: number
       consumerRef?: string
       offset: Offset
-    }
+    },
+    readonly filter?: ConsumerFilter
   ) {
     this.connection = params.connection
     this.stream = params.stream
