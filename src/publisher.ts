@@ -9,8 +9,8 @@ import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
-import { ConnectionInfo, ConnectionProxy } from "./connection_proxy"
-import { ConnectionProxyPool } from "./connection_proxy_pool"
+import { ConnectionInfo, Connection } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -72,7 +72,7 @@ export interface Publisher {
 
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class StreamPublisher implements Publisher {
-  private connection: ConnectionProxy
+  private connection: Connection
   private stream: string
   readonly publisherId: number
   protected publisherRef: string
@@ -86,7 +86,7 @@ export class StreamPublisher implements Publisher {
   private closed = false
 
   constructor(params: {
-    connection: ConnectionProxy
+    connection: Connection
     stream: string
     publisherId: number
     publisherRef?: string
@@ -179,7 +179,7 @@ export class StreamPublisher implements Publisher {
     if (!this.closed) {
       await this.flush()
       this.connection.decrRefCount()
-      if (ConnectionProxyPool.removeIfUnused(this.connection)) {
+      if (ConnectionPool.removeIfUnused(this.connection)) {
         await this.connection.close()
       }
     }

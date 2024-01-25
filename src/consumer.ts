@@ -1,5 +1,5 @@
-import { ConnectionInfo, ConnectionProxy } from "./connection_proxy"
-import { ConnectionProxyPool } from "./connection_proxy_pool"
+import { ConnectionInfo, Connection } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
@@ -15,7 +15,7 @@ export interface Consumer {
 }
 
 export class StreamConsumer implements Consumer {
-  private connection: ConnectionProxy
+  private connection: Connection
   private stream: string
   public consumerId: number
   public consumerRef?: string
@@ -24,7 +24,7 @@ export class StreamConsumer implements Consumer {
   constructor(
     readonly handle: ConsumerFunc,
     params: {
-      connection: ConnectionProxy
+      connection: Connection
       stream: string
       consumerId: number
       consumerRef?: string
@@ -41,7 +41,7 @@ export class StreamConsumer implements Consumer {
 
   async close(): Promise<void> {
     this.connection.decrRefCount()
-    if (ConnectionProxyPool.removeIfUnused(this.connection)) {
+    if (ConnectionPool.removeIfUnused(this.connection)) {
       await this.connection.close()
     }
   }

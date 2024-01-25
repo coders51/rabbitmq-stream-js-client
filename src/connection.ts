@@ -63,7 +63,7 @@ function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneR
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
 }
 
-export class ConnectionProxy {
+export class Connection {
   public readonly hostname: string
   public readonly leader: boolean
   public readonly streamName: string | undefined
@@ -104,15 +104,15 @@ export class ConnectionProxy {
     this.connectionClosedListener = params.listeners?.connection_closed
   }
 
-  public static connect(params: ConnectionProxyParams, logger: Logger): Promise<ConnectionProxy> {
-    return new ConnectionProxy(params, logger).start()
+  public static connect(params: ConnectionProxyParams, logger: Logger): Promise<Connection> {
+    return new Connection(params, logger).start()
   }
 
-  public static create(params: ConnectionProxyParams, logger: Logger): ConnectionProxy {
-    return new ConnectionProxy(params, logger)
+  public static create(params: ConnectionProxyParams, logger: Logger): Connection {
+    return new Connection(params, logger)
   }
 
-  public start(): Promise<ConnectionProxy> {
+  public start(): Promise<Connection> {
     this.registerListeners(this.params.listeners)
 
     return new Promise((res, rej) => {
@@ -449,9 +449,9 @@ export function errorMessageOf(code: number): string {
 }
 
 export function connect(logger: Logger, params: ConnectionProxyParams) {
-  return ConnectionProxy.connect(params, logger)
+  return Connection.connect(params, logger)
 }
 
 export function create(logger: Logger, params: ConnectionProxyParams) {
-  return ConnectionProxy.create(params, logger)
+  return Connection.create(params, logger)
 }

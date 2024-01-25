@@ -39,8 +39,8 @@ import { CreateSuperStreamResponse } from "./responses/create_super_stream_respo
 import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
 import { lt, coerce } from "semver"
-import { ConnectionInfo, ConnectionProxy, errorMessageOf } from "./connection_proxy"
-import { ConnectionProxyPool } from "./connection_proxy_pool"
+import { ConnectionInfo, Connection, errorMessageOf } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -51,14 +51,14 @@ export class Client {
   private publisherId = 0
   private consumerId = 0
   private consumers = new Map<number, StreamConsumer>()
-  private publishers = new Map<number, { connection: ConnectionProxy; publisher: StreamPublisher }>()
+  private publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
   private compressions = new Map<CompressionType, Compression>()
-  private readonly connectionProxy: ConnectionProxy
+  private readonly connectionProxy: Connection
 
   private constructor(
     private readonly logger: Logger,
     private readonly params: ClientParams,
-    connectionProxy?: ConnectionProxy
+    connectionProxy?: Connection
   ) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -100,9 +100,9 @@ export class Client {
     await this.closeConnectionIfUnused(this.connectionProxy, params)
   }
 
-  private async closeConnectionIfUnused(connectionProxy: ConnectionProxy, params: ClosingParams) {
+  private async closeConnectionIfUnused(connectionProxy: Connection, params: ClosingParams) {
     if (connectionProxy.refCount <= 0) {
-      ConnectionProxyPool.removeCachedConnectionProxy(this.connectionProxy)
+      ConnectionPool.removeCachedConnectionProxy(this.connectionProxy)
       await this.connectionProxy.close(params)
     }
   }
@@ -252,7 +252,7 @@ export class Client {
 
   private async closeAllPublishers() {
     await Promise.all([...this.publishers.values()].map((c) => c.publisher.close()))
-    this.publishers = new Map<number, { connection: ConnectionProxy; publisher: StreamPublisher }>()
+    this.publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
   }
 
   public consumerCounts() {
@@ -444,24 +444,20 @@ export class Client {
 
   private getLocatorConnection() {
     const connectionParams = this.buildConnectionParams(false, "", this.params.listeners?.connection_closed)
-    return ConnectionProxy.create(connectionParams, this.logger)
+    return Connection.create(connectionParams, this.logger)
   }
 
   private async getConnection(
     streamName: string,
     leader: boolean,
     connectionClosedListener?: ConnectionClosedListener
-  ): Promise<ConnectionProxy> {
+  ): Promise<Connection> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = chooseNode(metadata, leader)
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnectionProxy = ConnectionProxyPool.getUsableCachedConnectionProxy(
-      leader,
-      streamName,
-      chosenNode.host
-    )
+    const cachedConnectionProxy = ConnectionPool.getUsableCachedConnectionProxy(leader, streamName, chosenNode.host)
     if (cachedConnectionProxy) return cachedConnectionProxy
 
     const newConnectionProxy = await this.getConnectionOnChosenNode(
@@ -472,7 +468,7 @@ export class Client {
       connectionClosedListener
     )
 
-    ConnectionProxyPool.cacheConnectionProxy(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
+    ConnectionPool.cacheConnectionProxy(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
     return newConnectionProxy
   }
 
@@ -513,7 +509,7 @@ export class Client {
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,
     connectionClosedListener?: ConnectionClosedListener
-  ): Promise<ConnectionProxy> {
+  ): Promise<Connection> {
     const connectionParams = this.buildConnectionParams(leader, streamName, connectionClosedListener)
     if (this.params.addressResolver && this.params.addressResolver.enabled) {
       const maxAttempts = computeMaxAttempts(metadata)
@@ -523,7 +519,7 @@ export class Client {
         this.logger.debug(`Attempting to connect using the address resolver - attempt ${currentAttempt + 1}`)
         const hostname = resolver.endpoint?.host ?? this.params.hostname
         const port = resolver.endpoint?.port ?? this.params.port
-        const connection = await ConnectionProxy.connect({ ...connectionParams, hostname, port }, this.logger)
+        const connection = await Connection.connect({ ...connectionParams, hostname, port }, this.logger)
         const { host: connectionHost, port: connectionPort } = connection.getConnectionInfo()
         if (connectionHost === chosenNode.host && connectionPort === chosenNode.port) {
           this.logger.debug(`Correct connection was found!`)
@@ -535,10 +531,7 @@ export class Client {
       }
       throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
     }
-    return ConnectionProxy.connect(
-      { ...connectionParams, hostname: chosenNode.host, port: chosenNode.port },
-      this.logger
-    )
+    return Connection.connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
   }
 
   static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
