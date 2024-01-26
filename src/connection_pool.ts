@@ -7,16 +7,16 @@ export class ConnectionPool {
   private static consumerConnectionProxies = new Map<InstanceKey, Connection[]>()
   private static publisherConnectionProxies = new Map<InstanceKey, Connection[]>()
 
-  public static getUsableCachedConnectionProxy(leader: boolean, streamName: string, host: string) {
+  public static getUsableCachedConnection(leader: boolean, streamName: string, host: string) {
     const m = leader ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const k = ConnectionPool.getCacheKey(streamName, host)
     const proxies = m.get(k) || []
-    const connectionProxy = proxies.at(-1)
-    const refCount = connectionProxy?.refCount
-    return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connectionProxy : undefined
+    const connection = proxies.at(-1)
+    const refCount = connection?.refCount
+    return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
   }
 
-  public static cacheConnectionProxy(leader: boolean, streamName: string, host: string, client: Connection) {
+  public static cacheConnection(leader: boolean, streamName: string, host: string, client: Connection) {
     const m = leader ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const k = ConnectionPool.getCacheKey(streamName, host)
     const currentlyCached = m.get(k) || []
@@ -24,24 +24,22 @@ export class ConnectionPool {
     m.set(k, currentlyCached)
   }
 
-  public static removeIfUnused(connectionProxy: Connection) {
-    if (connectionProxy.refCount <= 0) {
-      ConnectionPool.removeCachedConnectionProxy(connectionProxy)
+  public static removeIfUnused(connection: Connection) {
+    if (connection.refCount <= 0) {
+      ConnectionPool.removeCachedConnection(connection)
       return true
     }
     return false
   }
 
-  public static removeCachedConnectionProxy(connectionProxy: Connection) {
-    const leader = connectionProxy.leader
-    const streamName = connectionProxy.streamName
-    const host = connectionProxy.hostname
+  public static removeCachedConnection(connection: Connection) {
+    const { leader, streamName, hostname: host } = connection
     if (streamName === undefined) return
     const m = leader ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const k = ConnectionPool.getCacheKey(streamName, host)
     const mappedClientList = m.get(k)
     if (mappedClientList) {
-      const filtered = mappedClientList.filter((cp) => cp !== connectionProxy)
+      const filtered = mappedClientList.filter((c) => c !== connection)
       m.set(k, filtered)
     }
   }

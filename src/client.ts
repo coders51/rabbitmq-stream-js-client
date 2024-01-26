@@ -53,29 +53,25 @@ export class Client {
   private consumers = new Map<number, StreamConsumer>()
   private publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
   private compressions = new Map<CompressionType, Compression>()
-  private readonly connectionProxy: Connection
+  private readonly connection: Connection
 
-  private constructor(
-    private readonly logger: Logger,
-    private readonly params: ClientParams,
-    connectionProxy?: Connection
-  ) {
+  private constructor(private readonly logger: Logger, private readonly params: ClientParams, connection?: Connection) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
-    this.connectionProxy = connectionProxy ?? this.getLocatorConnection()
-    this.connectionProxy.incrRefCount()
+    this.connection = connection ?? this.getLocatorConnection()
+    this.connection.incrRefCount()
   }
 
   getCompression(compressionType: CompressionType) {
-    return this.connectionProxy.getCompression(compressionType)
+    return this.connection.getCompression(compressionType)
   }
 
   registerCompression(compression: Compression) {
-    this.connectionProxy.registerCompression(compression)
+    this.connection.registerCompression(compression)
   }
 
   public start(): Promise<Client> {
-    return this.connectionProxy.start().then(
+    return this.connection.start().then(
       (_res) => {
         return this
       },
@@ -96,20 +92,20 @@ export class Client {
       this.logger.info(`Stopping all consumers...`)
       await this.closeAllConsumers()
     }
-    this.connectionProxy.decrRefCount()
-    await this.closeConnectionIfUnused(this.connectionProxy, params)
+    this.connection.decrRefCount()
+    await this.closeConnectionIfUnused(this.connection, params)
   }
 
-  private async closeConnectionIfUnused(connectionProxy: Connection, params: ClosingParams) {
-    if (connectionProxy.refCount <= 0) {
-      ConnectionPool.removeCachedConnectionProxy(this.connectionProxy)
-      await this.connectionProxy.close(params)
+  private async closeConnectionIfUnused(connection: Connection, params: ClosingParams) {
+    if (connection.refCount <= 0) {
+      ConnectionPool.removeCachedConnection(this.connection)
+      await this.connection.close(params)
     }
   }
 
   public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
     const { streams } = params
-    const res = await this.connectionProxy.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
+    const res = await this.connection.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
     if (!res.ok) {
       throw new Error(`Query Metadata command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -121,7 +117,7 @@ export class Client {
 
   public async queryPartitions(params: QueryPartitionsParams): Promise<string[]> {
     const { superStream } = params
-    const res = await this.connectionProxy.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
+    const res = await this.connection.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
     if (!res.ok) {
       throw new Error(`Query Partitions command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -133,16 +129,16 @@ export class Client {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
-    const connectionProxy = await this.getConnection(params.stream, true, params.connectionClosedListener)
-    const res = await connectionProxy.sendAndWait<DeclarePublisherResponse>(
+    const connection = await this.getConnection(params.stream, true, params.connectionClosedListener)
+    const res = await connection.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream, publisherRef, publisherId })
     )
     if (!res.ok) {
-      await connectionProxy.close()
+      await connection.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     const publisher = new StreamPublisher({
-      connection: connectionProxy,
+      connection: connection,
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
@@ -151,7 +147,7 @@ export class Client {
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     })
-    this.publishers.set(publisherId, { publisher: publisher, connection: connectionProxy })
+    this.publishers.set(publisherId, { publisher: publisher, connection: connection })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
@@ -160,7 +156,7 @@ export class Client {
   }
 
   public async deletePublisher(publisherId: number) {
-    const publisherConnection = this.publishers.get(publisherId)?.connection ?? this.connectionProxy
+    const publisherConnection = this.publishers.get(publisherId)?.connection ?? this.connection
     const res = await publisherConnection.sendAndWait<DeletePublisherResponse>(new DeletePublisherRequest(publisherId))
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
@@ -192,7 +188,7 @@ export class Client {
       properties["name"] = params.consumerRef!
     }
 
-    const res = await this.connectionProxy.sendAndWait<SubscribeResponse>(
+    const res = await this.connection.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
 
@@ -213,7 +209,7 @@ export class Client {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
     }
-    const res = await this.connectionProxy.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    const res = await this.connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -268,12 +264,12 @@ export class Client {
   }
 
   public send(cmd: Request): Promise<void> {
-    return this.connectionProxy.send(cmd)
+    return this.connection.send(cmd)
   }
 
   public async createStream(params: { stream: string; arguments?: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
-    const res = await this.connectionProxy.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
+    const res = await this.connection.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
       return true
     }
@@ -287,7 +283,7 @@ export class Client {
 
   public async deleteStream(params: { stream: string }): Promise<true> {
     this.logger.debug(`Delete Stream...`)
-    const res = await this.connectionProxy.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
+    const res = await this.connection.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
     if (!res.ok) {
       throw new Error(`Delete Stream command returned error with code ${res.code}`)
     }
@@ -315,7 +311,7 @@ export class Client {
       numberOfPartitions,
       bindingKeys
     )
-    const res = await this.connectionProxy.sendAndWait<CreateSuperStreamResponse>(
+    const res = await this.connection.sendAndWait<CreateSuperStreamResponse>(
       new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys })
     )
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
@@ -337,7 +333,7 @@ export class Client {
     }
 
     this.logger.debug(`Delete Super Stream...`)
-    const res = await this.connectionProxy.sendAndWait<DeleteSuperStreamResponse>(
+    const res = await this.connection.sendAndWait<DeleteSuperStreamResponse>(
       new DeleteSuperStreamRequest(params.streamName)
     )
     if (!res.ok) {
@@ -348,7 +344,7 @@ export class Client {
   }
 
   public async streamStatsRequest(streamName: string) {
-    const res = await this.connectionProxy.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
+    const res = await this.connection.sendAndWait<StreamStatsResponse>(new StreamStatsRequest(streamName))
     if (!res.ok) {
       throw new Error(`Stream Stats command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -357,11 +353,11 @@ export class Client {
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    return this.connectionProxy.getConnectionInfo()
+    return this.connection.getConnectionInfo()
   }
 
   public async subscribe(params: SubscribeParams): Promise<SubscribeResponse> {
-    const res = await this.connectionProxy.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
+    const res = await this.connection.sendAndWait<SubscribeResponse>(new SubscribeRequest({ ...params }))
     if (!res.ok) {
       throw new Error(`Subscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -369,19 +365,19 @@ export class Client {
   }
 
   public get maxFrameSize() {
-    return this.connectionProxy.maxFrameSize ?? DEFAULT_FRAME_MAX
+    return this.connection.maxFrameSize ?? DEFAULT_FRAME_MAX
   }
 
   public get serverVersions() {
-    return this.connectionProxy.serverVersions
+    return this.connection.serverVersions
   }
 
   public get rabbitManagementVersion() {
-    return this.connectionProxy.rabbitManagementVersion
+    return this.connection.rabbitManagementVersion
   }
 
   public async routeQuery(params: { routingKey: string; superStream: string }) {
-    const res = await this.connectionProxy.sendAndWait<RouteResponse>(new RouteQuery(params))
+    const res = await this.connection.sendAndWait<RouteResponse>(new RouteQuery(params))
     if (!res.ok) {
       throw new Error(`Route Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -390,7 +386,7 @@ export class Client {
   }
 
   public async partitionsQuery(params: { superStream: string }) {
-    const res = await this.connectionProxy.sendAndWait<PartitionsResponse>(new PartitionsQuery(params))
+    const res = await this.connection.sendAndWait<PartitionsResponse>(new PartitionsQuery(params))
     if (!res.ok) {
       throw new Error(`Partitions Query command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
@@ -457,7 +453,7 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnectionProxy = ConnectionPool.getUsableCachedConnectionProxy(leader, streamName, chosenNode.host)
+    const cachedConnectionProxy = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
     if (cachedConnectionProxy) return cachedConnectionProxy
 
     const newConnectionProxy = await this.getConnectionOnChosenNode(
@@ -468,7 +464,7 @@ export class Client {
       connectionClosedListener
     )
 
-    ConnectionPool.cacheConnectionProxy(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
+    ConnectionPool.cacheConnection(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
     return newConnectionProxy
   }
 
