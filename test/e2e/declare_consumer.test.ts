@@ -16,7 +16,7 @@ import {
   createStreamName,
 } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { getMaxSharedClientInstances, range } from "../../src/util"
+import { getMaxSharedConnectionInstances, range } from "../../src/util"
 import { BufferDataReader } from "../../src/response_decoder"
 import {
   eventually,
@@ -297,7 +297,7 @@ describe("declare consumer", () => {
   }).timeout(10000)
 
   it("if a large number of consumers for the same stream is declared, eventually a new client is instantiated even for the same stream/node", async () => {
-    const consumersToCreate = (getMaxSharedClientInstances() + 1) * (getTestNodesFromEnv().length + 1)
+    const consumersToCreate = (getMaxSharedConnectionInstances() + 1) * (getTestNodesFromEnv().length + 1)
     const counts = new Map<string, number>()
     for (let i = 0; i < consumersToCreate; i++) {
       const consumer = await createConsumer(streamName, client)
@@ -306,7 +306,7 @@ describe("declare consumer", () => {
     }
 
     const countConsumersOverLimit = Array.from(counts.entries()).find(
-      ([_id, count]) => count > getMaxSharedClientInstances()
+      ([_id, count]) => count > getMaxSharedConnectionInstances()
     )
     expect(countConsumersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)

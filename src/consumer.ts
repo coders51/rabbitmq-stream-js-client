@@ -1,4 +1,5 @@
-import { Client, ConnectionInfo } from "./client"
+import { ConnectionInfo, Connection } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
@@ -14,7 +15,7 @@ export interface Consumer {
 }
 
 export class StreamConsumer implements Consumer {
-  private client: Client
+  private connection: Connection
   private stream: string
   public consumerId: number
   public consumerRef?: string
@@ -23,36 +24,40 @@ export class StreamConsumer implements Consumer {
   constructor(
     readonly handle: ConsumerFunc,
     params: {
-      client: Client
+      connection: Connection
       stream: string
       consumerId: number
       consumerRef?: string
       offset: Offset
     }
   ) {
-    this.client = params.client
+    this.connection = params.connection
     this.stream = params.stream
     this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef
     this.offset = params.offset
+    this.connection.incrRefCount()
   }
 
   async close(): Promise<void> {
-    await this.client.close()
+    this.connection.decrRefCount()
+    if (ConnectionPool.removeIfUnused(this.connection)) {
+      await this.connection.close()
+    }
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
-    return this.client.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
+    return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
   }
 
   public queryOffset(): Promise<bigint> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
-    return this.client.queryOffset({ stream: this.stream, reference: this.consumerRef })
+    return this.connection.queryOffset({ stream: this.stream, reference: this.consumerRef })
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    const { host, port, id, readable, localPort } = this.client.getConnectionInfo()
+    const { host, port, id, readable, localPort } = this.connection.getConnectionInfo()
     return { host, port, id, readable, localPort }
   }
 }

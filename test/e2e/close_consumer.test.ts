@@ -4,7 +4,7 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, getTestNodesFromEnv, password, username } from "../support/util"
 import { createClient, createConsumer } from "../support/fake_data"
-import { getMaxSharedClientInstances } from "../../src/util"
+import { getMaxSharedConnectionInstances } from "../../src/util"
 
 describe("close consumer", () => {
   const rabbit = new Rabbit(username, password)
@@ -103,7 +103,7 @@ describe("close consumer", () => {
   }).timeout(5000)
 
   it("if consumers for the same stream have different underlying clients, then closing one client does not affect the others consumers", async () => {
-    const consumersToCreate = (getMaxSharedClientInstances() + 1) * (getTestNodesFromEnv().length + 1)
+    const consumersToCreate = (getMaxSharedConnectionInstances() + 1) * (getTestNodesFromEnv().length + 1)
     const consumers = new Map<number, Consumer[]>()
     for (let i = 0; i < consumersToCreate; i++) {
       const consumer = await createConsumer(testStreamName, client)

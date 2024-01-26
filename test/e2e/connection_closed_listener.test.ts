@@ -85,4 +85,35 @@ describe("connection closed callback", () => {
       expect(listenerSpy).to.have.been.called.exactly(3)
     }, 1000)
   }).timeout(5000)
+
+  it("different callbacks for client, consumer and publisher are all called when connections close", async () => {
+    const instListener = () => {
+      return (_hasError: boolean) => {
+        return
+      }
+    }
+    const listenerClientSpy = spy(instListener())
+    const listenerConsumerSpy = spy(instListener())
+    const listenerPublisherSpy = spy(instListener())
+    client = await createClient(username, password, { connection_closed: listenerClientSpy })
+    await client.declarePublisher({ stream: streamName, publisherRef, connectionClosedListener: listenerConsumerSpy })
+    await client.declareConsumer(
+      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: listenerPublisherSpy },
+      (_msg) => {
+        return
+      }
+    )
+
+    await client.close()
+
+    await eventually(() => {
+      expect(listenerClientSpy).to.have.been.called.exactly(1)
+    }, 1000)
+    await eventually(() => {
+      expect(listenerConsumerSpy).to.have.been.called.exactly(1)
+    }, 1000)
+    await eventually(() => {
+      expect(listenerPublisherSpy).to.have.been.called.exactly(1)
+    }, 1000)
+  }).timeout(5000)
 })
