@@ -11,6 +11,8 @@ interface PublishRequestParams {
 export class PublishRequestV2 extends AbstractRequest {
   static readonly Key = 0x02
   static readonly Version = 2
+  readonly key = PublishRequestV2.Key
+  readonly responseKey = -1
 
   constructor(private params: PublishRequestParams) {
     super()
@@ -26,12 +28,6 @@ export class PublishRequestV2 extends AbstractRequest {
     })
   }
 
-  get key(): number {
-    return PublishRequestV2.Key
-  }
-  get responseKey(): number {
-    return -1
-  }
   get version(): number {
     return PublishRequestV2.Version
   }

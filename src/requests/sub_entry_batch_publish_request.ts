@@ -1,8 +1,7 @@
 import { amqpEncode, messageSize } from "../amqp10/encoder"
 import { Compression, CompressionType } from "../compression"
 import { Message } from "../publisher"
-import { AbstractRequest } from "./abstract_request"
-import { BufferDataWriter } from "./buffer_data_writer"
+import { AbstractRequest, BufferDataWriter } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 interface SubEntryBatchPublishRequestParams {
@@ -16,6 +15,8 @@ interface SubEntryBatchPublishRequestParams {
 export class SubEntryBatchPublishRequest extends AbstractRequest {
   static readonly Key = 0x02
   static readonly Version = 1
+  readonly key = SubEntryBatchPublishRequest.Key
+  readonly responseKey = -1
   private readonly maxFrameSize: number
 
   constructor(private params: SubEntryBatchPublishRequestParams) {
@@ -46,15 +47,5 @@ export class SubEntryBatchPublishRequest extends AbstractRequest {
 
   private encodeCompressionType(compressionType: CompressionType) {
     return 0x80 | (compressionType << 4)
-  }
-
-  get key(): number {
-    return SubEntryBatchPublishRequest.Key
-  }
-  get responseKey(): number {
-    return -1
-  }
-  get version(): number {
-    return SubEntryBatchPublishRequest.Version
   }
 }

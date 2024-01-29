@@ -4,7 +4,9 @@ import { DataWriter } from "./data_writer"
 
 export class DeleteSuperStreamRequest extends AbstractRequest {
   static readonly Key = 0x001e
+  readonly key = DeleteSuperStreamRequest.Key
   static readonly Version = 1
+  readonly responseKey = DeleteSuperStreamResponse.key
   private readonly streamName: string
 
   constructor(streamName: string) {
@@ -14,15 +16,5 @@ export class DeleteSuperStreamRequest extends AbstractRequest {
 
   protected writeContent(writer: DataWriter): void {
     writer.writeString(this.streamName)
-  }
-
-  get key(): number {
-    return DeleteSuperStreamRequest.Key
-  }
-  get responseKey(): number {
-    return DeleteSuperStreamResponse.key
-  }
-  get version(): number {
-    return DeleteSuperStreamRequest.Version
   }
 }

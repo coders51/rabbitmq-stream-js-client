@@ -17,6 +17,8 @@ interface PublishRequestParams {
 export class PublishRequest extends AbstractRequest {
   static readonly Key = 0x02
   static readonly Version = 1
+  readonly key = PublishRequest.Key
+  readonly responseKey = -1
 
   constructor(private params: PublishRequestParams) {
     super()
@@ -29,15 +31,5 @@ export class PublishRequest extends AbstractRequest {
       writer.writeUInt64(publishingId)
       amqpEncode(writer, message)
     })
-  }
-
-  get key(): number {
-    return PublishRequest.Key
-  }
-  get responseKey(): number {
-    return -1
-  }
-  get version(): number {
-    return PublishRequest.Version
   }
 }
