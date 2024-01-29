@@ -180,7 +180,6 @@ export class Client {
     const connection = await this.getConnection(params.stream, false, params.connectionClosedListener)
 
     if (params.filter && !connection.isFilteringEnabled) {
-      await connection.close()
       throw new Error(`Broker does not support message filtering.`)
     }
 
