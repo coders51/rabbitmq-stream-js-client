@@ -4,7 +4,7 @@ import { Compression, CompressionType, GzipCompression, NoneCompression } from "
 import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
-import { Message, Publisher, StreamPublisher } from "./publisher"
+import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
@@ -138,7 +138,7 @@ export class Client {
       await connection.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    if (filter && !connection.filteringEnabled) {
+    if (filter && !connection.isFilteringEnabled) {
       await connection.close()
       throw new Error(`Broker does not support message filtering.`)
     }
@@ -418,17 +418,31 @@ export class Client {
     return consumerId
   }
 
-  private getDeliverCallback() {
-    return async (deliverVersion: "deliverV1" | "deliverV2", deliverResponse: DeliverResponse | DeliverResponseV2) => {
-      const consumer = this.consumers.get(deliverResponse.subscriptionId)
+  private getDeliverV1Callback() {
+    return async (response: DeliverResponse) => {
+      const consumer = this.consumers.get(response.subscriptionId)
       if (!consumer) {
-        this.logger.error(`On ${deliverVersion} no consumer found`)
+        this.logger.error(`On deliverV1 no consumer found`)
         return
       }
-      this.logger.debug(`on ${deliverVersion} -> ${consumer.consumerRef}`)
-      this.logger.debug(`deliverResponse.messages.length: ${deliverResponse.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: deliverResponse.subscriptionId })
-      deliverResponse.messages.map((x) => consumer.handle(x))
+      this.logger.debug(`on deliverV1 -> ${consumer.consumerRef}`)
+      this.logger.debug(`response.messages.length: ${response.messages.length}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      response.messages.map((x) => consumer.handle(x))
+    }
+  }
+
+  private getDeliverV2Callback() {
+    return async (response: DeliverResponseV2) => {
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (!consumer) {
+        this.logger.error(`On deliverV2 no consumer found`)
+        return
+      }
+      this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
+      this.logger.debug(`response.messages.length: ${response.messages.length}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      response.messages.map((x) => consumer.handle(x))
     }
   }
 
@@ -501,7 +515,8 @@ export class Client {
     const connectionListeners = {
       ...this.params.listeners,
       connection_closed: connectionClosedListener,
-      deliver: this.getDeliverCallback(),
+      deliverV1: this.getDeliverV1Callback(),
+      deliverV2: this.getDeliverV2Callback(),
       consumer_update_query: this.getConsumerUpdateCallback(),
     }
     return { ...this.params, listeners: connectionListeners, leader: leader, streamName: streamName }

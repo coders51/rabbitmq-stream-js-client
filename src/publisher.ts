@@ -11,7 +11,6 @@ import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
 import { ConnectionInfo, Connection } from "./connection"
 import { ConnectionPool } from "./connection_pool"
-import { coerce, lt } from "semver"
 import { PublishRequestV2 } from "./requests/publish_request_v2"
 
 export type MessageApplicationProperties = Record<string, string | number>
