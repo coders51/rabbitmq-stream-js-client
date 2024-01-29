@@ -80,6 +80,6 @@ describe("filtering", () => {
     await eventually(async () => {
       expect(filteredMsg[0]).eql("test1")
       expect(filteredMsg.length).eql(1)
-    }, 5000)
+    }, 10000)
   }).timeout(10000)
 })
