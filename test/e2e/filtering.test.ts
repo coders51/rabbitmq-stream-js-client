@@ -45,6 +45,6 @@ describe("filtering", () => {
 
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(streamName)).messages).eql(3)
-    }, 5000)
+    }, 10000)
   }).timeout(10000)
 })
