@@ -3,8 +3,10 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export class QueryOffsetRequest extends AbstractRequest {
+  readonly responseKey = QueryOffsetResponse.key
   static readonly Key = 0x000b
   static readonly Version = 1
+  readonly key = QueryOffsetRequest.Key
   private readonly reference: string
   private readonly stream: string
 
@@ -17,15 +19,5 @@ export class QueryOffsetRequest extends AbstractRequest {
   writeContent(writer: DataWriter) {
     writer.writeString(this.reference)
     writer.writeString(this.stream)
-  }
-
-  get key(): number {
-    return QueryOffsetRequest.Key
-  }
-  get responseKey(): number {
-    return QueryOffsetResponse.key
-  }
-  get version(): number {
-    return QueryOffsetRequest.Version
   }
 }

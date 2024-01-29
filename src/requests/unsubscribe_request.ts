@@ -5,6 +5,8 @@ import { DataWriter } from "./data_writer"
 export class UnsubscribeRequest extends AbstractRequest {
   static readonly Key = 0x000c
   static readonly Version = 1
+  readonly key = UnsubscribeRequest.Key
+  readonly responseKey = UnsubscribeResponse.key
 
   constructor(private subscriptionId: number) {
     super()
@@ -12,15 +14,5 @@ export class UnsubscribeRequest extends AbstractRequest {
 
   protected writeContent(writer: DataWriter): void {
     writer.writeUInt8(this.subscriptionId)
-  }
-
-  get key(): number {
-    return UnsubscribeRequest.Key
-  }
-  get responseKey(): number {
-    return UnsubscribeResponse.key
-  }
-  get version(): number {
-    return UnsubscribeRequest.Version
   }
 }
