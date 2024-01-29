@@ -28,7 +28,7 @@ describe("filtering", () => {
     } catch (e) {}
   })
 
-  it("is seen by rabbit and filtered", async () => {
+  it("can publish with filter value", async () => {
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
       (msg) => msg.applicationProperties!["test"].toString()
