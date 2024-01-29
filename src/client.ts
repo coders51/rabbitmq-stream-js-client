@@ -457,6 +457,10 @@ export class Client {
       this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      if (consumer.filter) {
+        response.messages.filter((x) => consumer.filter?.postFilterFunc(x)).map((x) => consumer.handle(x))
+        return
+      }
       response.messages.map((x) => consumer.handle(x))
     }
   }
