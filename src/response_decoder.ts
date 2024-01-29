@@ -120,33 +120,21 @@ function decodeResponse(
 ): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
-  if (key === DeliverResponse.key && version === 1) {
-    const { subscriptionId, messages } = decodeDeliverResponse(dataResponse, getCompressionBy, logger)
-    const response: RawDeliverResponse = {
-      size,
-      key: key as DeliverResponse["key"],
-      version,
-      subscriptionId,
-      messages,
-    }
-    return response
-  }
-  if (key === DeliverResponseV2.key && version === 2) {
+  if (key === DeliverResponse.key) {
     const { subscriptionId, committedChunkId, messages } = decodeDeliverResponse(
       dataResponse,
       getCompressionBy,
       logger,
       version
     )
-    const response: RawDeliverResponseV2 = {
+    return {
       size,
       key: key as DeliverResponse["key"],
       version,
       subscriptionId,
-      committedChunkId: committedChunkId!,
+      committedChunkId,
       messages,
     }
-    return response
   }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
@@ -216,7 +204,7 @@ function decodeDeliverResponse(
   dataResponse: DataReader,
   getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger,
-  version: 1 | 2 = 1
+  version = 1
 ): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
   const committedChunkId = version === 2 ? dataResponse.readUInt64() : undefined

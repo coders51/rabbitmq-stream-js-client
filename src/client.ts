@@ -139,7 +139,6 @@ export class Client {
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
     if (filter && !connection.isFilteringEnabled) {
-      await connection.close()
       throw new Error(`Broker does not support message filtering.`)
     }
     const publisher = new StreamPublisher(
