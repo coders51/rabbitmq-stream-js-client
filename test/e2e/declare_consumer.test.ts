@@ -76,7 +76,7 @@ describe("declare consumer", () => {
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
-  }).timeout(15000)
+  }).timeout(10000)
 
   it("declaring multiple active consumers on an existing stream - only one consumer should handle the message", async () => {
     const messages: Buffer[] = []
