@@ -136,23 +136,6 @@ function decodeResponse(
       messages,
     }
   }
-  if (key === DeliverResponseV2.key && version === 2) {
-    const { subscriptionId, committedChunkId, messages } = decodeDeliverResponse(
-      dataResponse,
-      getCompressionBy,
-      logger,
-      version
-    )
-    const response: RawDeliverResponseV2 = {
-      size,
-      key: key as DeliverResponse["key"],
-      version,
-      subscriptionId,
-      committedChunkId: committedChunkId!,
-      messages,
-    }
-    return response
-  }
   if (key === TuneResponse.key) {
     const frameMax = dataResponse.readUInt32()
     const heartbeat = dataResponse.readUInt32()
