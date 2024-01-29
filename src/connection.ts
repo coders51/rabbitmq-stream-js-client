@@ -16,6 +16,7 @@ import { TuneRequest } from "./requests/tune_request"
 import {
   ConsumerUpdateQueryListener,
   DeliverListener,
+  DeliverV2Listener,
   MetadataUpdateListener,
   PublishConfirmListener,
   PublishErrorListener,
@@ -29,7 +30,7 @@ import { Response } from "./responses/response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, removeFrom } from "./util"
+import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, removeFrom } from "./util"
 import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
 import { ClientListenersParams, ClientParams, ClosingParams, QueryOffsetParams, StoreOffsetParams } from "./client"
@@ -38,11 +39,13 @@ import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
+import { coerce, lt } from "semver"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
 export type ConnectionProxyListenersParams = ClientListenersParams & {
-  deliver?: DeliverListener
+  deliverV1?: DeliverListener
+  deliverV2?: DeliverV2Listener
   consumer_update_query?: ConsumerUpdateQueryListener
 }
 
@@ -82,6 +85,7 @@ export class Connection {
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
   private readonly serverDeclaredVersions: Version[] = []
   private refs: number = 0
+  private filteringEnabled: boolean = false
 
   constructor(private readonly params: ConnectionProxyParams, private readonly logger: Logger) {
     this.hostname = params.hostname
@@ -125,6 +129,7 @@ export class Connection {
       this.socket.on("connect", async () => {
         this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
         this.peerProperties = (await this.exchangeProperties()).properties
+        this.filteringEnabled = lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION) ? false : true
         await this.auth({ username: this.params.username, password: this.params.password })
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
         await this.open({ virtualHost: this.params.vhost })
@@ -151,15 +156,23 @@ export class Connection {
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
   public on(event: "publish_confirm", listener: PublishConfirmListener): void
   public on(event: "publish_error", listener: PublishErrorListener): void
-  public on(event: "deliver", listener: DeliverListener): void
+  public on(event: "deliverV1", listener: DeliverListener): void
+  public on(event: "deliverV2", listener: DeliverV2Listener): void
   public on(event: "consumer_update_query", listener: ConsumerUpdateQueryListener): void
   public on(
-    event: "metadata_update" | "publish_confirm" | "publish_error" | "deliver" | "consumer_update_query",
+    event:
+      | "metadata_update"
+      | "publish_confirm"
+      | "publish_error"
+      | "deliverV1"
+      | "deliverV2"
+      | "consumer_update_query",
     listener:
       | MetadataUpdateListener
       | PublishConfirmListener
       | PublishErrorListener
       | DeliverListener
+      | DeliverV2Listener
       | ConsumerUpdateQueryListener
   ) {
     switch (event) {
@@ -172,8 +185,11 @@ export class Connection {
       case "publish_error":
         this.decoder.on("publish_error", listener as PublishErrorListener)
         break
-      case "deliver":
-        this.decoder.on("deliver", listener as DeliverListener)
+      case "deliverV1":
+        this.decoder.on("deliverV1", listener as DeliverListener)
+        break
+      case "deliverV2":
+        this.decoder.on("deliverV2", listener as DeliverV2Listener)
         break
       case "consumer_update_query":
         this.decoder.on("consumer_update_query", listener as ConsumerUpdateQueryListener)
@@ -187,7 +203,8 @@ export class Connection {
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
     if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
-    if (listeners?.deliver) this.decoder.on("deliver", listeners.deliver)
+    if (listeners?.deliverV1) this.decoder.on("deliverV1", listeners.deliverV1)
+    if (listeners?.deliverV2) this.decoder.on("deliverV2", listeners.deliverV2)
     if (listeners?.consumer_update_query) this.decoder.on("consumer_update_query", listeners.consumer_update_query)
   }
 
@@ -330,6 +347,10 @@ export class Connection {
 
   public get rabbitManagementVersion() {
     return this.peerProperties.version
+  }
+
+  public get isFilteringEnabled() {
+    return this.filteringEnabled
   }
 
   private async auth(params: { username: string; password: string }) {

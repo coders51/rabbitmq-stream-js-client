@@ -4,7 +4,7 @@ import { Compression, CompressionType, GzipCompression, NoneCompression } from "
 import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
-import { Message, Publisher, StreamPublisher } from "./publisher"
+import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
@@ -41,6 +41,7 @@ import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request
 import { lt, coerce } from "semver"
 import { ConnectionInfo, Connection, errorMessageOf } from "./connection"
 import { ConnectionPool } from "./connection_pool"
+import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -125,7 +126,7 @@ export class Client {
     return res.streams
   }
 
-  public async declarePublisher(params: DeclarePublisherParams): Promise<Publisher> {
+  public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
     const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
 
@@ -137,16 +138,22 @@ export class Client {
       await connection.close()
       throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    const publisher = new StreamPublisher({
-      connection: connection,
-      stream: params.stream,
-      publisherId: publisherId,
-      publisherRef: params.publisherRef,
-      boot: params.boot,
-      maxFrameSize: this.maxFrameSize,
-      maxChunkLength: params.maxChunkLength,
-      logger: this.logger,
-    })
+    if (filter && !connection.isFilteringEnabled) {
+      throw new Error(`Broker does not support message filtering.`)
+    }
+    const publisher = new StreamPublisher(
+      {
+        connection: connection,
+        stream: params.stream,
+        publisherId: publisherId,
+        publisherRef: params.publisherRef,
+        boot: params.boot,
+        maxFrameSize: this.maxFrameSize,
+        maxChunkLength: params.maxChunkLength,
+        logger: this.logger,
+      },
+      filter
+    )
     this.publishers.set(publisherId, { publisher: publisher, connection: connection })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -410,14 +417,28 @@ export class Client {
     return consumerId
   }
 
-  private getDeliverCallback() {
+  private getDeliverV1Callback() {
     return async (response: DeliverResponse) => {
       const consumer = this.consumers.get(response.subscriptionId)
       if (!consumer) {
-        this.logger.error(`On deliver no consumer found`)
+        this.logger.error(`On deliverV1 no consumer found`)
         return
       }
-      this.logger.debug(`on deliver -> ${consumer.consumerRef}`)
+      this.logger.debug(`on deliverV1 -> ${consumer.consumerRef}`)
+      this.logger.debug(`response.messages.length: ${response.messages.length}`)
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      response.messages.map((x) => consumer.handle(x))
+    }
+  }
+
+  private getDeliverV2Callback() {
+    return async (response: DeliverResponseV2) => {
+      const consumer = this.consumers.get(response.subscriptionId)
+      if (!consumer) {
+        this.logger.error(`On deliverV2 no consumer found`)
+        return
+      }
+      this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
       response.messages.map((x) => consumer.handle(x))
@@ -493,7 +514,8 @@ export class Client {
     const connectionListeners = {
       ...this.params.listeners,
       connection_closed: connectionClosedListener,
-      deliver: this.getDeliverCallback(),
+      deliverV1: this.getDeliverV1Callback(),
+      deliverV2: this.getDeliverV2Callback(),
       consumer_update_query: this.getConsumerUpdateCallback(),
     }
     return { ...this.params, listeners: connectionListeners, leader: leader, streamName: streamName }

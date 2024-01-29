@@ -11,6 +11,7 @@ import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
 import { ConnectionInfo, Connection } from "./connection"
 import { ConnectionPool } from "./connection_pool"
+import { PublishRequestV2 } from "./requests/publish_request_v2"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
@@ -70,6 +71,7 @@ export interface Publisher {
   readonly publisherId: number
 }
 
+export type FilterFunc = (msg: Message) => string | undefined
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export class StreamPublisher implements Publisher {
   private connection: Connection
@@ -85,16 +87,19 @@ export class StreamPublisher implements Publisher {
   private maxChunkLength: number
   private closed = false
 
-  constructor(params: {
-    connection: Connection
-    stream: string
-    publisherId: number
-    publisherRef?: string
-    boot?: boolean
-    maxFrameSize: number
-    maxChunkLength?: number
-    logger: Logger
-  }) {
+  constructor(
+    params: {
+      connection: Connection
+      stream: string
+      publisherId: number
+      publisherRef?: string
+      boot?: boolean
+      maxFrameSize: number
+      maxChunkLength?: number
+      logger: Logger
+    },
+    private readonly filter?: FilterFunc
+  ) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
@@ -187,6 +192,12 @@ export class StreamPublisher implements Publisher {
   }
 
   private async enqueue(publishRequestMessage: PublishRequestMessage) {
+    if (this.filter) {
+      publishRequestMessage.filterValue = this.filter(publishRequestMessage.message)
+    }
+    if (!this.connection.isFilteringEnabled && this.filter) {
+      throw new Error(`Your rabbit server management version does not support filtering.`)
+    }
     this.checkMessageSize(publishRequestMessage)
     const sendCycleNeeded = this.add(publishRequestMessage)
     let sent = false
@@ -211,12 +222,19 @@ export class StreamPublisher implements Publisher {
   private async sendBuffer() {
     const chunk = this.popChunk()
     if (chunk.length > 0) {
-      await this.connection.send(
-        new PublishRequest({
-          publisherId: this.publisherId,
-          messages: chunk,
-        })
-      )
+      this.filter
+        ? await this.connection.send(
+            new PublishRequestV2({
+              publisherId: this.publisherId,
+              messages: chunk,
+            })
+          )
+        : await this.connection.send(
+            new PublishRequest({
+              publisherId: this.publisherId,
+              messages: chunk,
+            })
+          )
     }
   }
 

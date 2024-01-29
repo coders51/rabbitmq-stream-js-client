@@ -1,4 +1,4 @@
-import { BufferDataWriter } from "../requests/abstract_request"
+import { BufferDataWriter } from "../requests/buffer_data_writer"
 import { RawTuneResponse } from "./raw_response"
 import { Response } from "./response"
 

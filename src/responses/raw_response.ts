@@ -55,6 +55,15 @@ export interface RawDeliverResponse {
   messages: Message[]
 }
 
+export interface RawDeliverResponseV2 {
+  size: number
+  key: 0x0008
+  version: number
+  subscriptionId: number
+  committedChunkId: bigint
+  messages: Message[]
+}
+
 export interface RawMetadataUpdateResponse {
   size: number
   key: 0x0010

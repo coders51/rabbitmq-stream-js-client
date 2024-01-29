@@ -1,11 +1,11 @@
 import { expect } from "chai"
 import { NoneCompression } from "../../src/compression"
 import { DecoderListenerFunc } from "../../src/decoder_listener"
-import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { ResponseDecoder } from "../../src/response_decoder"
 import { PeerPropertiesResponse } from "../../src/responses/peer_properties_response"
 import { Response } from "../../src/responses/response"
 import { createConsoleLog } from "../support/util"
+import { BufferDataWriter } from "../../src/requests/buffer_data_writer"
 
 class MockDecoderListener {
   readonly responses: Response[] = []

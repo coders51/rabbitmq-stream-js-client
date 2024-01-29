@@ -1,6 +1,6 @@
 import { expect } from "chai"
-import { BufferDataWriter } from "../../src/requests/abstract_request"
 import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX } from "../../src/util"
+import { BufferDataWriter } from "../../src/requests/buffer_data_writer"
 describe("Buffer Data Writer functionalities", () => {
   const bufferMaxSize = 1024
   const bufferInitialSize = 1

@@ -10,5 +10,5 @@ export interface Request {
   toBuffer(bufferSizeParams?: BufferSizeParams, correlationId?: number): Buffer
   readonly responseKey: number
   readonly key: number
-  readonly version: 1
+  readonly version: number
 }

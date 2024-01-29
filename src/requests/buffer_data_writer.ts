@@ -1,6 +1,6 @@
 import { DEFAULT_UNLIMITED_FRAME_MAX } from "../util"
 import { DataWriter } from "./data_writer"
-import { BufferSizeParams, Request } from "./request"
+import { BufferSizeParams } from "./request"
 
 export class BufferDataWriter implements DataWriter {
   private _offset = 0
@@ -44,16 +44,16 @@ export class BufferDataWriter implements DataWriter {
     this._offset = this.buffer.writeInt8(data, this._offset)
   }
 
-  writeInt16(data: number) {
-    const bytes = 2
-    this.growIfNeeded(bytes)
-    this._offset = this.buffer.writeInt16BE(data, this._offset)
-  }
-
   writeUInt8(data: number): void {
     const bytes = 1
     this.growIfNeeded(bytes)
     this._offset = this.buffer.writeUInt8(data, this._offset)
+  }
+
+  writeInt16(data: number) {
+    const bytes = 2
+    this.growIfNeeded(bytes)
+    this._offset = this.buffer.writeInt16BE(data, this._offset)
   }
 
   writeUInt16(data: number) {
@@ -115,28 +115,4 @@ export class BufferDataWriter implements DataWriter {
     if (this.maxBufferSize === DEFAULT_UNLIMITED_FRAME_MAX) return requiredNewSize
     return Math.min(requiredNewSize, this.maxBufferSize)
   }
-}
-export abstract class AbstractRequest implements Request {
-  abstract get key(): number
-  abstract get responseKey(): number
-  get version() {
-    return 1
-  }
-
-  toBuffer(bufferSizeParams?: BufferSizeParams, correlationId?: number): Buffer {
-    const initialSize = bufferSizeParams?.initialSize ?? 65536
-    const dataWriter = new BufferDataWriter(Buffer.alloc(initialSize), 4, bufferSizeParams)
-    dataWriter.writeUInt16(this.key)
-    dataWriter.writeUInt16(this.version)
-    if (typeof correlationId === "number") {
-      dataWriter.writeUInt32(correlationId)
-    }
-
-    this.writeContent(dataWriter)
-
-    dataWriter.writePrefixSize()
-    return dataWriter.toBuffer()
-  }
-
-  protected abstract writeContent(writer: DataWriter): void
 }
