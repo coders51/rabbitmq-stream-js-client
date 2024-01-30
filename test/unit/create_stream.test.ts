@@ -9,11 +9,11 @@ describe("Stream", () => {
   const rabbit = new Rabbit(username, password)
   const streamName = `test-stream-${randomUUID()}`
   const payload = {
-    "x-queue-leader-locator": "test",
-    "x-max-age": "test",
-    "x-stream-max-segment-size-bytes": 42,
-    "x-initial-cluster-size": 42,
-    "x-max-length-bytes": 42,
+    "queue-leader-locator": "random" as const,
+    "max-age": "120s",
+    "stream-max-segment-size-bytes": 1000,
+    "initial-cluster-size": 5,
+    "max-length-bytes": 20000,
   }
   let client: Client
 
