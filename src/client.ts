@@ -177,14 +177,23 @@ export class Client {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
     const properties: Record<string, string> = {}
-    const client = await this.getConnection(params.stream, false, params.connectionClosedListener)
-    const consumer = new StreamConsumer(addOffsetFilterToHandle(handle, params.offset), {
-      connection: client,
-      stream: params.stream,
-      consumerId,
-      consumerRef: params.consumerRef,
-      offset: params.offset,
-    })
+    const connection = await this.getConnection(params.stream, false, params.connectionClosedListener)
+
+    if (params.filter && !connection.isFilteringEnabled) {
+      throw new Error(`Broker does not support message filtering.`)
+    }
+
+    const consumer = new StreamConsumer(
+      addOffsetFilterToHandle(handle, params.offset),
+      {
+        connection,
+        stream: params.stream,
+        consumerId,
+        consumerRef: params.consumerRef,
+        offset: params.offset,
+      },
+      params.filter
+    )
     this.consumers.set(consumerId, consumer)
 
     if (params.singleActive && !params.consumerRef) {
@@ -193,6 +202,12 @@ export class Client {
     if (params.singleActive) {
       properties["single-active-consumer"] = "true"
       properties["name"] = params.consumerRef!
+    }
+    if (params.filter) {
+      for (let i = 0; i < params.filter.values.length; i++) {
+        properties[`filter.${i}`] = params.filter.values[i]
+      }
+      properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }
 
     const res = await this.connection.sendAndWait<SubscribeResponse>(
@@ -441,6 +456,10 @@ export class Client {
       this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
       await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      if (consumer.filter) {
+        response.messages.filter((x) => consumer.filter?.postFilterFunc(x)).map((x) => consumer.handle(x))
+        return
+      }
       response.messages.map((x) => consumer.handle(x))
     }
   }
@@ -610,12 +629,19 @@ export interface DeclareSuperStreamPublisherParams {
   routingStrategy?: RoutingStrategy
 }
 
+export interface ConsumerFilter {
+  values: string[]
+  postFilterFunc: (msg: Message) => boolean
+  matchUnfiltered: boolean
+}
+
 export interface DeclareConsumerParams {
   stream: string
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
   singleActive?: boolean
+  filter?: ConsumerFilter
 }
 
 export interface DeclareSuperStreamConsumerParams {
