@@ -205,7 +205,7 @@ export class Client {
     }
     if (params.filter) {
       for (let i = 0; i < params.filter.values.length; i++) {
-        properties[`${i}`] = params.filter.values[i]
+        properties[`filter.${i}`] = params.filter.values[i]
       }
       properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }

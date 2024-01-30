@@ -82,4 +82,68 @@ describe("filtering", () => {
       expect(filteredMsg.length).eql(1)
     }, 10000)
   }).timeout(10000)
+
+  it("published messages are filtered on the server side keeping only the ones with filter value", async () => {
+    const filteredMsg: string[] = []
+    const publisher = await client.declarePublisher(
+      { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
+      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined)
+    )
+    const applicationProperties1 = { test: "A" }
+    const applicationProperties2 = { test: "B" }
+    for (let i = 0; i < 1000; i++)
+      await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties1 })
+    for (let i = 0; i < 1000; i++)
+      await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties2 })
+    for (let i = 0; i < 1000; i++) await publisher.send(Buffer.from(`test${i + 1}`))
+
+    await client.declareConsumer(
+      {
+        stream: streamName,
+        offset: Offset.first(),
+        filter: {
+          values: ["A", "B"],
+          postFilterFunc: (_msg) => true,
+          matchUnfiltered: false,
+        },
+      },
+      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+    )
+
+    await eventually(async () => {
+      expect(filteredMsg.length).eql(2000)
+    }, 10000)
+  }).timeout(10000)
+
+  it("published messages are filtered on the server side keeping even the ones with filter value", async () => {
+    const filteredMsg: string[] = []
+    const publisher = await client.declarePublisher(
+      { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
+      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined)
+    )
+    const applicationProperties1 = { test: "A" }
+    const applicationProperties2 = { test: "B" }
+    for (let i = 0; i < 1000; i++)
+      await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties1 })
+    for (let i = 0; i < 1000; i++)
+      await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties2 })
+    for (let i = 0; i < 1000; i++) await publisher.send(Buffer.from(`test${i + 1}`))
+
+    await client.declareConsumer(
+      {
+        stream: streamName,
+        offset: Offset.first(),
+        filter: {
+          values: ["A", "B"],
+          postFilterFunc: (_msg) => true,
+          matchUnfiltered: true,
+        },
+      },
+      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+    )
+
+    await eventually(async () => {
+      expect(filteredMsg.length).eql(3000)
+    }, 10000)
+  }).timeout(10000)
 })
