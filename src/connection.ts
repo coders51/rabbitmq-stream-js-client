@@ -8,7 +8,7 @@ import { Logger } from "./logger"
 import { CloseRequest } from "./requests/close_request"
 import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { OpenRequest } from "./requests/open_request"
-import { PeerPropertiesRequest } from "./requests/peer_properties_request"
+import { PROPERTIES as PEER_PROPERTIES, PeerPropertiesRequest } from "./requests/peer_properties_request"
 import { BufferSizeParams, BufferSizeSettings, Request } from "./requests/request"
 import { SaslAuthenticateRequest } from "./requests/sasl_authenticate_request"
 import { SaslHandshakeRequest } from "./requests/sasl_handshake_request"
@@ -43,14 +43,14 @@ import { coerce, lt } from "semver"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
-export type ConnectionProxyListenersParams = ClientListenersParams & {
+export type ConnectionListenersParams = ClientListenersParams & {
   deliverV1?: DeliverListener
   deliverV2?: DeliverV2Listener
   consumer_update_query?: ConsumerUpdateQueryListener
 }
 
-export type ConnectionProxyParams = ClientParams & {
-  listeners?: ConnectionProxyListenersParams
+export type ConnectionParams = ClientParams & {
+  listeners?: ConnectionListenersParams
 }
 
 export type ConnectionInfo = {
@@ -87,7 +87,7 @@ export class Connection {
   private refs: number = 0
   private filteringEnabled: boolean = false
 
-  constructor(private readonly params: ConnectionProxyParams, private readonly logger: Logger) {
+  constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
     this.hostname = params.hostname
     this.leader = params.leader ?? false
     this.streamName = params.streamName
@@ -108,11 +108,11 @@ export class Connection {
     this.connectionClosedListener = params.listeners?.connection_closed
   }
 
-  public static connect(params: ConnectionProxyParams, logger: Logger): Promise<Connection> {
+  public static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
     return new Connection(params, logger).start()
   }
 
-  public static create(params: ConnectionProxyParams, logger: Logger): Connection {
+  public static create(params: ConnectionParams, logger: Logger): Connection {
     return new Connection(params, logger)
   }
 
@@ -199,7 +199,7 @@ export class Connection {
     }
   }
 
-  private registerListeners(listeners?: ConnectionProxyListenersParams) {
+  private registerListeners(listeners?: ConnectionListenersParams) {
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
     if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
@@ -301,7 +301,11 @@ export class Connection {
 
   private async exchangeProperties(): Promise<PeerPropertiesResponse> {
     this.logger.debug(`Exchange peer properties ...`)
-    const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest())
+    const peerProperties = {
+      ...PEER_PROPERTIES,
+      connection_name: this.params.connectionName ?? PEER_PROPERTIES.connection_name,
+    }
+    const res = await this.sendAndWait<PeerPropertiesResponse>(new PeerPropertiesRequest(peerProperties))
     if (!res.ok) {
       throw new Error(`Unable to exchange peer properties ${res.code} `)
     }
@@ -469,10 +473,10 @@ export function errorMessageOf(code: number): string {
   }
 }
 
-export function connect(logger: Logger, params: ConnectionProxyParams) {
+export function connect(logger: Logger, params: ConnectionParams) {
   return Connection.connect(params, logger)
 }
 
-export function create(logger: Logger, params: ConnectionProxyParams) {
+export function create(logger: Logger, params: ConnectionParams) {
   return Connection.create(params, logger)
 }

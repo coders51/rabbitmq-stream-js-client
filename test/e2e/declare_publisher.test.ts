@@ -1,9 +1,10 @@
 import { expect } from "chai"
 import { Client } from "../../src"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
-import { Rabbit } from "../support/rabbit"
+import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
 import { eventually, expectToThrowAsync, username, password } from "../support/util"
 import { getMaxSharedConnectionInstances } from "../../src/util"
+import { randomUUID } from "crypto"
 
 describe("declare publisher", () => {
   let streamName: string
@@ -94,4 +95,27 @@ describe("declare publisher", () => {
     expect(countPublishersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)
   }).timeout(10000)
+
+  describe("when the client declares a named connection", () => {
+    let connectionName: string | undefined = undefined
+
+    beforeEach(async () => {
+      try {
+        await client.close()
+        connectionName = `publisher-${randomUUID()}`
+        client = await createClient(username, password, undefined, undefined, undefined, undefined, connectionName)
+      } catch (e) {}
+    })
+    it("the name is inherited on the consumer connection", async () => {
+      await createPublisher(streamName, client)
+
+      await eventually(async () => {
+        const connections = await rabbit.getConnections()
+        expect(connections.length).eql(2)
+        expect(connections).to.satisfy((conns: RabbitConnectionResponse[]) => {
+          return conns.every((conn) => conn.client_properties?.connection_name === connectionName)
+        })
+      }, 5000)
+    }).timeout(10000)
+  })
 })
