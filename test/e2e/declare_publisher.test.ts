@@ -106,7 +106,7 @@ describe("declare publisher", () => {
         client = await createClient(username, password, undefined, undefined, undefined, undefined, connectionName)
       } catch (e) {}
     })
-    it("the name is inherited on the consumer connection", async () => {
+    it("the name is inherited on the publisher connection", async () => {
       await createPublisher(streamName, client)
 
       await eventually(async () => {
