@@ -43,6 +43,21 @@ describe("Stream", () => {
       expect(result.name).to.be.eql(streamName)
     })
 
+    it("Should create a new Stream with the given arguments", async () => {
+      const resp = await client.createStream({ stream: streamName, arguments: payload })
+
+      expect(resp).to.be.true
+      const result = await rabbit.getQueueInfo(streamName)
+      expect(result.arguments).to.be.eql({
+        "x-queue-type": "stream",
+        "x-queue-leader-locator": payload["queue-leader-locator"],
+        "x-max-age": payload["max-age"],
+        "x-stream-max-segment-size-bytes": payload["stream-max-segment-size-bytes"],
+        "x-initial-cluster-size": payload["initial-cluster-size"],
+        "x-max-length-bytes": payload["max-length-bytes"],
+      })
+    })
+
     it("Should be idempotent and ignore a duplicate Stream error", async () => {
       await client.createStream({ stream: streamName, arguments: payload })
       const resp = await client.createStream({ stream: streamName, arguments: payload })

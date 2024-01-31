@@ -1,6 +1,7 @@
 import got from "got"
 import { getTestNodesFromEnv } from "./util"
 import { range } from "../../src/util"
+import { CreateStreamArguments } from "../../src/requests/create_stream_request"
 
 export interface RabbitConnectionResponse {
   name: string
@@ -26,6 +27,7 @@ interface MessageInfoResponse {
   messages_unacknowledged: number
   types: "stream" | "quorum" | "classic"
   node: string
+  arguments?: CreateStreamArguments
 }
 
 interface RabbitPublishersResponse {
@@ -96,6 +98,7 @@ export class Rabbit {
         responseType: "json",
       }
     )
+
     return ret.body
   }
 
