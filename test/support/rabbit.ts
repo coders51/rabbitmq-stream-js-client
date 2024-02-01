@@ -2,8 +2,16 @@ import got from "got"
 import { getTestNodesFromEnv } from "./util"
 import { range } from "../../src/util"
 
-interface RabbitConnectionResponse {
+export interface RabbitConnectionResponse {
   name: string
+  client_properties?: {
+    connection_name?: string
+    copyright?: string
+    information?: string
+    platform?: string
+    product?: string
+    version?: string
+  }
 }
 
 interface RabbitConsumerCredits {

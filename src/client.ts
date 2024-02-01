@@ -493,10 +493,10 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnectionProxy = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
-    if (cachedConnectionProxy) return cachedConnectionProxy
+    const cachedConnection = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
+    if (cachedConnection) return cachedConnection
 
-    const newConnectionProxy = await this.getConnectionOnChosenNode(
+    const newConnection = await this.getConnectionOnChosenNode(
       leader,
       streamName,
       chosenNode,
@@ -504,8 +504,8 @@ export class Client {
       connectionClosedListener
     )
 
-    ConnectionPool.cacheConnection(leader, streamName, newConnectionProxy.hostname, newConnectionProxy)
-    return newConnectionProxy
+    ConnectionPool.cacheConnection(leader, streamName, newConnection.hostname, newConnection)
+    return newConnection
   }
 
   private createSuperStreamPartitionsAndBindingKeys(
@@ -611,6 +611,7 @@ export interface ClientParams {
   addressResolver?: AddressResolverParams
   leader?: boolean
   streamName?: string
+  connectionName?: string
 }
 
 export interface DeclarePublisherParams {

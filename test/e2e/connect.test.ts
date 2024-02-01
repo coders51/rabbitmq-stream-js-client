@@ -4,6 +4,7 @@ import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
 import { Version } from "../../src/versions"
+import { randomUUID } from "node:crypto"
 
 describe("connect", () => {
   let client: Client
@@ -24,6 +25,17 @@ describe("connect", () => {
 
     await eventually(async () => {
       expect(await rabbit.getConnections()).lengthOf(1)
+    }, 5000)
+  }).timeout(10000)
+
+  it("declaring connection name", async () => {
+    const connectionName = `connection-name-${randomUUID()}`
+    client = await createClient(username, password, undefined, undefined, undefined, undefined, connectionName)
+
+    await eventually(async () => {
+      const connections = await rabbit.getConnections()
+      expect(connections.length).eql(1)
+      expect(connections[0].client_properties?.connection_name).eql(connectionName)
     }, 5000)
   }).timeout(10000)
 

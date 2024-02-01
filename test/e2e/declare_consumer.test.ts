@@ -15,7 +15,7 @@ import {
   createPublisher,
   createStreamName,
 } from "../support/fake_data"
-import { Rabbit } from "../support/rabbit"
+import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
 import { getMaxSharedConnectionInstances, range } from "../../src/util"
 import { BufferDataReader } from "../../src/response_decoder"
 import {
@@ -29,6 +29,7 @@ import {
 } from "../support/util"
 import { readFileSync } from "fs"
 import path from "path"
+import { randomUUID } from "crypto"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -311,6 +312,29 @@ describe("declare consumer", () => {
     expect(countConsumersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)
   }).timeout(10000)
+
+  describe("when the client declares a named connection", () => {
+    let connectionName: string | undefined = undefined
+
+    beforeEach(async () => {
+      try {
+        await client.close()
+        connectionName = `consumer-${randomUUID()}`
+        client = await createClient(username, password, undefined, undefined, undefined, undefined, connectionName)
+      } catch (e) {}
+    })
+    it("the name is inherited on the consumer connection", async () => {
+      await createConsumer(streamName, client)
+
+      await eventually(async () => {
+        const connections = await rabbit.getConnections()
+        expect(connections.length).eql(2)
+        expect(connections).to.satisfy((conns: RabbitConnectionResponse[]) => {
+          return conns.every((conn) => conn.client_properties?.connection_name === connectionName)
+        })
+      }, 5000)
+    }).timeout(6000)
+  })
 })
 
 function createProperties(): MessageProperties {
