@@ -276,7 +276,7 @@ await client.close()
 
 ### Filtering
 
-It is possible to filter messages both on the publishing and consumer sides
+It is possible to tag messages while publishing and filter them on both the broker side and client side
 
 ```typescript
 const client = await connect({
@@ -289,7 +289,7 @@ const client = await connect({
 
 const publisher = await client.declarePublisher(
   { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
-  (msg) => msg.applicationProperties!["test"].toString() // Extraction of message filtering value
+  (msg) => msg.applicationProperties!["test"].toString() // Tags the message
 )
 const message1 = "test1"
 const message2 = "test2"
