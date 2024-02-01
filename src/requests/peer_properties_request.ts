@@ -6,7 +6,7 @@ import { DataWriter } from "./data_writer"
 
 export const PROPERTIES = {
   product: "RabbitMQ Stream",
-  version: "0.2.0",
+  version: "0.3.0",
   platform: "javascript",
   copyright: "Copyright (c) 2020-2024 Coders51 srl",
   information: "Licensed under the Apache 2.0 and MPL 2.0 licenses. See https://www.rabbitmq.com/",
