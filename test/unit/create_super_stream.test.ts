@@ -10,11 +10,11 @@ describe("Super Stream", () => {
   const rabbit = new Rabbit(username, password)
   const streamName = `test-stream-${randomUUID()}`
   const payload = {
-    "x-queue-leader-locator": "test",
-    "x-max-age": "test",
-    "x-stream-max-segment-size-bytes": 42,
-    "x-initial-cluster-size": 42,
-    "x-max-length-bytes": 42,
+    "queue-leader-locator": "random" as const,
+    "max-age": "120s",
+    "stream-max-segment-size-bytes": 1000,
+    "initial-cluster-size": 5,
+    "max-length-bytes": 20000,
   }
   let client: Client
 
@@ -45,6 +45,27 @@ describe("Super Stream", () => {
       expect(resp).to.be.true
       const result = await rabbit.getSuperStreamQueues("%2F", streamName)
       expect(result.map((r) => r.name)).to.have.members(Array.from(Array(3).keys()).map((n) => `${streamName}-${n}`))
+    })
+
+    it("Should create a new Super Stream with 3 partitions by default with the given arguments", async () => {
+      const resp = await client.createSuperStream({ streamName, arguments: payload })
+
+      expect(resp).to.be.true
+      const result = await rabbit.getSuperStreamQueues("%2F", streamName)
+      expect(result.map((r) => r.name)).to.have.members(Array.from(Array(3).keys()).map((n) => `${streamName}-${n}`))
+      await Promise.all(
+        Array.from(Array(3).keys()).map(async (n) => {
+          const queue = await rabbit.getQueueInfo(`${streamName}-${n}`)
+          expect(queue.arguments).to.be.eql({
+            "x-queue-type": "stream",
+            "x-queue-leader-locator": payload["queue-leader-locator"],
+            "x-max-age": payload["max-age"],
+            "x-stream-max-segment-size-bytes": payload["stream-max-segment-size-bytes"],
+            "x-initial-cluster-size": payload["initial-cluster-size"],
+            "x-max-length-bytes": payload["max-length-bytes"],
+          })
+        })
+      )
     })
 
     it("Should create a new Super Stream with 2 partitions", async () => {

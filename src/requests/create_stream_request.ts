@@ -3,11 +3,11 @@ import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
 export interface CreateStreamArguments {
-  "x-queue-leader-locator"?: string
-  "x-max-age"?: string
-  "x-stream-max-segment-size-bytes"?: number
-  "x-initial-cluster-size"?: number
-  "x-max-length-bytes"?: number
+  "queue-leader-locator"?: "random" | "client-local" | "least-leaders"
+  "max-age"?: string
+  "stream-max-segment-size-bytes"?: number
+  "initial-cluster-size"?: number
+  "max-length-bytes"?: number
 }
 
 export class CreateStreamRequest extends AbstractRequest {

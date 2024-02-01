@@ -276,7 +276,49 @@ await client.close()
 
 ### Filtering
 
-Work in progress ⚠️
+It is possible to tag messages while publishing and filter them on both the broker side and client side
+
+```typescript
+const client = await connect({
+  hostname: "localhost",
+  port: 5552,
+  username: "rabbit",
+  password: "rabbit",
+  vhost: "/",
+})
+
+const publisher = await client.declarePublisher(
+  { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
+  (msg) => msg.applicationProperties!["test"].toString() // Tags the message
+)
+const message1 = "test1"
+const message2 = "test2"
+const message3 = "test3"
+const applicationProperties1 = { test: "A" }
+const applicationProperties2 = { test: "B" }
+
+await publisher.send(Buffer.from(message1), { applicationProperties: applicationProperties1 })
+await publisher.send(Buffer.from(message2), { applicationProperties: applicationProperties1 })
+await publisher.send(Buffer.from(message3), { applicationProperties: applicationProperties2 })
+
+await client.declareConsumer(
+  {
+    stream: streamName,
+    offset: Offset.first(),
+    // Filter option for the consumer
+    filter: {
+      values: ["A", "B"],
+      postFilterFunc: (msg) => msg.applicationProperties!["test"] === "A",
+      matchUnfiltered: true,
+    },
+  },
+  (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+)
+
+await sleep(2000)
+
+await client.close()
+```
 
 ## Running Examples
 
