@@ -1,8 +1,9 @@
 import { createLogger, format, transports } from "winston"
-import { connect } from "rabbitmq-stream-js-client"
+import { Offset, connect } from "rabbitmq-stream-js-client"
 import { randomUUID } from "crypto"
 import { argv } from "process"
 import { PerfTestPublisher } from "./perf_test_publisher"
+import { PerfTestConsumer } from "./perf_test_consumer"
 import { inspect } from "util"
 import { BufferSizeSettings } from "../dist/requests/request"
 
@@ -72,8 +73,15 @@ async function main() {
     { stream: streamName, publisherRef: publisherRef },
     passedArgs.messageSize
   )
+  const perfTestConsumer = new PerfTestConsumer(
+    client,
+    logger,
+    { stream: streamName, offset: Offset.first() },
+    passedArgs.maxMessages
+  )
   logger.info(`${new Date().toISOString()} - cycle start`)
   await perfTestPublisher.cycle()
+  await perfTestConsumer.cycle()
 }
 
 main()
