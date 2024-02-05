@@ -6,6 +6,7 @@ import {
   MessageApplicationProperties,
   MessageProperties,
   MessageHeader,
+  AmqpByte,
 } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import {
@@ -253,20 +254,36 @@ describe("declare consumer", () => {
         "x-queue-type": "stream", // Mandatory to define stream queue
       },
     })
+
     classicPublisher.ch.sendToQueue("testQ", Buffer.from("Hello"), {
       headers: {
         messageAnnotations: annotations,
       },
     })
 
-    await client.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
-      messageAnnotations.push(message.messageAnnotations || {})
-    })
-
     await eventually(async () => {
-      expect(messageAnnotations).not.eql([annotations])
+      expect(messageAnnotations).to.be.empty
       await classicPublisher.ch.close()
       await classicPublisher.conn.close()
+    })
+  }).timeout(10000)
+
+  it("messageAnnotations with bytes are read correctly", async () => {
+    const messageAnnotations: MessageAnnotations[] = []
+    const annotations = { test: new AmqpByte(123) }
+    await client.declareConsumer(
+      { stream: "testQ", offset: Offset.next(), consumerRef: "test" },
+      (message: Message) => {
+        messageAnnotations.push(message.messageAnnotations ?? {})
+      }
+    )
+
+    const testP = await client.declarePublisher({ stream: "testQ" })
+    await testP.send(Buffer.from("Hello"), { messageAnnotations: annotations })
+
+    await eventually(async () => {
+      const [messageAnnotation] = messageAnnotations
+      expect(messageAnnotation).to.eql({ test: 123 })
     })
   }).timeout(10000)
 

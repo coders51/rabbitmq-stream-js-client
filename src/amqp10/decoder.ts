@@ -23,6 +23,7 @@ export const FormatCode = {
   Map32: 0xd1,
   Null: 0x40,
   ULong0: 0x44,
+  Ubyte: 0x50,
   SmallUlong: 0x53,
   ULong: 0x80,
   Uint: 0x70,

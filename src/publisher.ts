@@ -15,7 +15,24 @@ import { PublishRequestV2 } from "./requests/publish_request_v2"
 
 export type MessageApplicationProperties = Record<string, string | number>
 
-export type MessageAnnotations = Record<string, string | number>
+export type MessageAnnotations = Record<string, MessageAnnotationsValue>
+
+export type MessageAnnotationsValue = string | number | AmqpByte
+
+export class AmqpByte {
+  private value: number
+
+  constructor(value: number) {
+    if (value > 255 || value < 0) {
+      throw new Error("Invalid byte, value must be between 0 and 255")
+    }
+    this.value = value
+  }
+
+  public get byteValue() {
+    return this.value
+  }
+}
 
 export interface MessageProperties {
   contentType?: string
@@ -54,7 +71,7 @@ export interface Message {
 export interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
-  messageAnnotations?: Record<string, string | number>
+  messageAnnotations?: Record<string, MessageAnnotationsValue>
 }
 
 export interface Publisher {
