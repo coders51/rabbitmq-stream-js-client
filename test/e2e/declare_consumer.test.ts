@@ -1,13 +1,19 @@
 import { expect } from "chai"
+import { randomUUID } from "crypto"
+import { readFileSync } from "fs"
+import path from "path"
 import { Client, Publisher } from "../../src"
 import {
+  AmqpByte,
   Message,
   MessageAnnotations,
   MessageApplicationProperties,
-  MessageProperties,
   MessageHeader,
+  MessageProperties,
 } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
+import { BufferDataReader } from "../../src/response_decoder"
+import { getMaxSharedConnectionInstances, range } from "../../src/util"
 import {
   createClient,
   createConsumer,
@@ -16,20 +22,14 @@ import {
   createStreamName,
 } from "../support/fake_data"
 import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
-import { getMaxSharedConnectionInstances, range } from "../../src/util"
-import { BufferDataReader } from "../../src/response_decoder"
 import {
+  decodeMessageTesting,
   eventually,
   expectToThrowAsync,
-  username,
-  password,
-  createClassicPublisher,
-  decodeMessageTesting,
   getTestNodesFromEnv,
+  password,
+  username,
 } from "../support/util"
-import { readFileSync } from "fs"
-import path from "path"
-import { randomUUID } from "crypto"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -241,32 +241,23 @@ describe("declare consumer", () => {
     await eventually(async () => expect(messageAnnotations).eql([annotations]))
   }).timeout(10000)
 
-  it("messageAnnotations are ignored by a classic driver", async () => {
+  it("messageAnnotations with bytes are read correctly", async () => {
     const messageAnnotations: MessageAnnotations[] = []
-    const annotations = createAnnotations()
-    const classicPublisher = await createClassicPublisher()
-    await classicPublisher.ch.assertQueue("testQ", {
-      exclusive: false,
-      durable: true,
-      autoDelete: false,
-      arguments: {
-        "x-queue-type": "stream", // Mandatory to define stream queue
-      },
-    })
-    classicPublisher.ch.sendToQueue("testQ", Buffer.from("Hello"), {
-      headers: {
-        messageAnnotations: annotations,
-      },
-    })
+    const annotations = { test: new AmqpByte(123) }
+    await rabbit.createStream("testQ")
+    await client.declareConsumer(
+      { stream: "testQ", offset: Offset.next(), consumerRef: "test" },
+      (message: Message) => {
+        messageAnnotations.push(message.messageAnnotations ?? {})
+      }
+    )
 
-    await client.declareConsumer({ stream: "testQ", offset: Offset.first() }, (message: Message) => {
-      messageAnnotations.push(message.messageAnnotations || {})
-    })
+    const testP = await client.declarePublisher({ stream: "testQ" })
+    await testP.send(Buffer.from("Hello"), { messageAnnotations: annotations })
 
     await eventually(async () => {
-      expect(messageAnnotations).not.eql([annotations])
-      await classicPublisher.ch.close()
-      await classicPublisher.conn.close()
+      const [messageAnnotation] = messageAnnotations
+      expect(messageAnnotation).to.eql({ test: 123 })
     })
   }).timeout(10000)
 

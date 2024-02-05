@@ -411,6 +411,9 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
       return dataResponse.readUInt32()
     case FormatCode.SmallUlong:
       return dataResponse.readInt8() // Read a SmallUlong
+    case FormatCode.Ubyte:
+      dataResponse.forward(1)
+      return dataResponse.readUInt8()
     case FormatCode.ULong:
       return dataResponse.readUInt64() // Read an ULong
     case FormatCode.List0:
