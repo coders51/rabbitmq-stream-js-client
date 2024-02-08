@@ -86,6 +86,7 @@ export class Connection {
   private readonly serverDeclaredVersions: Version[] = []
   private refs: number = 0
   private filteringEnabled: boolean = false
+  public userManuallyClose: boolean = false
 
   constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
     this.hostname = params.hostname
@@ -148,7 +149,7 @@ export class Connection {
       })
       this.socket.on("close", (had_error) => {
         this.logger.info(`Close event on socket, close cloud had_error? ${had_error}`)
-        if (this.connectionClosedListener) this.connectionClosedListener(had_error)
+        if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
       })
     })
   }
@@ -416,6 +417,7 @@ export class Connection {
     this.logger.debug(`Close...`)
     const closeResponse = await this.sendAndWait<CloseResponse>(new CloseRequest(params))
     this.logger.debug(`Close response: ${closeResponse.ok} - '${inspect(closeResponse)}'`)
+    this.userManuallyClose = params.manuallyClose ?? false
     this.socket.end()
   }
 

@@ -83,7 +83,7 @@ export interface Publisher {
   on(event: "publish_confirm", listener: PublishConfirmCallback): void
   getLastPublishingId(): Promise<bigint>
   getConnectionInfo(): ConnectionInfo
-  close(): Promise<void>
+  close(manuallyClose: boolean): Promise<void>
   ref: string
   readonly publisherId: number
 }
@@ -197,12 +197,12 @@ export class StreamPublisher implements Publisher {
     return this.publisherRef
   }
 
-  public async close(): Promise<void> {
+  public async close(manuallyClose: boolean): Promise<void> {
     if (!this.closed) {
       await this.flush()
       this.connection.decrRefCount()
       if (ConnectionPool.removeIfUnused(this.connection)) {
-        await this.connection.close()
+        await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
       }
     }
     this.closed = true

@@ -5,6 +5,7 @@ import { Rabbit } from "../support/rabbit"
 import { username, password, eventually, always } from "../support/util"
 import { randomUUID } from "crypto"
 import { Offset } from "../../src/requests/subscribe_request"
+
 describe("connection closed callback", () => {
   let client: Client | undefined = undefined
   const rabbit = new Rabbit(username, password)
@@ -22,10 +23,10 @@ describe("connection closed callback", () => {
   afterEach(async () => {
     spySandbox?.restore()
     try {
-      await client?.close()
       await rabbit.deleteStream(streamName)
-      await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
+      await client?.close()
+      await rabbit.closeAllConnections()
     } catch (e) {}
 
     try {
@@ -65,40 +66,90 @@ describe("connection closed callback", () => {
     }, 1000)
   }).timeout(5000)
 
-  it("if specified, is called also on publisher and consumer socket events", async () => {
+  it("closed_connection listener is not invoked by the client", async () => {
     const listener = (_hasError: boolean) => {
       return
     }
-    const listenerSpy = spy(listener)
-    client = await createClient(username, password, { connection_closed: listenerSpy })
-    await client.declarePublisher({ stream: streamName, publisherRef, connectionClosedListener: listenerSpy })
-    await client.declareConsumer(
-      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: listenerSpy },
-      (_msg) => {
-        return
-      }
-    )
+    const clientListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: clientListenerSpy })
 
     await client.close()
 
-    await eventually(() => {
-      expect(listenerSpy).to.have.been.called.exactly(3)
-    }, 1000)
+    await always(() => {
+      expect(clientListenerSpy).to.have.been.called.exactly(0)
+    })
   }).timeout(5000)
 
-  it("different callbacks for client, consumer and publisher are all called when connections close", async () => {
-    const instListener = () => {
-      return (_hasError: boolean) => {
-        return
-      }
+  it("closed_connection listener is not invoked by the deletePublisher", async () => {
+    const listener = (_hasError: boolean) => {
+      return
     }
-    const listenerClientSpy = spy(instListener())
-    const listenerConsumerSpy = spy(instListener())
-    const listenerPublisherSpy = spy(instListener())
-    client = await createClient(username, password, { connection_closed: listenerClientSpy })
-    await client.declarePublisher({ stream: streamName, publisherRef, connectionClosedListener: listenerConsumerSpy })
+    const publisherListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: publisherListenerSpy })
+    const publisher = await client.declarePublisher({
+      stream: streamName,
+      publisherRef,
+      connectionClosedListener: publisherListenerSpy,
+    })
+
+    await client.deletePublisher(publisher.publisherId)
+
+    await always(() => {
+      expect(publisherListenerSpy).to.have.been.called.exactly(0)
+    })
+  }).timeout(5000)
+
+  it("closed_connection listener is not invoked by the deleteConsumer", async () => {
+    const listener = (_hasError: boolean) => {
+      return
+    }
+    const consumerListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: consumerListenerSpy })
+    const consumer = await client.declareConsumer(
+      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
+      (_msg) => {
+        return
+      }
+    )
+
+    await client.closeConsumer(consumer.consumerId)
+
+    await always(() => {
+      expect(consumerListenerSpy).to.have.been.called.exactly(0)
+    })
+  }).timeout(5000)
+
+  it("closed_connection listener is not invoked by the client even with multiple publishers and consumers", async () => {
+    const listener = (_hasError: boolean) => {
+      return
+    }
+    const clientListenerSpy = spy(listener)
+    const publisherListenerSpy = spy(listener)
+    const consumerListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: clientListenerSpy })
+    await client.declarePublisher({
+      stream: streamName,
+      publisherRef,
+      connectionClosedListener: publisherListenerSpy,
+    })
+    await client.declarePublisher({
+      stream: streamName,
+      publisherRef: `${publisherRef}-1`,
+      connectionClosedListener: publisherListenerSpy,
+    })
     await client.declareConsumer(
-      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: listenerPublisherSpy },
+      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
+      (_msg) => {
+        return
+      }
+    )
+    await client.declareConsumer(
+      {
+        stream: streamName,
+        consumerRef: `${consumerRef}-1`,
+        offset: Offset.first(),
+        connectionClosedListener: consumerListenerSpy,
+      },
       (_msg) => {
         return
       }
@@ -106,14 +157,46 @@ describe("connection closed callback", () => {
 
     await client.close()
 
-    await eventually(() => {
-      expect(listenerClientSpy).to.have.been.called.exactly(1)
-    }, 1000)
-    await eventually(() => {
-      expect(listenerConsumerSpy).to.have.been.called.exactly(1)
-    }, 1000)
-    await eventually(() => {
-      expect(listenerPublisherSpy).to.have.been.called.exactly(1)
-    }, 1000)
+    await always(() => {
+      expect(clientListenerSpy).to.have.been.called.exactly(0)
+    })
+    await always(() => {
+      expect(publisherListenerSpy).to.have.been.called.exactly(0)
+    })
+    await always(() => {
+      expect(consumerListenerSpy).to.have.been.called.exactly(0)
+    })
   }).timeout(5000)
+
+  it("closed_connection listener is invoked by the server if it closes the connection", async () => {
+    const listener = (_hasError: boolean) => {
+      return
+    }
+    const clientListenerSpy = spy(listener)
+    const publisherListenerSpy = spy(listener)
+    const consumerListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: clientListenerSpy })
+    await client.declarePublisher({
+      stream: streamName,
+      publisherRef,
+      connectionClosedListener: publisherListenerSpy,
+    })
+    await client.declareConsumer(
+      { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
+      (_msg) => {
+        return
+      }
+    )
+    await sleep(5000)
+
+    await rabbit.closeAllConnections()
+
+    await eventually(() => {
+      expect(clientListenerSpy).to.have.been.called.exactly(1)
+      expect(publisherListenerSpy).to.have.been.called.exactly(1)
+      expect(consumerListenerSpy).to.have.been.called.exactly(1)
+    }, 5000)
+  }).timeout(10000)
 })
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
