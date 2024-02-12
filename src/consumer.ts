@@ -7,7 +7,7 @@ import { Offset } from "./requests/subscribe_request"
 export type ConsumerFunc = (message: Message) => void
 
 export interface Consumer {
-  close(): Promise<void>
+  close(manuallyClose: boolean): Promise<void>
   storeOffset(offsetValue: bigint): Promise<void>
   queryOffset(): Promise<bigint>
   getConnectionInfo(): ConnectionInfo
@@ -41,10 +41,10 @@ export class StreamConsumer implements Consumer {
     this.connection.incrRefCount()
   }
 
-  async close(): Promise<void> {
+  async close(manuallyClose: boolean): Promise<void> {
     this.connection.decrRefCount()
     if (ConnectionPool.removeIfUnused(this.connection)) {
-      await this.connection.close()
+      await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
     }
   }
 

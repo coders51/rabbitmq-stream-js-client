@@ -29,7 +29,7 @@ describe("consume a batch of messages", () => {
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-      await consumer?.close()
+      await consumer?.close(true)
     } catch (e) {}
   })
 

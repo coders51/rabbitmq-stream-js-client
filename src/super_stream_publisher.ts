@@ -43,7 +43,7 @@ export class SuperStreamPublisher {
   }
 
   public async close(): Promise<void> {
-    await Promise.all([...this.publishers.values()].map((p) => p.close()))
+    await Promise.all([...this.publishers.values()].map((p) => p.close(true)))
     this.publishers = new Map()
   }
 

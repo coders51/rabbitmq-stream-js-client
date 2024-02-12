@@ -45,7 +45,7 @@ import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
-export type ClosingParams = { closingCode: number; closingReason: string }
+export type ClosingParams = { closingCode: number; closingReason: string; manuallyClose?: boolean }
 
 export class Client {
   private id: string = randomUUID()
@@ -87,11 +87,11 @@ export class Client {
     this.logger.info(`${this.id} Closing client...`)
     if (this.publisherCounts()) {
       this.logger.info(`Stopping all producers...`)
-      await this.closeAllPublishers()
+      await this.closeAllPublishers(true)
     }
     if (this.consumerCounts()) {
       this.logger.info(`Stopping all consumers...`)
-      await this.closeAllConsumers()
+      await this.closeAllConsumers(true)
     }
     this.connection.decrRefCount()
     await this.closeConnectionIfUnused(this.connection, params)
@@ -100,7 +100,7 @@ export class Client {
   private async closeConnectionIfUnused(connection: Connection, params: ClosingParams) {
     if (connection.refCount <= 0) {
       ConnectionPool.removeCachedConnection(this.connection)
-      await this.connection.close(params)
+      await this.connection.close({ ...params, manuallyClose: true })
     }
   }
 
@@ -168,7 +168,7 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await this.publishers.get(publisherId)?.publisher.close()
+    await this.publishers.get(publisherId)?.publisher.close(true)
     this.publishers.delete(publisherId)
     this.logger.info(`deleted publisher with publishing id ${publisherId}`)
     return res.ok
@@ -235,7 +235,7 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await consumer.close()
+    await consumer.close(true)
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
@@ -263,13 +263,13 @@ export class Client {
     })
   }
 
-  private async closeAllConsumers() {
-    await Promise.all([...this.consumers.values()].map((c) => c.close()))
+  private async closeAllConsumers(manuallyClose: boolean) {
+    await Promise.all([...this.consumers.values()].map((c) => c.close(manuallyClose)))
     this.consumers = new Map<number, StreamConsumer>()
   }
 
-  private async closeAllPublishers() {
-    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close()))
+  private async closeAllPublishers(manuallyClose: boolean) {
+    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close(manuallyClose)))
     this.publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
   }
 
