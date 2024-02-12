@@ -47,19 +47,26 @@ export type ConnectionClosedListener = (hadError: boolean) => void
 
 export type ClosingParams = { closingCode: number; closingReason: string; manuallyClose?: boolean }
 
+type ConsumerMappedValue = { connection: Connection; consumer: StreamConsumer; params: DeclareConsumerParams }
+type PublisherMappedValue = {
+  connection: Connection
+  publisher: StreamPublisher
+  params: DeclarePublisherParams
+  filter: FilterFunc | undefined
+}
 export class Client {
-  private id: string = randomUUID()
+  public readonly id: string = randomUUID()
   private publisherId = 0
   private consumerId = 0
-  private consumers = new Map<number, StreamConsumer>()
-  private publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
+  private consumers = new Map<number, ConsumerMappedValue>()
+  private publishers = new Map<number, PublisherMappedValue>()
   private compressions = new Map<CompressionType, Compression>()
-  private readonly connection: Connection
+  private connection: Connection
 
-  private constructor(private readonly logger: Logger, private readonly params: ClientParams, connection?: Connection) {
+  private constructor(private readonly logger: Logger, private readonly params: ClientParams) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
-    this.connection = connection ?? this.getLocatorConnection()
+    this.connection = this.getLocatorConnection()
     this.connection.incrRefCount()
   }
 
@@ -127,38 +134,24 @@ export class Client {
   }
 
   public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
-    const { stream, publisherRef } = params
     const publisherId = this.incPublisherId()
-
     const connection = await this.getConnection(params.stream, true, params.connectionClosedListener)
-    const res = await connection.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ stream, publisherRef, publisherId })
-    )
-    if (!res.ok) {
-      await connection.close()
-      throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    await this.declarePublisherOnConnection(params, publisherId, connection, filter)
+    const streamPublisherParams = {
+      connection: connection,
+      stream: params.stream,
+      publisherId: publisherId,
+      publisherRef: params.publisherRef,
+      boot: params.boot,
+      maxFrameSize: this.maxFrameSize,
+      maxChunkLength: params.maxChunkLength,
+      logger: this.logger,
     }
-    if (filter && !connection.isFilteringEnabled) {
-      throw new Error(`Broker does not support message filtering.`)
-    }
-    const publisher = new StreamPublisher(
-      {
-        connection: connection,
-        stream: params.stream,
-        publisherId: publisherId,
-        publisherRef: params.publisherRef,
-        boot: params.boot,
-        maxFrameSize: this.maxFrameSize,
-        maxChunkLength: params.maxChunkLength,
-        logger: this.logger,
-      },
-      filter
-    )
-    this.publishers.set(publisherId, { publisher: publisher, connection: connection })
+    const publisher = new StreamPublisher(streamPublisherParams, filter)
+    this.publishers.set(publisherId, { publisher, connection, params, filter })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
-
     return publisher
   }
 
@@ -176,7 +169,7 @@ export class Client {
 
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
-    const properties: Record<string, string> = {}
+
     const connection = await this.getConnection(params.stream, false, params.connectionClosedListener)
 
     if (params.filter && !connection.isFilteringEnabled) {
@@ -184,41 +177,12 @@ export class Client {
     }
 
     const consumer = new StreamConsumer(
-      addOffsetFilterToHandle(handle, params.offset),
-      {
-        connection,
-        stream: params.stream,
-        consumerId,
-        consumerRef: params.consumerRef,
-        offset: params.offset,
-      },
+      handle,
+      { connection, stream: params.stream, consumerId, consumerRef: params.consumerRef, offset: params.offset },
       params.filter
     )
-    this.consumers.set(consumerId, consumer)
-
-    if (params.singleActive && !params.consumerRef) {
-      throw new Error("consumerRef is mandatory when declaring a single active consumer")
-    }
-    if (params.singleActive) {
-      properties["single-active-consumer"] = "true"
-      properties["name"] = params.consumerRef!
-    }
-    if (params.filter) {
-      for (let i = 0; i < params.filter.values.length; i++) {
-        properties[`filter.${i}`] = params.filter.values[i]
-      }
-      properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
-    }
-
-    const res = await this.connection.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
-    )
-
-    if (!res.ok) {
-      this.consumers.delete(consumerId)
-      throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
-    }
-
+    this.consumers.set(consumerId, { connection, consumer, params })
+    await this.declareConsumerOnConnection(params, consumerId, this.connection)
     this.logger.info(
       `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
@@ -226,7 +190,8 @@ export class Client {
   }
 
   public async closeConsumer(consumerId: number) {
-    const consumer = this.consumers.get(consumerId)
+    const consumer = this.consumers.get(consumerId)?.consumer
+
     if (!consumer) {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
@@ -264,13 +229,13 @@ export class Client {
   }
 
   private async closeAllConsumers(manuallyClose: boolean) {
-    await Promise.all([...this.consumers.values()].map((c) => c.close(manuallyClose)))
-    this.consumers = new Map<number, StreamConsumer>()
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(manuallyClose)))
+    this.consumers = new Map<number, ConsumerMappedValue>()
   }
 
   private async closeAllPublishers(manuallyClose: boolean) {
     await Promise.all([...this.publishers.values()].map((c) => c.publisher.close(manuallyClose)))
-    this.publishers = new Map<number, { connection: Connection; publisher: StreamPublisher }>()
+    this.publishers = new Map<number, PublisherMappedValue>()
   }
 
   public consumerCounts() {
@@ -386,6 +351,38 @@ export class Client {
     return res
   }
 
+  public async restart() {
+    this.logger.info(`Restarting client connection ${this.connection.id}`)
+    const uniqueConnectionIds = new Set<string>()
+    uniqueConnectionIds.add(this.connection.id)
+
+    await new Promise(async (res) => {
+      setTimeout(() => {
+        res(true)
+      }, 5000)
+    })
+    await this.connection.restart()
+
+    for (const { consumer, connection, params } of this.consumers.values()) {
+      if (!uniqueConnectionIds.has(connection.id)) {
+        this.logger.info(`Restarting consumer connection ${connection.id}`)
+        await connection.restart()
+      }
+      uniqueConnectionIds.add(connection.id)
+      const consumerParams = { ...params, offset: consumer.localOffset }
+      await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, this.connection)
+    }
+
+    for (const { publisher, connection, params, filter } of this.publishers.values()) {
+      if (!uniqueConnectionIds.has(connection.id)) {
+        this.logger.info(`Restarting publisher connection ${connection.id}`)
+        await connection.restart()
+      }
+      uniqueConnectionIds.add(connection.id)
+      await this.declarePublisherOnConnection(params, publisher.publisherId, connection, filter)
+    }
+  }
+
   public get maxFrameSize() {
     return this.connection.maxFrameSize ?? DEFAULT_FRAME_MAX
   }
@@ -416,6 +413,50 @@ export class Client {
     return res.streams
   }
 
+  private async declarePublisherOnConnection(
+    params: DeclarePublisherParams,
+    publisherId: number,
+    connection: Connection,
+    filter?: FilterFunc
+  ) {
+    const res = await connection.sendAndWait<DeclarePublisherResponse>(
+      new DeclarePublisherRequest({ stream: params.stream, publisherRef: params.publisherRef, publisherId })
+    )
+    if (!res.ok) {
+      await connection.close()
+      throw new Error(`Declare Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    if (filter && !connection.isFilteringEnabled) {
+      throw new Error(`Broker does not support message filtering.`)
+    }
+  }
+
+  private async declareConsumerOnConnection(params: DeclareConsumerParams, consumerId: number, connection: Connection) {
+    const properties: Record<string, string> = {}
+    if (params.singleActive && !params.consumerRef) {
+      throw new Error("consumerRef is mandatory when declaring a single active consumer")
+    }
+    if (params.singleActive) {
+      properties["single-active-consumer"] = "true"
+      properties["name"] = params.consumerRef!
+    }
+    if (params.filter) {
+      for (let i = 0; i < params.filter.values.length; i++) {
+        properties[`filter.${i}`] = params.filter.values[i]
+      }
+      properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
+    }
+
+    const res = await connection.sendAndWait<SubscribeResponse>(
+      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
+    )
+
+    if (!res.ok) {
+      this.consumers.delete(consumerId)
+      throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+  }
+
   private askForCredit(params: CreditRequestParams): Promise<void> {
     return this.send(new CreditRequest({ ...params }))
   }
@@ -434,7 +475,7 @@ export class Client {
 
   private getDeliverV1Callback() {
     return async (response: DeliverResponse) => {
-      const consumer = this.consumers.get(response.subscriptionId)
+      const consumer = this.consumers.get(response.subscriptionId)?.consumer
       if (!consumer) {
         this.logger.error(`On deliverV1 no consumer found`)
         return
@@ -448,7 +489,7 @@ export class Client {
 
   private getDeliverV2Callback() {
     return async (response: DeliverResponseV2) => {
-      const consumer = this.consumers.get(response.subscriptionId)
+      const consumer = this.consumers.get(response.subscriptionId)?.consumer
       if (!consumer) {
         this.logger.error(`On deliverV2 no consumer found`)
         return
@@ -466,7 +507,7 @@ export class Client {
 
   private getConsumerUpdateCallback() {
     return async (response: ConsumerUpdateQuery) => {
-      const consumer = this.consumers.get(response.subscriptionId)
+      const consumer = this.consumers.get(response.subscriptionId)?.consumer
       if (!consumer) {
         this.logger.error(`On consumer_update_query no consumer found`)
         return
@@ -677,19 +718,6 @@ export interface QueryPartitionsParams {
 
 export function connect(params: ClientParams, logger?: Logger): Promise<Client> {
   return Client.connect(params, logger)
-}
-
-const addOffsetFilterToHandle = (handle: ConsumerFunc, offset: Offset): ConsumerFunc => {
-  if (offset.type === "numeric") {
-    const handlerWithFilter = (message: Message) => {
-      if (message.offset !== undefined && message.offset < offset.value!) {
-        return
-      }
-      handle(message)
-    }
-    return handlerWithFilter
-  }
-  return handle
 }
 
 const chooseNode = (metadata: { leader?: Broker; replicas?: Broker[] }, leader: boolean): Broker | undefined => {

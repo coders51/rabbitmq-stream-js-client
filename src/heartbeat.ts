@@ -32,6 +32,11 @@ export class Heartbeat {
       clearTimeout(this.timeout)
     }
     this.interval = 0
+    this.heartBeatStarted = false
+  }
+
+  public get started() {
+    return this.heartBeatStarted
   }
 
   reportLastMessageReceived() {

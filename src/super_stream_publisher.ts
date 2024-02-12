@@ -1,7 +1,7 @@
 import { Client, RoutingStrategy } from "./client"
 import { CompressionType } from "./compression"
 import { murmur32 } from "./hash/murmur32"
-import { Message, MessageOptions, Publisher } from "./publisher"
+import { Message, MessageOptions, Publisher, SendResult } from "./publisher"
 import { bigIntMax } from "./util"
 
 export type MessageKeyExtractorFunction = (content: string, opts: MessageOptions) => string | undefined
@@ -47,13 +47,13 @@ export class SuperStreamPublisher {
     this.publishers = new Map()
   }
 
-  public async send(message: Buffer, opts: MessageOptions): Promise<boolean> {
+  public async send(message: Buffer, opts: MessageOptions): Promise<SendResult> {
     const partition = await this.routeMessage(message, opts)
     const publisher = await this.getPublisher(partition)
     return publisher.send(message, opts)
   }
 
-  public async basicSend(publishingId: bigint, message: Buffer, opts: MessageOptions): Promise<boolean> {
+  public async basicSend(publishingId: bigint, message: Buffer, opts: MessageOptions): Promise<SendResult> {
     const partition = await this.routeMessage(message, opts)
     const publisher = await this.getPublisher(partition)
     return publisher.basicSend(publishingId, message, opts)

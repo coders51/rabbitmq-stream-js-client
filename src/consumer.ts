@@ -21,9 +21,11 @@ export class StreamConsumer implements Consumer {
   public consumerId: number
   public consumerRef?: string
   public offset: Offset
+  private clientLocalOffset: Offset
+  readonly handle: ConsumerFunc
 
   constructor(
-    readonly handle: ConsumerFunc,
+    handle: ConsumerFunc,
     params: {
       connection: Connection
       stream: string
@@ -38,7 +40,9 @@ export class StreamConsumer implements Consumer {
     this.consumerId = params.consumerId
     this.consumerRef = params.consumerRef
     this.offset = params.offset
+    this.clientLocalOffset = this.offset.clone()
     this.connection.incrRefCount()
+    this.handle = this.wrapHandle(handle, params.offset)
   }
 
   async close(manuallyClose: boolean): Promise<void> {
@@ -61,5 +65,36 @@ export class StreamConsumer implements Consumer {
   public getConnectionInfo(): ConnectionInfo {
     const { host, port, id, readable, localPort } = this.connection.getConnectionInfo()
     return { host, port, id, readable, localPort }
+  }
+
+  public get localOffset() {
+    return this.clientLocalOffset.clone()
+  }
+
+  private wrapHandle(handle: ConsumerFunc, offset: Offset) {
+    const updateLocalOffsetHandle = this.updateLocalOffsetHandle(handle)
+    return this.addOffsetFilterToHandle(updateLocalOffsetHandle, offset)
+  }
+
+  private updateLocalOffsetHandle(handle: ConsumerFunc) {
+    const wrapped = (message: Message) => {
+      const result = handle(message)
+      if (message.offset !== undefined) this.clientLocalOffset = Offset.offset(message.offset)
+      return result
+    }
+    return wrapped
+  }
+
+  private addOffsetFilterToHandle(handle: ConsumerFunc, offset: Offset) {
+    if (offset.type === "numeric") {
+      const handlerWithFilter = (message: Message) => {
+        if (message.offset !== undefined && message.offset < offset.value!) {
+          return
+        }
+        handle(message)
+      }
+      return handlerWithFilter
+    }
+    return handle
   }
 }

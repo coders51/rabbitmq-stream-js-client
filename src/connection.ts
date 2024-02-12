@@ -87,19 +87,15 @@ export class Connection {
   private refs: number = 0
   private filteringEnabled: boolean = false
   public userManuallyClose: boolean = false
+  private setupCompleted: boolean = false
+  public readonly id = randomUUID()
 
   constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
     this.hostname = params.hostname
     this.leader = params.leader ?? false
     this.streamName = params.streamName
     if (params.frameMax) this.frameMax = params.frameMax
-    if (params.ssl) {
-      this.socket = tls.connect(params.port, params.hostname, { ...params.ssl, rejectUnauthorized: false })
-    } else {
-      this.socket = new Socket()
-      this.socket.connect(this.params.port, this.params.hostname)
-    }
-    if (params.socketTimeout) this.socket.setTimeout(params.socketTimeout)
+    this.socket = this.createSocket()
     this.heartbeat = new Heartbeat(this, this.logger)
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -107,23 +103,25 @@ export class Connection {
     this.bufferSizeSettings = params.bufferSizeSettings || {}
     this.connectionId = randomUUID()
     this.connectionClosedListener = params.listeners?.connection_closed
+    this.logSocket("new")
   }
 
-  public static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
-    return new Connection(params, logger).start()
+  private createSocket() {
+    const socket = this.params.ssl
+      ? tls.connect(this.params.port, this.params.hostname, {
+          ...this.params.ssl,
+          rejectUnauthorized: false,
+        })
+      : new Socket().connect(this.params.port, this.params.hostname)
+    if (this.params.socketTimeout) socket.setTimeout(this.params.socketTimeout)
+    return socket
   }
 
-  public static create(params: ConnectionParams, logger: Logger): Connection {
-    return new Connection(params, logger)
-  }
-
-  public start(): Promise<Connection> {
-    this.registerListeners(this.params.listeners)
-
+  private registerSocketListeners(): Promise<Connection> {
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
-          `Error on client ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
+          `Error on connection ${this.id} ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
         )
         return rej(err)
       })
@@ -134,8 +132,9 @@ export class Connection {
         await this.auth({ username: this.params.username, password: this.params.password })
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
         await this.open({ virtualHost: this.params.vhost })
-        this.heartbeat.start(heartbeat)
+        if (!this.heartbeat.started) this.heartbeat.start(heartbeat)
         await this.exchangeCommandVersions()
+        this.setupCompleted = true
         return res(this)
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${this.params.hostname}:${this.params.port}`))
@@ -148,10 +147,39 @@ export class Connection {
         this.received(data)
       })
       this.socket.on("close", (had_error) => {
-        this.logger.info(`Close event on socket, close cloud had_error? ${had_error}`)
+        this.setupCompleted = false
+        this.logger.info(`Close event on socket for connection ${this.id}, close cloud had_error? ${had_error}`)
         if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
       })
     })
+  }
+
+  private unregisterSocketListeners() {
+    this.socket.removeAllListeners("connect")
+    this.socket.removeAllListeners("drain")
+    this.socket.removeAllListeners("timeout")
+    this.socket.removeAllListeners("data")
+    this.socket.removeAllListeners("close")
+  }
+
+  public async restart() {
+    this.unregisterSocketListeners()
+    this.socket = this.createSocket()
+    await this.registerSocketListeners()
+    this.logSocket("restarted")
+  }
+
+  public static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
+    return new Connection(params, logger).start()
+  }
+
+  public static create(params: ConnectionParams, logger: Logger): Connection {
+    return new Connection(params, logger)
+  }
+
+  public start(): Promise<Connection> {
+    this.registerListeners(this.params.listeners)
+    return this.registerSocketListeners()
   }
 
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
@@ -200,6 +228,18 @@ export class Connection {
     }
   }
 
+  private logSocket(prefix: string = "") {
+    this.logger.info(
+      `${prefix} socket for connection ${this.id}: ${inspect([
+        this.socket.readable,
+        this.socket.writable,
+        this.socket.localAddress,
+        this.socket.localPort,
+        this.socket.readyState,
+      ])}`
+    )
+  }
+
   private registerListeners(listeners?: ConnectionListenersParams) {
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
@@ -234,9 +274,7 @@ export class Connection {
       new ExchangeCommandVersionsRequest(versions)
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
-
-    checkServerDeclaredVersions(this.serverVersions, this.logger, this.peerProperties.version)
-    return response
+    return checkServerDeclaredVersions(this.serverVersions, this.logger, this.peerProperties.version)
   }
 
   public sendAndWait<T extends Response>(cmd: Request): Promise<T> {
@@ -358,6 +396,10 @@ export class Connection {
     return this.filteringEnabled
   }
 
+  public get ready() {
+    return this.setupCompleted
+  }
+
   private async auth(params: { username: string; password: string }) {
     this.logger.debug(`Start authentication process ...`)
     this.logger.debug(`Start SASL handshake ...`)
@@ -411,7 +453,7 @@ export class Connection {
   }
 
   public async close(params: ClosingParams = { closingCode: 0, closingReason: "" }): Promise<void> {
-    this.logger.info(`Closing client...`)
+    this.logger.info(`Closing connection...`)
     this.logger.info(`Stopping heartbeat...`)
     this.heartbeat.stop()
     this.logger.debug(`Close...`)
