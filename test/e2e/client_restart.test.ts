@@ -6,7 +6,7 @@ import { eventually, username, password } from "../support/util"
 import { Consumer } from "../../src/consumer"
 import { Message, Publisher } from "../../src/publisher"
 
-describe.only("restart connections", () => {
+describe("restart connections", () => {
   const rabbit = new Rabbit(username, password)
   let streamName: string
   let client: Client
@@ -61,11 +61,11 @@ describe.only("restart connections", () => {
     const dummyMsgHandler = (_msg: Message) => {
       return
     }
-    for (const streamName of streamNames) {
-      await rabbit.createStream(streamName)
-      const publisher = await client.declarePublisher({ stream: streamName })
-      const consumer1 = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, dummyMsgHandler)
-      const consumer2 = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, dummyMsgHandler)
+    for (const stream of streamNames) {
+      await rabbit.createStream(stream)
+      const publisher = await client.declarePublisher({ stream: stream })
+      const consumer1 = await client.declareConsumer({ stream: stream, offset: Offset.first() }, dummyMsgHandler)
+      const consumer2 = await client.declareConsumer({ stream: stream, offset: Offset.first() }, dummyMsgHandler)
       publishers.set(publisher.publisherId, publisher)
       consumers.set(consumer1.consumerId, consumer1)
       consumers.set(consumer2.consumerId, consumer2)
@@ -77,23 +77,23 @@ describe.only("restart connections", () => {
     await client.restart()
 
     await eventually(async () => {
-      const connectionInfo = client.getConnectionInfo()
-      expect(connectionInfo.localPort).is.not.undefined
-      expect(connectionInfo.localPort).not.eql(clientOldConnectionInfo.localPort)
-      expect(connectionInfo.ready).eql(true)
+      const clientConnectionInfo = client.getConnectionInfo()
+      expect(clientConnectionInfo.localPort).is.not.undefined
+      expect(clientConnectionInfo.localPort).not.eql(clientOldConnectionInfo.localPort)
+      expect(clientConnectionInfo.ready).eql(true)
       for (const consumerId of consumers.keys()) {
         const consumer = consumers.get(consumerId)
-        const connectionInfo = consumer!.getConnectionInfo()
-        expect(connectionInfo.ready).eql(true)
-        expect(connectionInfo.localPort).not.undefined
-        expect(connectionInfo.localPort).not.eql(localConsumerPorts.get(consumerId))
+        const consumerConnectionInfo = consumer!.getConnectionInfo()
+        expect(consumerConnectionInfo.ready).eql(true)
+        expect(consumerConnectionInfo.localPort).not.undefined
+        expect(consumerConnectionInfo.localPort).not.eql(localConsumerPorts.get(consumerId))
       }
       for (const publisherId of publishers.keys()) {
         const publisher = publishers.get(publisherId)
-        const connectionInfo = publisher!.getConnectionInfo()
-        expect(connectionInfo.ready).eql(true)
-        expect(connectionInfo.localPort).not.undefined
-        expect(connectionInfo.localPort).not.eql(localPublisherPorts.get(publisherId))
+        const publisherConnectionInfo = publisher!.getConnectionInfo()
+        expect(publisherConnectionInfo.ready).eql(true)
+        expect(publisherConnectionInfo.localPort).not.undefined
+        expect(publisherConnectionInfo.localPort).not.eql(localPublisherPorts.get(publisherId))
       }
     }, 10000)
   }).timeout(20000)
