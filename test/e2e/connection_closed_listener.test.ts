@@ -6,7 +6,7 @@ import { username, password, eventually, always } from "../support/util"
 import { randomUUID } from "crypto"
 import { Offset } from "../../src/requests/subscribe_request"
 
-describe.only("connection closed callback", () => {
+describe("connection closed callback", () => {
   let client: Client | undefined = undefined
   const rabbit = new Rabbit(username, password)
   let spySandbox: ChaiSpies.Sandbox | null = null

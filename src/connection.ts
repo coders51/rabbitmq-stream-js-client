@@ -57,6 +57,7 @@ export type ConnectionInfo = {
   host: string
   port: number
   id: string
+  ready: boolean
   readable?: boolean
   writable?: boolean
   localPort?: number
@@ -325,6 +326,7 @@ export class Connection {
       readable: this.socket.readable,
       writable: this.socket.writable,
       localPort: this.socket.localPort,
+      ready: this.ready,
     }
   }
 

@@ -162,8 +162,8 @@ export class StreamPublisher implements Publisher {
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    const { host, port, id, writable, localPort } = this.connection.getConnectionInfo()
-    return { host, port, id, writable, localPort }
+    const { host, port, id, writable, localPort, ready } = this.connection.getConnectionInfo()
+    return { host, port, id, writable, localPort, ready }
   }
 
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
