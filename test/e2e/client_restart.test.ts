@@ -89,22 +89,22 @@ describe("restart connections", () => {
 
   it("sending and receiving messages is not affected", async () => {
     const received = new Set<string>()
-    const nmsg = 10000
-    const triggerIndex = Math.floor(nmsg / 4)
+    const messageNumber = 10000
+    const triggerIndex = Math.floor(messageNumber / 4)
     const consumeHandle = (msg: Message) => {
       received.add(msg.messageProperties?.messageId!)
     }
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, consumeHandle)
     const publisher = await client.declarePublisher({ stream: streamName })
 
-    for (let i = 0; i < nmsg; i++) {
+    for (let i = 0; i < messageNumber; i++) {
       const msg = Buffer.from(`${randomUUID()}`)
       await publisher.send(msg, { messageProperties: { messageId: `${i}` } })
       if (i === triggerIndex) await client.restart()
     }
 
     await eventually(async () => {
-      expect(received.size).eql(nmsg)
+      expect(received.size).eql(messageNumber)
     }, 10000)
   }).timeout(20000)
 })

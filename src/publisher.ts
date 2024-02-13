@@ -136,7 +136,6 @@ export class StreamPublisher implements Publisher {
     }
     this.publishingId = this.publishingId + 1n
 
-    //restituiamo publishingId!
     return await this.basicSend(this.publishingId, message, opts)
   }
 
