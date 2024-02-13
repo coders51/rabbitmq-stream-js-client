@@ -5,6 +5,7 @@ import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
 import { Consumer } from "../../src/consumer"
 import { Message, Publisher } from "../../src/publisher"
+import { randomUUID } from "crypto"
 
 describe("restart connections", () => {
   const rabbit = new Rabbit(username, password)
@@ -26,13 +27,7 @@ describe("restart connections", () => {
     } catch (e) {}
   })
 
-  it("client only, no producer or consumer", async () => {
-    await eventually(async () => {
-      if (!client.getConnectionInfo().ready) {
-        console.log(`not ready yet`)
-        throw new Error("not ready yet")
-      }
-    })
+  it("client only, no producer or consumer, socket connection is reestablished", async () => {
     const oldConnectionInfo = client.getConnectionInfo()
 
     await client.restart()
@@ -45,13 +40,7 @@ describe("restart connections", () => {
     })
   }).timeout(10000)
 
-  it("client with publishers and consumers", async () => {
-    await eventually(async () => {
-      if (!client.getConnectionInfo().ready) {
-        console.log(`not ready yet`)
-        throw new Error("not ready yet")
-      }
-    })
+  it("client with publishers and consumers, socket connections are reestablished", async () => {
     const clientOldConnectionInfo = client.getConnectionInfo()
     const streamNames = [streamName, createStreamName(), createStreamName()]
     const publishers = new Map<number, Publisher>()
@@ -95,6 +84,27 @@ describe("restart connections", () => {
         expect(publisherConnectionInfo.localPort).not.undefined
         expect(publisherConnectionInfo.localPort).not.eql(localPublisherPorts.get(publisherId))
       }
+    }, 10000)
+  }).timeout(20000)
+
+  it("sending and receiving messages is not affected", async () => {
+    const received = new Set<string>()
+    const nmsg = 10000
+    const triggerIndex = Math.floor(nmsg / 4)
+    const consumeHandle = (msg: Message) => {
+      received.add(msg.messageProperties?.messageId!)
+    }
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, consumeHandle)
+    const publisher = await client.declarePublisher({ stream: streamName })
+
+    for (let i = 0; i < nmsg; i++) {
+      const msg = Buffer.from(`${randomUUID()}`)
+      await publisher.send(msg, { messageProperties: { messageId: `${i}` } })
+      if (i === triggerIndex) await client.restart()
+    }
+
+    await eventually(async () => {
+      expect(received.size).eql(nmsg)
     }, 10000)
   }).timeout(20000)
 })
