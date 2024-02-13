@@ -1,3 +1,23 @@
+/*
+
+  Auto-reconnect example: mitigate simple network disconnection issues
+
+  In this example we assume that:
+    - the stream topology does not change (i.e. leader/replicas nodes do not change)
+    - hostnames/ip addresses do not change
+    - the connection_closed event is triggered on the TCP connection used by the Client instance
+
+  The example is composed of
+    - message generation part (mimicks the behavior of a client application)
+    - toy outbox pattern implementation (in-memory structure, no persistence of data, etc.)
+    - a client instance with a registered callback on the connection_closed event
+    - scheduled delivery of messages through a producer
+    - very simple publish_confirm handling
+    - one consumer
+    - a scheduled reachability interruption (in this case obtained by launching `docker-compose restart`)
+    - a scheduled process that logs the state of the application (connections, message counters)
+*/
+
 const rabbit = require("rabbitmq-stream-js-client")
 const { randomUUID } = require("crypto")
 const { exec } = require("child_process")
@@ -41,12 +61,19 @@ async function triggerConnectionIssue() {
   return true
 }
 
+/*
+  very simple message generation function
+*/
 function generateMessage() {
   const payload = Buffer.from(`${randomUUID()}`)
   const messageId = `${randomUUID()}`
   return { payload, messageId }
 }
 
+/*
+  at each iteration, a new message is put in the outbox.
+  This mimicks a client application that generates messages to be sent.
+*/
 function scheduleMessageProduction() {
   setInterval(() => {
     const { payload, messageId } = generateMessage()
@@ -55,10 +82,18 @@ function scheduleMessageProduction() {
   }, 50)
 }
 
+/*
+  at each iteration, a new message is read from the outbox and sent using the publisher.
+  Note that the operation is executed only if 
+  there is a new message to be sent and if the publisher connection is at least established.
+  If the publisher is not `ready`, then the message will be cached internally.
+*/
 async function scheduleMessageDelivery() {
   setInterval(async () => {
+    //keep track of the last message sent (but not yet confirmed)
     const messageOffset = publisherOutbox.offset
     const oldestMessageId = publisherOutbox.messageIds[messageOffset]
+    //is the publisher socket open?
     const { writable } = publisher?.getConnectionInfo() ?? false
     if (publisher && writable && oldestMessageId !== undefined) {
       const message = publisherOutbox.messages.get(oldestMessageId)
@@ -66,12 +101,16 @@ async function scheduleMessageDelivery() {
       published++
       publisherOutbox.offset++
       if (res.publishingId !== undefined) {
+        //keep track of the messageId, by mapping it with the protocol-generated publishingId
         publisherOutbox.publishingIds.set(res.publishingId, oldestMessageId)
       }
     }
   }, 10)
 }
 
+/*
+  at each interval, the state of the outbox, the message counters and the state of client connections will be logged. 
+ */
 function scheduleLogInfo() {
   setInterval(() => {
     logger.info(`outbox queue length: ${publisherOutbox.messageIds.length} offset ${publisherOutbox.offset}`)
@@ -80,6 +119,10 @@ function scheduleLogInfo() {
   }, 3000)
 }
 
+
+/*
+  at each interval, trigger a connection problem.
+*/
 async function triggerConnectionIssues() {
   return new Promise((res, rej) => {
     setInterval(async () => {
@@ -98,14 +141,24 @@ async function triggerConnectionIssues() {
           return
         }
       }
+      //after this message is logged, the client connections should reopen
       logger.info("\nNow it should reopen!\n")
     }, 60000)
   })
 }
 
+/*
+  when setting up the publisher, we register a callback on the `publish_confirm` event that
+  informs us that the broker has correctly received the sent message. This triggers an update on
+  the outbox state (the message is considered as sent)
+*/
 async function setupPublisher(client) {
   const publisherRef = `publisher - ${randomUUID()}`
   const publisherConfig = { stream: streamName, publisherRef: publisherRef, connectionClosedListener: (err) => { return } }
+  /*
+    confirmedIds contains the list of publishingIds linked to messages correctly published in the stream
+    These ids are not the messageIds that have been set in the message properties
+  */
   const publisherConfirmCallback = (err, confirmedIds) => {
     if (err) {
       logger.info(`Publish confirm error ${inspect(err)} `)
@@ -133,14 +186,19 @@ async function setupPublisher(client) {
   return publisher
 }
 
+/*
+  in the consumer we can use the `messageId` property to make sure each message is "handled" once.
+ */
 async function setupConsumer(client) {
   const consumerConfig = { stream: streamName, offset: rabbit.Offset.timestamp(new Date()), connectionClosedListener: (err) => { return } }
   const receiveCallback = (msg) => {
     const msgId = msg.messageProperties.messageId
     if (received.has(msgId)) {
-      //in this example the consumer restarts from the last handled message.
-      //@see https://blog.rabbitmq.com/posts/2021/09/rabbitmq-streams-offset-tracking/
-      //and Consumer.storeOffset and Consumer.queryOffset for a more complete approach
+      /*On restart, the consumer sets automatically its offset as the latest handled message index. 
+        For sanity, some sort of deduplication is still needed.
+        @see https://blog.rabbitmq.com/posts/2021/09/rabbitmq-streams-offset-tracking/
+        and Consumer.storeOffset and Consumer.queryOffset for a more complete approach
+      */
       logger.info(`dedup: ${msgId}`)
     }
     received.add(msgId)
@@ -150,6 +208,14 @@ async function setupConsumer(client) {
   return client.declareConsumer(consumerConfig, receiveCallback)
 }
 
+
+/*
+  setup of a client instance, a producer and a consumer. 
+  The core of the example is represented by the implementation of the 
+  `connection_closed` callback, in which the `client.restart()` method is called. 
+  This triggers the reset of all TCP sockets involved, for all producers and consumers,
+   as well as for the TCP socket used by the client itself.
+*/
 async function setup() {
   try {
     const connectionClosedCallback = () => {
@@ -185,11 +251,17 @@ async function setup() {
   }
 }
 
+
 async function main() {
+  //instantiate the client, the producer and the consumer
   await setup()
+  //schedule the task that inserts new messages in the outbox
   scheduleMessageProduction()
+  //schedule the task that attempts to send a message to the broker, taking it from the outbox
   await scheduleMessageDelivery()
+  //schedule the task that logs connection info and message counters
   scheduleLogInfo()
+  //schedule the task that triggers a (more or less simulated) network issue
   await triggerConnectionIssues()
 }
 
