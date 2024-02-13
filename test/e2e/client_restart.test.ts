@@ -94,6 +94,7 @@ describe("restart connections", () => {
     const consumeHandle = (msg: Message) => {
       received.add(msg.messageProperties?.messageId!)
     }
+    const oldClientConnectionInfo = client.getConnectionInfo()
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, consumeHandle)
     const publisher = await client.declarePublisher({ stream: streamName })
 
@@ -104,6 +105,9 @@ describe("restart connections", () => {
     }
 
     await eventually(async () => {
+      const clientConnectionInfo = client.getConnectionInfo()
+      expect(clientConnectionInfo.ready).eql(true)
+      expect(clientConnectionInfo.localPort).not.eql(oldClientConnectionInfo.localPort)
       expect(received.size).eql(messageNumber)
     }, 10000)
   }).timeout(20000)
