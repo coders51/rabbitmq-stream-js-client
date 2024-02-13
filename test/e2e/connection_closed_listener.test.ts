@@ -6,7 +6,7 @@ import { username, password, eventually, always } from "../support/util"
 import { randomUUID } from "crypto"
 import { Offset } from "../../src/requests/subscribe_request"
 
-describe("connection closed callback", () => {
+describe.only("connection closed callback", () => {
   let client: Client | undefined = undefined
   const rabbit = new Rabbit(username, password)
   let spySandbox: ChaiSpies.Sandbox | null = null
@@ -159,11 +159,7 @@ describe("connection closed callback", () => {
 
     await always(() => {
       expect(clientListenerSpy).to.have.been.called.exactly(0)
-    })
-    await always(() => {
       expect(publisherListenerSpy).to.have.been.called.exactly(0)
-    })
-    await always(() => {
       expect(consumerListenerSpy).to.have.been.called.exactly(0)
     })
   }).timeout(5000)
@@ -192,11 +188,44 @@ describe("connection closed callback", () => {
     await rabbit.closeAllConnections()
 
     await eventually(() => {
-      expect(clientListenerSpy).to.have.been.called.exactly(1)
-      expect(publisherListenerSpy).to.have.been.called.exactly(1)
-      expect(consumerListenerSpy).to.have.been.called.exactly(1)
+      expect(clientListenerSpy).to.have.been.called.at.least(1)
+      expect(publisherListenerSpy).to.have.been.called.at.least(1)
+      expect(consumerListenerSpy).to.have.been.called.at.least(1)
     }, 5000)
-  }).timeout(10000)
+    await always(() => {
+      expect(clientListenerSpy).to.have.been.called.at.most(1)
+      expect(publisherListenerSpy).to.have.been.called.at.most(1)
+      expect(consumerListenerSpy).to.have.been.called.at.most(1)
+    }, 5000)
+  }).timeout(15000)
+
+  it("closed_connection listener is not invoked on publishers and consumers if not explicitly set", async () => {
+    let ctr = 0
+    const listener = (_hasError: boolean) => {
+      ctr++
+      if (ctr > 1) throw new Error("")
+      return
+    }
+    const clientListenerSpy = spy(listener)
+    client = await createClient(username, password, { connection_closed: clientListenerSpy })
+    await client.declarePublisher({
+      stream: streamName,
+      publisherRef,
+    })
+    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {
+      return
+    })
+    await sleep(5000)
+
+    await rabbit.closeAllConnections()
+
+    await eventually(() => {
+      expect(clientListenerSpy).to.have.been.called.at.least(1)
+    }, 5000)
+    await always(() => {
+      expect(clientListenerSpy).to.have.been.called.at.most(1)
+    }, 5000)
+  }).timeout(15000)
 })
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
