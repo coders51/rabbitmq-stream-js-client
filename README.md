@@ -5,23 +5,25 @@
 ## Table of Contents
 
 - [RabbitMQ client for the stream protocol for Node.JS](#rabbitmq-client-for-the-stream-protocol-for-nodejs)
+  - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Installing via NPM](#installing-via-npm)
   - [Getting started](#getting-started)
   - [Usage](#usage)
     - [Connect](#connect)
-    - [Connect through TLS/SSL](#connect-through-tls-ssl)
+    - [Connect through TLS/SSL](#connect-through-tlsssl)
     - [Basic Publish](#basic-publish)
     - [Sub Batch Entry Publishing](#sub-batch-entry-publishing)
     - [Basic Consuming](#basic-consuming)
     - [Single Active Consumer](#single-active-consumer)
     - [Clustering](#clustering)
-    - [Load Balancer](#loadbalancer)
+    - [Load Balancer](#load-balancer)
+    - [Super Stream](#super-stream)
+    - [Filtering](#filtering)
+    - [Mitigating connection issues](#mitigating-connection-issues)
   - [Running Examples](#running-examples)
   - [Build from source](#build-from-source)
   - [MISC](#misc)
-  - [Super Stream](#super-stream)
-  - [Filtering](#filtering)
 
 ## Overview
 
@@ -210,9 +212,12 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
 
 ### Clustering
 
-Every time we create a new producer or a new consumer, a new connection is created.
-In particular for the producer the connection is created on the node leader.
-For more running the tests in a cluster follow the readme under the folder /cluster
+Every time we create a new producer or a new consumer, a new connection object is created. The underlying TCP connections can be shared among different producers and different consumers. Note however that:
+
+- each `Client` instance has a unique connection, which is not shared in any case.
+- for producers the connection is created on the node leader.
+- consumers and producers do not share connections.
+  For more about running the tests in a cluster follow the readme under the folder /cluster
 
 ### Load Balancer
 
@@ -319,6 +324,41 @@ await sleep(2000)
 
 await client.close()
 ```
+
+### Mitigating connection issues
+
+The library exposes some utility functions and properties that can help in building a more robust client application. One simple use case that is addressed in one of the examples (`example/autoreconnect_example.js`) shows how to build a client application that can handle simple network issues like a temporary disconnection. In this scenario we are _not_ dealing with a complex broker-side service disruption or a cluster reorganization; in particular, we assume that the stream topology and the node host names do not change.
+
+The approach can be simply summed up as: register a `connection_closed` listener when instantiating a `Client` object, and then call the `client.restart().then(...)` method in its body.
+
+```typescript
+const connectionClosedCallback = () => {
+  logger.info(`In connection closed event...`)
+  client
+    .restart()
+    .then(() => {
+      logger.info(`Connections restarted!`)
+    })
+    .catch((reason) => {
+      logger.warn(`Could not reconnect to Rabbit! ${reason}`)
+    })
+}
+
+client = await rabbit.connect({
+  //...
+  listeners: { connection_closed: connectionClosedCallback },
+  //...
+})
+```
+
+There are various considerations to keep in mind when building a client application around these features:
+
+- this `connection_closed` callback is registered on the event of the TCP socket used by the `Client` object instance. This callback cannot be an `async` function, so we need to use `then(...).catch(...)` to deal with the outcome of the restart attempt.
+- clients, producers and consumers expose a utility function `getConnectionInfo()` that returns information about the state of the underlying TCP socket and the logical connection to the broker. In particular, the `ready` field indicates if the handshake with the broker completed correctly.
+- consider using the outbox pattern when sending messages to the broker.
+- some form of deduplication should be implementend in the client application when receiving messages: the use of offsets when defining consumer instances does not avoid the possibility of receiving messages multiple times.
+
+See the comments and the implemenation in `example/autoreconnect_example.js` for a more in-depth view.
 
 ## Running Examples
 

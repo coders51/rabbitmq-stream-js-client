@@ -14,9 +14,7 @@ import { ConnectionPool } from "./connection_pool"
 import { PublishRequestV2 } from "./requests/publish_request_v2"
 
 export type MessageApplicationProperties = Record<string, string | number>
-
 export type MessageAnnotations = Record<string, MessageAnnotationsValue>
-
 export type MessageAnnotationsValue = string | number | AmqpByte
 
 export class AmqpByte {
@@ -75,8 +73,8 @@ export interface MessageOptions {
 }
 
 export interface Publisher {
-  send(message: Buffer, opts?: MessageOptions): Promise<boolean>
-  basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<boolean>
+  send(message: Buffer, opts?: MessageOptions): Promise<SendResult>
+  basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult>
   flush(): Promise<boolean>
   sendSubEntries(messages: Message[], compressionType?: CompressionType): Promise<void>
   on(event: "metadata_update", listener: MetadataUpdateListener): void
@@ -90,6 +88,7 @@ export interface Publisher {
 
 export type FilterFunc = (msg: Message) => string | undefined
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
+export type SendResult = { sent: boolean; publishingId: bigint }
 export class StreamPublisher implements Publisher {
   private connection: Connection
   private stream: string
@@ -131,23 +130,22 @@ export class StreamPublisher implements Publisher {
     this.connection.incrRefCount()
   }
 
-  async send(message: Buffer, opts: MessageOptions = {}) {
+  async send(message: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
     this.publishingId = this.publishingId + 1n
 
-    return this.basicSend(this.publishingId, message, opts)
+    return await this.basicSend(this.publishingId, message, opts)
   }
 
-  basicSend(publishingId: bigint, content: Buffer, opts: MessageOptions = {}) {
+  async basicSend(publishingId: bigint, content: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
     const msg = { publishingId: publishingId, message: { content: content, ...opts } }
-    return this.enqueue(msg)
+    return await this.enqueue(msg)
   }
 
   async flush() {
-    await this.sendBuffer()
-    return true
+    return await this.sendBuffer()
   }
 
   async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
@@ -163,8 +161,8 @@ export class StreamPublisher implements Publisher {
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    const { host, port, id, writable, localPort } = this.connection.getConnectionInfo()
-    return { host, port, id, writable, localPort }
+    const { host, port, id, writable, localPort, ready } = this.connection.getConnectionInfo()
+    return { host, port, id, writable, localPort, ready }
   }
 
   public on(event: "metadata_update", listener: MetadataUpdateListener): void
@@ -217,14 +215,12 @@ export class StreamPublisher implements Publisher {
     }
     this.checkMessageSize(publishRequestMessage)
     const sendCycleNeeded = this.add(publishRequestMessage)
-    let sent = false
+    const result = { sent: false, publishingId: publishRequestMessage.publishingId }
     if (sendCycleNeeded) {
-      await this.sendBuffer()
-      sent = true
+      result.sent = await this.sendBuffer()
     }
     this.scheduleIfNeeded()
-
-    return sent
+    return result
   }
 
   private checkMessageSize(publishRequestMessage: PublishRequestMessage) {
@@ -237,6 +233,9 @@ export class StreamPublisher implements Publisher {
   }
 
   private async sendBuffer() {
+    if (!this.connection.ready) {
+      return false
+    }
     const chunk = this.popChunk()
     if (chunk.length > 0) {
       this.filter
@@ -252,7 +251,9 @@ export class StreamPublisher implements Publisher {
               messages: chunk,
             })
           )
+      return true
     }
+    return false
   }
 
   private scheduleIfNeeded() {

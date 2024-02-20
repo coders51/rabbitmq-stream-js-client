@@ -40,6 +40,10 @@ export class Offset {
   static timestamp(date: Date) {
     return new Offset("timestamp", BigInt(date.getTime()))
   }
+
+  public clone() {
+    return new Offset(this.type, this.value)
+  }
 }
 
 export class SubscribeRequest extends AbstractRequest {

@@ -92,7 +92,7 @@ describe("Publisher", () => {
 
       const result = await publisher.send(msg, {})
 
-      expect(result).is.false
+      expect(result.sent).is.false
     })
     it("if max queue length is reached, then the chunk is sent immediately", async () => {
       const queueLength = 2
@@ -105,7 +105,8 @@ describe("Publisher", () => {
 
       const result = await Promise.all(msgs.map((msg) => publisher.send(msg, {})))
 
-      expect(result).eql([false, true])
+      expect(result[0].sent).is.false
+      expect(result[1].sent).is.true
     })
 
     it("even if max queue length is not reached, the messages are eventually sent", async () => {
