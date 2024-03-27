@@ -207,12 +207,16 @@ export class Client {
   }
 
   public async declareSuperStreamConsumer(
-    { superStream }: DeclareSuperStreamConsumerParams,
+    { superStream, offset, consumerRef }: DeclareSuperStreamConsumerParams,
     handle: ConsumerFunc
   ): Promise<SuperStreamConsumer> {
-    const consumerRef = `${superStream}-${randomUUID()}`
     const partitions = await this.queryPartitions({ superStream })
-    return SuperStreamConsumer.create(handle, { locator: this, consumerRef, partitions })
+    return SuperStreamConsumer.create(handle, {
+      locator: this,
+      consumerRef: consumerRef || `${superStream}-${randomUUID()}`,
+      offset: offset || Offset.first(),
+      partitions,
+    })
   }
 
   public async declareSuperStreamPublisher(
@@ -688,6 +692,8 @@ export interface DeclareConsumerParams {
 
 export interface DeclareSuperStreamConsumerParams {
   superStream: string
+  consumerRef?: string
+  offset?: Offset
 }
 
 export interface SubscribeParams {
