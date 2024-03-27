@@ -7,6 +7,7 @@ export class SuperStreamConsumer {
   public consumerRef: string
   private locator: Client
   private partitions: string[]
+  private offset: Offset
 
   private constructor(
     readonly handle: ConsumerFunc,
@@ -14,18 +15,20 @@ export class SuperStreamConsumer {
       locator: Client
       partitions: string[]
       consumerRef: string
+      offset: Offset
     }
   ) {
     this.consumerRef = params.consumerRef
     this.locator = params.locator
     this.partitions = params.partitions
+    this.offset = params.offset
   }
 
   async start(): Promise<void> {
     await Promise.all(
       this.partitions.map(async (p) => {
         const partitionConsumer = await this.locator.declareConsumer(
-          { stream: p, consumerRef: this.consumerRef, offset: Offset.first(), singleActive: true },
+          { stream: p, consumerRef: this.consumerRef, offset: this.offset, singleActive: true },
           this.handle
         )
         this.consumers.set(p, partitionConsumer)
@@ -40,6 +43,7 @@ export class SuperStreamConsumer {
       locator: Client
       partitions: string[]
       consumerRef: string
+      offset: Offset
     }
   ): Promise<SuperStreamConsumer> {
     const superStreamConsumer = new SuperStreamConsumer(handle, params)
