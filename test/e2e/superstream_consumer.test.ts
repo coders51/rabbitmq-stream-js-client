@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { Client } from "../../src"
+import { Client, Offset } from "../../src"
 import { Message } from "../../src/publisher"
 import { range } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
@@ -87,6 +87,49 @@ describe("super stream consumer", () => {
     })
   })
 
+  it("multiple composite consumers with same consumerRef - each message should be read only once", async () => {
+    const noOfMessages = 20
+    const messages: Message[] = []
+
+    await client.declareSuperStreamConsumer(
+      { superStream: superStreamName, consumerRef: "counting-messages" },
+      (message: Message) => messages.push(message)
+    )
+    await client.declareSuperStreamConsumer(
+      { superStream: superStreamName, consumerRef: "counting-messages" },
+      (message: Message) => messages.push(message)
+    )
+
+    await sender(noOfMessages)
+
+    await eventually(() => {
+      expect(messages).to.have.length(noOfMessages)
+    })
+  })
+
+  it("reading multiple messages - get messages only at a specific consuming point timestamp", async () => {
+    const noOfMessages = 20
+    await sender(5)
+    const sleepingTime = 5000
+    await sleep(sleepingTime)
+    await sender(noOfMessages)
+    const messages: Message[] = []
+
+    await client.declareSuperStreamConsumer(
+      {
+        superStream: superStreamName,
+        offset: Offset.timestamp(new Date(Date.now() - (sleepingTime - 1000))),
+      },
+      (message: Message) => {
+        messages.push(message)
+      }
+    )
+
+    await eventually(() => {
+      expect(messages).to.have.length(noOfMessages)
+    })
+  }).timeout(10000)
+
   it("closing the locator closes all connections", async () => {
     await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
       return
@@ -113,4 +156,12 @@ const messageSender = async (client: Client, superStreamName: string) => {
   }
 
   return sendMessages
+}
+
+const sleep = (ms: number) => {
+  return new Promise((res) => {
+    setTimeout(() => {
+      res(true)
+    }, ms)
+  })
 }
