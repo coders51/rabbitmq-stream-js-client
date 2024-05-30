@@ -135,7 +135,7 @@ export class Client {
 
   public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
     const publisherId = this.incPublisherId()
-    const connection = await this.getConnection(params.stream, true, params.connectionClosedListener)
+    const connection = await this.getConnection("publisher", params.stream, true, params.connectionClosedListener)
     await this.declarePublisherOnConnection(params, publisherId, connection, filter)
     const streamPublisherParams = {
       connection: connection,
@@ -163,6 +163,7 @@ export class Client {
     }
     await this.publishers.get(publisherId)?.publisher.close(true)
     this.publishers.delete(publisherId)
+    publisherConnection.decrementPublisherCount()
     this.logger.info(`deleted publisher with publishing id ${publisherId}`)
     return res.ok
   }
@@ -170,7 +171,7 @@ export class Client {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
 
-    const connection = await this.getConnection(params.stream, false, params.connectionClosedListener)
+    const connection = await this.getConnection("consumer", params.stream, false, params.connectionClosedListener)
 
     if (params.filter && !connection.isFilteringEnabled) {
       throw new Error(`Broker does not support message filtering.`)
@@ -200,6 +201,8 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
+    const consumerConnection = this.consumers.get(consumerId)?.connection ?? this.connection
+    consumerConnection.decrementSubscriberCount()
     await consumer.close(true)
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
@@ -233,12 +236,24 @@ export class Client {
   }
 
   private async closeAllConsumers(manuallyClose: boolean) {
-    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(manuallyClose)))
+    await Promise.all(
+      [...this.consumers.values()].map(async ({ consumer }) => {
+        await consumer.close(manuallyClose)
+        const consumerConnection = this.consumers.get(consumer.consumerId)?.connection ?? this.connection
+        consumerConnection.decrementSubscriberCount()
+      })
+    )
     this.consumers = new Map<number, ConsumerMappedValue>()
   }
 
   private async closeAllPublishers(manuallyClose: boolean) {
-    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close(manuallyClose)))
+    await Promise.all(
+      [...this.publishers.values()].map(async (c) => {
+        await c.publisher.close(manuallyClose)
+        const publisherConnection = c.connection
+        publisherConnection.decrementPublisherCount()
+      })
+    )
     this.publishers = new Map<number, PublisherMappedValue>()
   }
 
@@ -423,6 +438,8 @@ export class Client {
     connection: Connection,
     filter?: FilterFunc
   ) {
+    connection.incrementPublisherCount()
+
     const res = await connection.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream: params.stream, publisherRef: params.publisherRef, publisherId })
     )
@@ -451,12 +468,15 @@ export class Client {
       properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }
 
+    connection.incrementSubscriberCount()
+
     const res = await connection.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
 
     if (!res.ok) {
       this.consumers.delete(consumerId)
+      connection.decrementSubscriberCount()
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
   }
@@ -529,6 +549,7 @@ export class Client {
   }
 
   private async getConnection(
+    purpose: "publisher" | "consumer",
     streamName: string,
     leader: boolean,
     connectionClosedListener?: ConnectionClosedListener
@@ -539,7 +560,13 @@ export class Client {
       throw new Error(`Stream was not found on any node`)
     }
     const cachedConnection = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
-    if (cachedConnection) return cachedConnection
+    if (cachedConnection) {
+      if (purpose === "publisher" && cachedConnection.canSupportMorePublishers()) {
+        return cachedConnection
+      } else if (purpose === "consumer" && cachedConnection.canSupportMoreSubscribers()) {
+        return cachedConnection
+      }
+    }
 
     const newConnection = await this.getConnectionOnChosenNode(
       leader,
