@@ -51,6 +51,7 @@ export type ConnectionListenersParams = ClientListenersParams & {
 
 export type ConnectionParams = ClientParams & {
   listeners?: ConnectionListenersParams
+  index: number
 }
 
 export type ConnectionInfo = {
@@ -66,8 +67,6 @@ export type ConnectionInfo = {
 function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneResponse): number {
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
 }
-
-const MAX_PUBLISHERS_OR_SUBSCRIBERS = 255
 
 export class Connection {
   public readonly hostname: string
@@ -92,10 +91,10 @@ export class Connection {
   public userManuallyClose: boolean = false
   private setupCompleted: boolean = false
   public readonly id = randomUUID()
-  private publisherCount = 0
-  private subscriberCount = 0
+  public readonly index: number
 
   constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
+    this.index = params.index
     this.hostname = params.hostname
     this.leader = params.leader ?? false
     this.streamName = params.streamName
@@ -252,36 +251,6 @@ export class Connection {
     if (listeners?.deliverV1) this.decoder.on("deliverV1", listeners.deliverV1)
     if (listeners?.deliverV2) this.decoder.on("deliverV2", listeners.deliverV2)
     if (listeners?.consumer_update_query) this.decoder.on("consumer_update_query", listeners.consumer_update_query)
-  }
-
-  public incrementPublisherCount() {
-    if (this.publisherCount >= MAX_PUBLISHERS_OR_SUBSCRIBERS) {
-      throw new Error("Maximum number of publishers reached")
-    }
-    this.publisherCount++
-  }
-
-  public decrementPublisherCount() {
-    this.publisherCount--
-  }
-
-  public incrementSubscriberCount() {
-    if (this.subscriberCount >= MAX_PUBLISHERS_OR_SUBSCRIBERS) {
-      throw new Error("Maximum number of subscribers reached")
-    }
-    this.subscriberCount++
-  }
-
-  public decrementSubscriberCount() {
-    this.subscriberCount--
-  }
-
-  public canSupportMorePublishers() {
-    return this.publisherCount < MAX_PUBLISHERS_OR_SUBSCRIBERS
-  }
-
-  public canSupportMoreSubscribers() {
-    return this.subscriberCount < MAX_PUBLISHERS_OR_SUBSCRIBERS
   }
 
   getCompression(compressionType: CompressionType) {

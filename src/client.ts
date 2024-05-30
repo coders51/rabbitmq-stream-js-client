@@ -54,6 +54,9 @@ type PublisherMappedValue = {
   params: DeclarePublisherParams
   filter: FilterFunc | undefined
 }
+
+const MAX_PUBLISHERS_OR_SUBSCRIBERS = 255
+
 export class Client {
   public readonly id: string = randomUUID()
   private publisherId = 0
@@ -62,6 +65,8 @@ export class Client {
   private publishers = new Map<number, PublisherMappedValue>()
   private compressions = new Map<CompressionType, Compression>()
   private connection: Connection
+  private currentPublisherConnectionIndex = 0
+  private currentConsumerConnectionIndex = 0
 
   private constructor(private readonly logger: Logger, private readonly params: ClientParams) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
@@ -150,7 +155,7 @@ export class Client {
     const publisher = new StreamPublisher(streamPublisherParams, filter)
     this.publishers.set(publisherId, { publisher, connection, params, filter })
     this.logger.info(
-      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
+      `New publisher created with stream name ${params.stream}, publisher id ${publisherId}, connection index ${this.currentPublisherConnectionIndex} and publisher reference ${params.publisherRef}`
     )
     return publisher
   }
@@ -163,7 +168,6 @@ export class Client {
     }
     await this.publishers.get(publisherId)?.publisher.close(true)
     this.publishers.delete(publisherId)
-    publisherConnection.decrementPublisherCount()
     this.logger.info(`deleted publisher with publishing id ${publisherId}`)
     return res.ok
   }
@@ -183,10 +187,12 @@ export class Client {
       params.filter
     )
     this.consumers.set(consumerId, { connection, consumer, params })
-    await this.declareConsumerOnConnection(params, consumerId, this.connection)
-    this.logger.info(
-      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
-    )
+    try {
+      await this.declareConsumerOnConnection(params, consumerId, this.connection)
+      this.logger.info(
+        `New consumer created with stream name ${params.stream}, consumer id ${consumerId}, connection index ${this.currentConsumerConnectionIndex} and offset ${params.offset.type}`
+      )
+    } catch (error) {}
     return consumer
   }
 
@@ -201,8 +207,6 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    const consumerConnection = this.consumers.get(consumerId)?.connection ?? this.connection
-    consumerConnection.decrementSubscriberCount()
     await consumer.close(true)
     this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
@@ -236,24 +240,12 @@ export class Client {
   }
 
   private async closeAllConsumers(manuallyClose: boolean) {
-    await Promise.all(
-      [...this.consumers.values()].map(async ({ consumer }) => {
-        await consumer.close(manuallyClose)
-        const consumerConnection = this.consumers.get(consumer.consumerId)?.connection ?? this.connection
-        consumerConnection.decrementSubscriberCount()
-      })
-    )
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(manuallyClose)))
     this.consumers = new Map<number, ConsumerMappedValue>()
   }
 
   private async closeAllPublishers(manuallyClose: boolean) {
-    await Promise.all(
-      [...this.publishers.values()].map(async (c) => {
-        await c.publisher.close(manuallyClose)
-        const publisherConnection = c.connection
-        publisherConnection.decrementPublisherCount()
-      })
-    )
+    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close(manuallyClose)))
     this.publishers = new Map<number, PublisherMappedValue>()
   }
 
@@ -438,8 +430,6 @@ export class Client {
     connection: Connection,
     filter?: FilterFunc
   ) {
-    connection.incrementPublisherCount()
-
     const res = await connection.sendAndWait<DeclarePublisherResponse>(
       new DeclarePublisherRequest({ stream: params.stream, publisherRef: params.publisherRef, publisherId })
     )
@@ -468,15 +458,13 @@ export class Client {
       properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }
 
-    connection.incrementSubscriberCount()
-
     const res = await connection.sendAndWait<SubscribeResponse>(
       new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
     )
 
     if (!res.ok) {
       this.consumers.delete(consumerId)
-      connection.decrementSubscriberCount()
+
       throw new Error(`Declare Consumer command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
   }
@@ -487,13 +475,19 @@ export class Client {
 
   private incPublisherId() {
     const publisherId = this.publisherId
-    this.publisherId++
+    if (++this.publisherId >= MAX_PUBLISHERS_OR_SUBSCRIBERS) {
+      this.publisherId = 0
+      this.currentPublisherConnectionIndex++
+    }
     return publisherId
   }
 
   private incConsumerId() {
     const consumerId = this.consumerId
-    this.consumerId++
+    if (++this.consumerId >= MAX_PUBLISHERS_OR_SUBSCRIBERS) {
+      this.consumerId = 0
+      this.currentConsumerConnectionIndex++
+    }
     return consumerId
   }
 
@@ -544,7 +538,7 @@ export class Client {
   }
 
   private getLocatorConnection() {
-    const connectionParams = this.buildConnectionParams(false, "", this.params.listeners?.connection_closed)
+    const connectionParams = this.buildConnectionParams(false, "", 0, this.params.listeners?.connection_closed)
     return Connection.create(connectionParams, this.logger)
   }
 
@@ -559,17 +553,20 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnection = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
+    const index = purpose === "publisher" ? this.currentPublisherConnectionIndex : this.currentConsumerConnectionIndex
+    const cachedConnection = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host, index)
     if (cachedConnection) {
-      if (purpose === "publisher" && cachedConnection.canSupportMorePublishers()) {
-        return cachedConnection
-      } else if (purpose === "consumer" && cachedConnection.canSupportMoreSubscribers()) {
-        return cachedConnection
-      }
+      this.logger.info(`Reusing cached connection for ${purpose} on stream ${streamName} with index ${index}`)
+      return cachedConnection
     }
+
+    this.logger.info(
+      `Cached connection not available; creating new connection for ${purpose} on stream ${streamName} with index ${index}`
+    )
 
     const newConnection = await this.getConnectionOnChosenNode(
       leader,
+      index,
       streamName,
       chosenNode,
       metadata,
@@ -600,6 +597,7 @@ export class Client {
   private buildConnectionParams(
     leader: boolean,
     streamName: string,
+    index: number,
     connectionClosedListener?: ConnectionClosedListener
   ) {
     const connectionListeners = {
@@ -609,17 +607,18 @@ export class Client {
       deliverV2: this.getDeliverV2Callback(),
       consumer_update_query: this.getConsumerUpdateCallback(),
     }
-    return { ...this.params, listeners: connectionListeners, leader: leader, streamName: streamName }
+    return { ...this.params, index: index, listeners: connectionListeners, leader: leader, streamName: streamName }
   }
 
   private async getConnectionOnChosenNode(
     leader: boolean,
+    index: number,
     streamName: string,
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
-    const connectionParams = this.buildConnectionParams(leader, streamName, connectionClosedListener)
+    const connectionParams = this.buildConnectionParams(leader, streamName, index, connectionClosedListener)
     if (this.params.addressResolver && this.params.addressResolver.enabled) {
       const maxAttempts = computeMaxAttempts(metadata)
       const resolver = this.params.addressResolver
