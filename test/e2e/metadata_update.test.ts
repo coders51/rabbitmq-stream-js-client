@@ -50,7 +50,7 @@ describe("react to a metadata update message from the server", () => {
     await eventually(() => {
       expect(cbCalled).to.eql(1)
     }, 3000)
-  })
+  }).timeout(5000)
 
   it("when we have a metadata update on a stream any publisher on that stream gets closed", async () => {
     const publisher = await client.declarePublisher({ stream: streamName })
