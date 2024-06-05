@@ -148,6 +148,12 @@ export class Client {
       logger: this.logger,
     }
     const publisher = new StreamPublisher(streamPublisherParams, filter)
+    connection.on("metadata_update", async (metadata) => {
+      if (metadata.metadataInfo.stream === publisher.streamName) {
+        await publisher.close(false)
+        this.publishers.delete(publisherId)
+      }
+    })
     this.publishers.set(publisherId, { publisher, connection, params, filter })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -181,6 +187,14 @@ export class Client {
       { connection, stream: params.stream, consumerId, consumerRef: params.consumerRef, offset: params.offset },
       params.filter
     )
+    this.connection.on("metadata_update", async (metadata) => {
+      if (metadata.metadataInfo.stream === consumer.streamName) {
+        if (params.connectionClosedListener) {
+          params.connectionClosedListener(false)
+        }
+        await this.closeConsumer(consumerId)
+      }
+    })
     this.consumers.set(consumerId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, this.connection)
     this.logger.info(
@@ -197,11 +211,11 @@ export class Client {
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
     }
     const res = await this.connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    await consumer.close(true)
+    this.consumers.delete(consumerId)
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await consumer.close(true)
-    this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
   }

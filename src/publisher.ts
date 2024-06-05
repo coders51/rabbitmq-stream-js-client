@@ -1,17 +1,17 @@
 import { inspect } from "util"
 import { messageSize } from "./amqp10/encoder"
 import { CompressionType } from "./compression"
+import { Connection, ConnectionInfo } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 import { Logger } from "./logger"
 import { FrameSizeException } from "./requests/frame_size_exception"
 import { PublishRequest, PublishRequestMessage } from "./requests/publish_request"
+import { PublishRequestV2 } from "./requests/publish_request_v2"
 import { SubEntryBatchPublishRequest } from "./requests/sub_entry_batch_publish_request"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 import { DEFAULT_UNLIMITED_FRAME_MAX } from "./util"
 import { MetadataUpdateListener } from "./response_decoder"
-import { ConnectionInfo, Connection } from "./connection"
-import { ConnectionPool } from "./connection_pool"
-import { PublishRequestV2 } from "./requests/publish_request_v2"
 
 export type MessageApplicationProperties = Record<string, string | number>
 export type MessageAnnotations = Record<string, MessageAnnotationsValue>
@@ -82,6 +82,7 @@ export interface Publisher {
   getLastPublishingId(): Promise<bigint>
   getConnectionInfo(): ConnectionInfo
   close(manuallyClose: boolean): Promise<void>
+  closed: boolean
   ref: string
   readonly publisherId: number
 }
@@ -101,7 +102,7 @@ export class StreamPublisher implements Publisher {
   private scheduled: NodeJS.Immediate | null
   private logger: Logger
   private maxChunkLength: number
-  private closed = false
+  private _closed = false
 
   constructor(
     params: {
@@ -130,7 +131,14 @@ export class StreamPublisher implements Publisher {
     this.connection.incrRefCount()
   }
 
+  public get closed(): boolean {
+    return this._closed
+  }
+
   async send(message: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
+    if (this._closed) {
+      throw new Error(`Publisher has been closed`)
+    }
     if (this.boot && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
@@ -203,7 +211,11 @@ export class StreamPublisher implements Publisher {
         await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
       }
     }
-    this.closed = true
+    this._closed = true
+  }
+
+  public get streamName(): string {
+    return this.stream
   }
 
   private async enqueue(publishRequestMessage: PublishRequestMessage) {

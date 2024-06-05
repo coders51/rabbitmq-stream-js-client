@@ -510,6 +510,8 @@ export function errorMessageOf(code: number): string {
   switch (code) {
     case 0x02:
       return "Stream does not exist"
+    case 0x04:
+      return "Subscription ID does not exist"
     case 0x06:
       return "Stream not available"
     case 0x12:

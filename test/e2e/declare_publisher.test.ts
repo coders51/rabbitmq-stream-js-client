@@ -69,6 +69,17 @@ describe("declare publisher", () => {
     )
   })
 
+  it("if the server deletes the stream, the publisher gets closed", async () => {
+    const publisher = await createPublisher(streamName, client)
+    await rabbit.deleteStream(streamName)
+
+    await expectToThrowAsync(
+      () => publisher.send(Buffer.from(`test${randomUUID()}`)),
+      Error,
+      "Publisher has been closed"
+    )
+  })
+
   it("publishers for the same stream should share the underlying connection", async () => {
     const publisher1 = await createPublisher(streamName, client)
     const publisher2 = await createPublisher(streamName, client)

@@ -246,7 +246,7 @@ describe("offset", () => {
         }
       )
       await rabbit.deleteStream(testStreamName)
-      await expectToThrowAsync(() => consumer.queryOffset(), Error, `Query offset command returned error with code 2`)
+      await expectToThrowAsync(() => consumer.queryOffset(), Error, `This socket has been ended by the other party`)
     })
   })
 })

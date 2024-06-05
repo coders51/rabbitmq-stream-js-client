@@ -5,6 +5,8 @@ import { BufferSizeSettings } from "../../src/requests/request"
 import { Offset } from "../../src/requests/subscribe_request"
 import { Consumer, Publisher } from "../../src"
 import { getTestNodesFromEnv } from "./util"
+import { createLogger, format, transports } from "winston"
+import { inspect } from "util"
 
 export function createProperties(): MessageProperties {
   return {
@@ -61,16 +63,32 @@ export async function createClient(
   connectionName?: string
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
-  return connect({
-    hostname: firstNode.host,
-    port: port ?? firstNode.port,
-    username,
-    password,
-    vhost: "/",
-    frameMax: frameMax ?? 0,
-    heartbeat: 0,
-    listeners: listeners,
-    bufferSizeSettings: bufferSizeSettings,
-    connectionName: connectionName,
-  })
+  return connect(
+    {
+      hostname: firstNode.host,
+      port: port ?? firstNode.port,
+      username,
+      password,
+      vhost: "/",
+      frameMax: frameMax ?? 0,
+      heartbeat: 0,
+      listeners: listeners,
+      bufferSizeSettings: bufferSizeSettings,
+      connectionName: connectionName,
+    }
+    // testLogger
+  )
 }
+
+export const testLogger = createLogger({
+  level: "debug",
+  format: format.combine(
+    format.colorize(),
+    format.timestamp(),
+    format.align(),
+    format.splat(),
+    format.label(),
+    format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`)
+  ),
+  transports: new transports.Console(),
+})
