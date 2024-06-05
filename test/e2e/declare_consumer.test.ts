@@ -192,10 +192,7 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
-      () =>
-        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
-          console.log(message.content)
-        ),
+      () => client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, () => null),
       Error,
       "Stream was not found on any node"
     )

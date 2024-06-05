@@ -1,6 +1,5 @@
 import { expect } from "chai"
 import { Client, connect } from "../../src"
-import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { getAddressResolverFromEnv } from "../../src/util"
 import { createStreamName } from "../support/fake_data"
@@ -41,15 +40,11 @@ describe("address resolver", () => {
   })
 
   it("declaring a consumer - should not throw", async () => {
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (_: Message) => {
-      console.log("Message received")
-    })
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => null)
   })
 
   it("declaring a consumer - if multiple nodes are present the consumer should be connected to a replica", async () => {
-    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (_: Message) => {
-      console.log("Message received")
-    })
+    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => null)
 
     const connectionInfo = consumer.getConnectionInfo()
     const queueInfo = await rabbit.getQueueInfo(streamName)
