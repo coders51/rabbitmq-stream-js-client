@@ -132,7 +132,6 @@ export class Rabbit {
       return res
     } catch (e) {
       if (e instanceof HTTPError) {
-        console.warn(`Attempted to delete a stream which had already been deleted`)
         if (e.message === "Response code 404 (Not Found)") return ""
       }
       throw e
