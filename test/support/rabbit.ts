@@ -1,4 +1,4 @@
-import got from "got"
+import got, { HTTPError } from "got"
 import { getTestNodesFromEnv } from "./util"
 import { range } from "../../src/util"
 import { CreateStreamArguments } from "../../src/requests/create_stream_request"
@@ -123,11 +123,19 @@ export class Rabbit {
     })
   }
 
-  deleteStream(streamName: string) {
-    return got.delete<unknown>(`http://${this.firstNode.host}:${this.port}/api/queues/%2F/${streamName}`, {
-      username: this.username,
-      password: this.password,
-    })
+  async deleteStream(streamName: string) {
+    try {
+      const res = await got.delete<unknown>(`http://${this.firstNode.host}:${this.port}/api/queues/%2F/${streamName}`, {
+        username: this.username,
+        password: this.password,
+      })
+      return res
+    } catch (e) {
+      if (e instanceof HTTPError) {
+        if (e.message === "Response code 404 (Not Found)") return ""
+      }
+      throw e
+    }
   }
 
   createExchange(exchangeName: string) {

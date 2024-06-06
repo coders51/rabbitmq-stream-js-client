@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "cluster-example": "node cluster_example.js"
+    "cluster-example": "node cluster_example.js",
+    "rebuild-source": "cd .. && npm run build && cd - && npm install --force"
   },
   "author": "",
   "license": "ISC",

@@ -97,4 +97,8 @@ export class StreamConsumer implements Consumer {
     }
     return handle
   }
+
+  public get streamName(): string {
+    return this.stream
+  }
 }

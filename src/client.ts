@@ -1,19 +1,24 @@
 import { randomUUID } from "crypto"
+import { coerce, lt } from "semver"
 import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
+import { Connection, ConnectionInfo, errorMessageOf } from "./connection"
+import { ConnectionPool } from "./connection_pool"
 import { Consumer, ConsumerFunc, StreamConsumer } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
 import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
+import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
 import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
+import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
 import { MetadataRequest } from "./requests/metadata_request"
 import { PartitionsQuery } from "./requests/partitions_query"
-import { BufferSizeSettings, Request } from "./requests/request"
+import { BufferSizeSettings } from "./requests/request"
 import { RouteQuery } from "./requests/route_query"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
@@ -21,10 +26,13 @@ import { UnsubscribeRequest } from "./requests/unsubscribe_request"
 import { MetadataUpdateListener, PublishConfirmListener, PublishErrorListener } from "./response_decoder"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
+import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
 import { DeclarePublisherResponse } from "./responses/declare_publisher_response"
 import { DeletePublisherResponse } from "./responses/delete_publisher_response"
 import { DeleteStreamResponse } from "./responses/delete_stream_response"
+import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
 import { DeliverResponse } from "./responses/deliver_response"
+import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 import { Broker, MetadataResponse, StreamMetadata } from "./responses/metadata_response"
 import { PartitionsResponse } from "./responses/partitions_response"
 import { RouteResponse } from "./responses/route_response"
@@ -34,14 +42,6 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
 import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
-import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
-import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
-import { DeleteSuperStreamResponse } from "./responses/delete_super_stream_response"
-import { DeleteSuperStreamRequest } from "./requests/delete_super_stream_request"
-import { lt, coerce } from "semver"
-import { ConnectionInfo, Connection, errorMessageOf } from "./connection"
-import { ConnectionPool } from "./connection_pool"
-import { DeliverResponseV2 } from "./responses/deliver_response_v2"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -148,6 +148,12 @@ export class Client {
       logger: this.logger,
     }
     const publisher = new StreamPublisher(streamPublisherParams, filter)
+    connection.on("metadata_update", async (metadata) => {
+      if (metadata.metadataInfo.stream === publisher.streamName) {
+        await publisher.close(false)
+        this.publishers.delete(publisherId)
+      }
+    })
     this.publishers.set(publisherId, { publisher, connection, params, filter })
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
@@ -181,8 +187,16 @@ export class Client {
       { connection, stream: params.stream, consumerId, consumerRef: params.consumerRef, offset: params.offset },
       params.filter
     )
+    connection.on("metadata_update", async (metadata) => {
+      if (metadata.metadataInfo.stream === consumer.streamName) {
+        if (params.connectionClosedListener) {
+          params.connectionClosedListener(false)
+        }
+        await this.closeConsumer(consumerId)
+      }
+    })
     this.consumers.set(consumerId, { connection, consumer, params })
-    await this.declareConsumerOnConnection(params, consumerId, this.connection)
+    await this.declareConsumerOnConnection(params, consumerId, connection)
     this.logger.info(
       `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
@@ -190,18 +204,18 @@ export class Client {
   }
 
   public async closeConsumer(consumerId: number) {
-    const consumer = this.consumers.get(consumerId)?.consumer
+    const { consumer, connection } = this.consumers.get(consumerId) ?? { consumer: undefined, connection: undefined }
 
     if (!consumer) {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${consumerId} does not exist`)
     }
-    const res = await this.connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    const res = await connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    await consumer.close(true)
+    this.consumers.delete(consumerId)
     if (!res.ok) {
       throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await consumer.close(true)
-    this.consumers.delete(consumerId)
     this.logger.info(`Closed consumer with id: ${consumerId}`)
     return res.ok
   }
@@ -252,10 +266,6 @@ export class Client {
 
   public getConsumers() {
     return Array.from(this.consumers.values())
-  }
-
-  public send(cmd: Request): Promise<void> {
-    return this.connection.send(cmd)
   }
 
   public async createStream(params: { stream: string; arguments?: CreateStreamArguments }): Promise<true> {
@@ -374,7 +384,7 @@ export class Client {
       }
       uniqueConnectionIds.add(connection.id)
       const consumerParams = { ...params, offset: consumer.localOffset }
-      await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, this.connection)
+      await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
     }
 
     for (const { publisher, connection, params, filter } of this.publishers.values()) {
@@ -461,8 +471,8 @@ export class Client {
     }
   }
 
-  private askForCredit(params: CreditRequestParams): Promise<void> {
-    return this.send(new CreditRequest({ ...params }))
+  private askForCredit(params: CreditRequestParams, connection: Connection): Promise<void> {
+    return connection.send(new CreditRequest({ ...params }))
   }
 
   private incPublisherId() {
@@ -479,28 +489,34 @@ export class Client {
 
   private getDeliverV1Callback() {
     return async (response: DeliverResponse) => {
-      const consumer = this.consumers.get(response.subscriptionId)?.consumer
+      const { consumer, connection } = this.consumers.get(response.subscriptionId) ?? {
+        consumer: undefined,
+        connection: undefined,
+      }
       if (!consumer) {
         this.logger.error(`On deliverV1 no consumer found`)
         return
       }
       this.logger.debug(`on deliverV1 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId }, connection)
       response.messages.map((x) => consumer.handle(x))
     }
   }
 
   private getDeliverV2Callback() {
     return async (response: DeliverResponseV2) => {
-      const consumer = this.consumers.get(response.subscriptionId)?.consumer
+      const { consumer, connection } = this.consumers.get(response.subscriptionId) ?? {
+        consumer: undefined,
+        connection: undefined,
+      }
       if (!consumer) {
         this.logger.error(`On deliverV2 no consumer found`)
         return
       }
       this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId })
+      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId }, connection)
       if (consumer.filter) {
         response.messages.filter((x) => consumer.filter?.postFilterFunc(x)).map((x) => consumer.handle(x))
         return
@@ -511,13 +527,16 @@ export class Client {
 
   private getConsumerUpdateCallback() {
     return async (response: ConsumerUpdateQuery) => {
-      const consumer = this.consumers.get(response.subscriptionId)?.consumer
+      const { consumer, connection } = this.consumers.get(response.subscriptionId) ?? {
+        consumer: undefined,
+        connection: undefined,
+      }
       if (!consumer) {
         this.logger.error(`On consumer_update_query no consumer found`)
         return
       }
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
-      await this.send(
+      await connection.send(
         new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
       )
     }

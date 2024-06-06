@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Client } from "../../src"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
-import { eventually, expectToThrowAsync, username, password } from "../support/util"
+import { eventually, expectToThrowAsync, username, password, wait } from "../support/util"
 import { getMaxSharedConnectionInstances } from "../../src/util"
 import { randomUUID } from "crypto"
 
@@ -66,6 +66,18 @@ describe("declare publisher", () => {
       () => createPublisher(nonExistingStreamName, client),
       Error,
       "Stream was not found on any node"
+    )
+  })
+
+  it("if the server deletes the stream, the publisher gets closed", async () => {
+    const publisher = await createPublisher(streamName, client)
+    await rabbit.deleteStream(streamName)
+    await wait(500)
+
+    await expectToThrowAsync(
+      () => publisher.send(Buffer.from(`test${randomUUID()}`)),
+      Error,
+      "Publisher has been closed"
     )
   })
 

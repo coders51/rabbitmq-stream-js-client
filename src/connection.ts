@@ -171,7 +171,8 @@ export class Connection {
   }
 
   public static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
-    return new Connection(params, logger).start()
+    const connection = Connection.create(params, logger)
+    return connection.start()
   }
 
   public static create(params: ConnectionParams, logger: Logger): Connection {
@@ -510,6 +511,8 @@ export function errorMessageOf(code: number): string {
   switch (code) {
     case 0x02:
       return "Stream does not exist"
+    case 0x04:
+      return "Subscription ID does not exist"
     case 0x06:
       return "Stream not available"
     case 0x12:

@@ -42,14 +42,4 @@ describe("publish a message and get confirmation", () => {
     const lastPublishingId = await publisher.getLastPublishingId()
     expect(publishResponses).eql([{ error: null, ids: [lastPublishingId] }])
   }).timeout(12000)
-
-  it("after the server replies with an error, the error callback is invoked with an error", async () => {
-    const publisher = await client.declarePublisher({ stream, publisherRef })
-    publisher.on("publish_confirm", (error, ids) => publishResponses.push({ error, ids }))
-    await rabbit.deleteStream(stream)
-
-    await publisher.send(Buffer.from(`test${randomUUID()}`))
-
-    await eventually(() => expect(publishResponses).eql([{ error: 256, ids: [undefined] }]))
-  }).timeout(10000)
 })

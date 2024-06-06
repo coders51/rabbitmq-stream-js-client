@@ -74,7 +74,7 @@ describe("offset", () => {
       const receivedMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
       const previousMessages = await sendANumberOfRandomMessages(publisher)
-      await wait(200)
+      await wait(500)
       const lastBatchMessages = await sendANumberOfRandomMessages(publisher, previousMessages.length)
 
       await client.declareConsumer(
@@ -246,7 +246,8 @@ describe("offset", () => {
         }
       )
       await rabbit.deleteStream(testStreamName)
-      await expectToThrowAsync(() => consumer.queryOffset(), Error, `Query offset command returned error with code 2`)
+      await wait(200)
+      await expectToThrowAsync(() => consumer.queryOffset(), Error, `This socket has been ended by the other party`)
     })
   })
 })

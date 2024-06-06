@@ -100,7 +100,7 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
-  it("declaring a single active consumer on an existing stream and a simple one - the active of the group  and the simple should handle the message", async () => {
+  it("declaring a single active consumer on an existing stream and a simple one - the active of the group and the simple should handle the message", async () => {
     const messages: Buffer[] = []
     const consumerRef = createConsumerRef()
 
@@ -192,10 +192,7 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
-      () =>
-        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, (message: Message) =>
-          console.log(message.content)
-        ),
+      () => client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, () => null),
       Error,
       "Stream was not found on any node"
     )
