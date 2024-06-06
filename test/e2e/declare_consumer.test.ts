@@ -100,7 +100,7 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
-  it("declaring a single active consumer on an existing stream and a simple one - the active of the group  and the simple should handle the message", async () => {
+  it("declaring a single active consumer on an existing stream and a simple one - the active of the group and the simple should handle the message", async () => {
     const messages: Buffer[] = []
     const consumerRef = createConsumerRef()
 
