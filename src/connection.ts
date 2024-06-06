@@ -171,7 +171,8 @@ export class Connection {
   }
 
   public static connect(params: ConnectionParams, logger: Logger): Promise<Connection> {
-    return new Connection(params, logger).start()
+    const connection = Connection.create(params, logger)
+    return connection.start()
   }
 
   public static create(params: ConnectionParams, logger: Logger): Connection {
