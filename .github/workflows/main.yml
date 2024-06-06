@@ -46,7 +46,7 @@ jobs:
       - name: Restart RabbitMQ
         run: docker restart ${{ job.services.rabbitmq.id }}
       - name: Wait for rabbit instance restart
-        run: sleep 5
+        run: sleep 10
       - name: Create SuperStream
         run: docker exec ${{ job.services.rabbitmq.id }} rabbitmq-streams add_super_stream super-stream-test --partitions 2
       - run: npm ci
