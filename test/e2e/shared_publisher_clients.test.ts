@@ -5,6 +5,7 @@ import { Publisher } from "../../src/publisher"
 import { createClient, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
+import { creditsOnChunkReceived } from "../../src/consumer_credit_policy"
 
 describe("publish messages through multiple publishers", () => {
   const rabbit = new Rabbit(username, password)
@@ -64,9 +65,12 @@ describe("publish messages through multiple publishers", () => {
       }
     }
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (msg) => {
-      received.push(msg.content.toString("utf-8"))
-    })
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), creditPolicy: creditsOnChunkReceived(1, 1) },
+      (msg) => {
+        received.push(msg.content.toString("utf-8"))
+      }
+    )
 
     await eventually(async () => expect(received.length).eql(howMany * publishers.length), 10000)
     expect(received).satisfies((msgs: string[]) => {

@@ -11,7 +11,7 @@ import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
-import { CreditRequest, CreditRequestParams } from "./requests/credit_request"
+import { CreditRequest } from "./requests/credit_request"
 import { DeclarePublisherRequest } from "./requests/declare_publisher_request"
 import { DeletePublisherRequest } from "./requests/delete_publisher_request"
 import { DeleteStreamRequest } from "./requests/delete_stream_request"
@@ -42,6 +42,7 @@ import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
 import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
+import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -185,7 +186,14 @@ export class Client {
 
     const consumer = new StreamConsumer(
       handle,
-      { connection, stream: params.stream, consumerId, consumerRef: params.consumerRef, offset: params.offset },
+      {
+        connection,
+        stream: params.stream,
+        consumerId,
+        consumerRef: params.consumerRef,
+        offset: params.offset,
+        creditPolicy: params.creditPolicy,
+      },
       params.filter
     )
     connection.on("metadata_update", async (metadata) => {
@@ -466,8 +474,15 @@ export class Client {
       properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }
 
+    const creditPolicy = params.creditPolicy || defaultCreditPolicy
+
     const res = await connection.sendAndWait<SubscribeResponse>(
-      new SubscribeRequest({ ...params, subscriptionId: consumerId, credit: 10, properties: properties })
+      new SubscribeRequest({
+        ...params,
+        subscriptionId: consumerId,
+        credit: creditPolicy.onSubscription(),
+        properties: properties,
+      })
     )
 
     if (!res.ok) {
@@ -476,8 +491,10 @@ export class Client {
     }
   }
 
-  private askForCredit(params: CreditRequestParams, connection: Connection): Promise<void> {
-    return connection.send(new CreditRequest({ ...params }))
+  private askForCredit(subscriptionId: number, connection: Connection): CreditRequestWrapper {
+    return async (howMany: number) => {
+      return connection.send(new CreditRequest({ subscriptionId: subscriptionId, credit: howMany }))
+    }
   }
 
   private getDeliverV1Callback(connectionId: string) {
@@ -494,8 +511,14 @@ export class Client {
       }
       this.logger.debug(`on deliverV1 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId }, connection)
-      response.messages.map((x) => consumer.handle(x))
+      const creditRequestWrapper = this.askForCredit(response.subscriptionId, connection)
+      await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
+      const chunkLength = response.messages.length
+      for (const [idx, message] of response.messages.entries()) {
+        consumer.handle(message)
+        await consumer.creditPolicy.onChunkProgress(idx + 1, chunkLength, creditRequestWrapper)
+      }
+      await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
     }
   }
 
@@ -513,12 +536,20 @@ export class Client {
       }
       this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
       this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      await this.askForCredit({ credit: 1, subscriptionId: response.subscriptionId }, connection)
+
+      const creditRequestWrapper = this.askForCredit(response.subscriptionId, connection)
+      await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
+      const chunkLength = response.messages.length
       if (consumer.filter) {
         response.messages.filter((x) => consumer.filter?.postFilterFunc(x)).map((x) => consumer.handle(x))
         return
       }
-      response.messages.map((x) => consumer.handle(x))
+
+      for (const [idx, message] of response.messages.entries()) {
+        consumer.handle(message)
+        await consumer.creditPolicy.onChunkProgress(idx + 1, chunkLength, creditRequestWrapper)
+      }
+      await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
     }
   }
 
@@ -713,6 +744,7 @@ export interface DeclareConsumerParams {
   connectionClosedListener?: ConnectionClosedListener
   singleActive?: boolean
   filter?: ConsumerFilter
+  creditPolicy?: ConsumerCreditPolicy
 }
 
 export interface DeclareSuperStreamConsumerParams {

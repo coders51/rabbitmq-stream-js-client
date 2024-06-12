@@ -30,6 +30,7 @@ import {
   password,
   username,
 } from "../support/util"
+import { creditsOnChunkReceived } from "../../src/consumer_credit_policy"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -178,9 +179,12 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-    await client.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
-      receivedMessages.push(message.content)
-    })
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.next(), creditPolicy: creditsOnChunkReceived(1, 1) },
+      (message: Message) => {
+        receivedMessages.push(message.content)
+      }
+    )
 
     const messages = range(3000).map((n) => Buffer.from(`hello${n}`))
     for (const m of messages) {

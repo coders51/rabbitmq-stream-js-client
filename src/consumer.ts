@@ -1,6 +1,7 @@
 import { ConsumerFilter } from "./client"
 import { ConnectionInfo, Connection } from "./connection"
 import { ConnectionPool } from "./connection_pool"
+import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_policy"
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
@@ -26,6 +27,7 @@ export class StreamConsumer implements Consumer {
   public consumerRef?: string
   public offset: Offset
   private clientLocalOffset: Offset
+  private creditsHandler: ConsumerCreditPolicy
   readonly handle: ConsumerFunc
 
   constructor(
@@ -36,6 +38,7 @@ export class StreamConsumer implements Consumer {
       consumerId: number
       consumerRef?: string
       offset: Offset
+      creditPolicy?: ConsumerCreditPolicy
     },
     readonly filter?: ConsumerFilter
   ) {
@@ -46,6 +49,7 @@ export class StreamConsumer implements Consumer {
     this.offset = params.offset
     this.clientLocalOffset = this.offset.clone()
     this.connection.incrRefCount()
+    this.creditsHandler = params.creditPolicy || defaultCreditPolicy
     this.handle = this.wrapHandle(handle, params.offset)
   }
 
@@ -108,5 +112,9 @@ export class StreamConsumer implements Consumer {
 
   public get extendedId(): string {
     return computeExtendedConsumerId(this.consumerId, this.connection.connectionId)
+  }
+
+  public get creditPolicy() {
+    return this.creditsHandler
   }
 }

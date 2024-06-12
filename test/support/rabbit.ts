@@ -15,7 +15,7 @@ export interface RabbitConnectionResponse {
   }
 }
 
-interface RabbitConsumerCredits {
+export interface RabbitConsumerCredits {
   connectionName: string
   allCredits: number[]
 }
