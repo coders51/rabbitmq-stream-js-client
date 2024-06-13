@@ -1,9 +1,10 @@
-import { Client } from "../../src"
 import { expect } from "chai"
-import { Rabbit } from "../support/rabbit"
 import { randomUUID } from "crypto"
-import { expectToThrowAsync, username, password } from "../support/util"
+import { Client } from "../../src"
+import { computeExtendedPublisherId } from "../../src/publisher"
 import { createClient } from "../support/fake_data"
+import { Rabbit } from "../support/rabbit"
+import { expectToThrowAsync, password, username } from "../support/util"
 
 describe("DeletePublisher command", () => {
   const rabbit = new Rabbit(username, password)
@@ -26,17 +27,15 @@ describe("DeletePublisher command", () => {
     const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
     await publisher.send(Buffer.from(`test${randomUUID()}`))
 
-    const publisherId = publisher.publisherId
-
-    const deletePublisher = await client.deletePublisher(Number(publisherId))
+    const deletePublisher = await client.deletePublisher(publisher.extendedId)
     expect(deletePublisher).eql(true)
   }).timeout(10000)
 
   it("errors when deleting a publisher that does not exist", async () => {
-    const nonExistentPublisherId = 42
+    const nonExistentPublisherId = computeExtendedPublisherId(42, randomUUID())
 
     await expectToThrowAsync(
-      () => client.deletePublisher(Number(nonExistentPublisherId)),
+      () => client.deletePublisher(nonExistentPublisherId),
       Error,
       "Delete Publisher command returned error with code 18 - Publisher does not exist"
     )

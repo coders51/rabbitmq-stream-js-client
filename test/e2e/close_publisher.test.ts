@@ -36,7 +36,7 @@ describe("close publisher", () => {
   it("closing a publisher", async () => {
     const publisher = await client.declarePublisher({ stream: testStreamName })
 
-    const response = await client.deletePublisher(publisher.publisherId)
+    const response = await client.deletePublisher(publisher.extendedId)
 
     const publisherInfo = publisher.getConnectionInfo()
     expect(response).eql(true)
@@ -48,7 +48,7 @@ describe("close publisher", () => {
     const publisher1 = await createPublisher(testStreamName, client)
     const publisher2 = await createPublisher(testStreamName, client)
 
-    await client.deletePublisher(publisher1.publisherId)
+    await client.deletePublisher(publisher1.extendedId)
 
     const publisher2Info = publisher2.getConnectionInfo()
     expect(publisher2Info.writable).eql(true)
@@ -58,8 +58,8 @@ describe("close publisher", () => {
     const publisher1 = await createPublisher(testStreamName, client)
     const publisher2 = await createPublisher(testStreamName, client)
 
-    await client.deletePublisher(publisher1.publisherId)
-    await client.deletePublisher(publisher2.publisherId)
+    await client.deletePublisher(publisher1.extendedId)
+    await client.deletePublisher(publisher2.extendedId)
 
     const publisher1Info = publisher1.getConnectionInfo()
     const publisher2Info = publisher2.getConnectionInfo()
@@ -88,7 +88,7 @@ describe("close publisher", () => {
     }
 
     for (const p of closingPublishersSubset) {
-      await client.deletePublisher(p.publisherId)
+      await client.deletePublisher(p.extendedId)
     }
 
     expect(localPort).not.undefined

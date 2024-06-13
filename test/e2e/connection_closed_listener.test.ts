@@ -92,7 +92,7 @@ describe("connection closed callback", () => {
       connectionClosedListener: publisherListenerSpy,
     })
 
-    await client.deletePublisher(publisher.publisherId)
+    await client.deletePublisher(publisher.extendedId)
 
     await always(() => {
       expect(publisherListenerSpy).to.have.been.called.exactly(0)
@@ -112,7 +112,7 @@ describe("connection closed callback", () => {
       }
     )
 
-    await client.closeConsumer(consumer.consumerId)
+    await client.closeConsumer(consumer.extendedId)
 
     await always(() => {
       expect(consumerListenerSpy).to.have.been.called.exactly(0)

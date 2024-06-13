@@ -51,6 +51,7 @@ export type ConnectionListenersParams = ClientListenersParams & {
 
 export type ConnectionParams = ClientParams & {
   listeners?: ConnectionListenersParams
+  connectionId: string
 }
 
 export type ConnectionInfo = {
@@ -81,7 +82,7 @@ export class Connection {
   private peerProperties: Record<string, string> = {}
   private readonly bufferSizeSettings: BufferSizeSettings
   private frameMax: number = DEFAULT_FRAME_MAX
-  private connectionId: string
+  public readonly connectionId: string
   private connectionClosedListener: ConnectionClosedListener | undefined
   private serverEndpoint: { host: string; port: number } = { host: "", port: 5552 }
   private readonly serverDeclaredVersions: Version[] = []
@@ -89,7 +90,8 @@ export class Connection {
   private filteringEnabled: boolean = false
   public userManuallyClose: boolean = false
   private setupCompleted: boolean = false
-  public readonly id = randomUUID()
+  publisherId = 0
+  consumerId = 0
 
   constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
     this.hostname = params.hostname
@@ -102,7 +104,7 @@ export class Connection {
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
     this.decoder = new ResponseDecoder((...args) => this.responseReceived(...args), this.logger)
     this.bufferSizeSettings = params.bufferSizeSettings || {}
-    this.connectionId = randomUUID()
+    this.connectionId = params.connectionId ?? randomUUID()
     this.connectionClosedListener = params.listeners?.connection_closed
     this.logSocket("new")
   }
@@ -122,7 +124,7 @@ export class Connection {
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
-          `Error on connection ${this.id} ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
+          `Error on connection ${this.connectionId} ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
         )
         return rej(err)
       })
@@ -149,7 +151,9 @@ export class Connection {
       })
       this.socket.on("close", (had_error) => {
         this.setupCompleted = false
-        this.logger.info(`Close event on socket for connection ${this.id}, close cloud had_error? ${had_error}`)
+        this.logger.info(
+          `Close event on socket for connection ${this.connectionId}, close cloud had_error? ${had_error}`
+        )
         if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
       })
     })
@@ -232,7 +236,7 @@ export class Connection {
 
   private logSocket(prefix: string = "") {
     this.logger.info(
-      `${prefix} socket for connection ${this.id}: ${inspect([
+      `${prefix} socket for connection ${this.connectionId}: ${inspect([
         this.socket.readable,
         this.socket.writable,
         this.socket.localAddress,
@@ -504,6 +508,18 @@ export class Connection {
 
   public get refCount() {
     return this.refs
+  }
+
+  public getNextPublisherId() {
+    const publisherId = this.publisherId
+    this.publisherId++
+    return publisherId
+  }
+
+  public getNextConsumerId() {
+    const consumerId = this.consumerId
+    this.consumerId++
+    return consumerId
   }
 }
 

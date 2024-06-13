@@ -1,10 +1,12 @@
 import { expect } from "chai"
+import { randomUUID } from "node:crypto"
 import { Client, Consumer } from "../../src"
+import { computeExtendedConsumerId } from "../../src/consumer"
 import { Offset } from "../../src/requests/subscribe_request"
+import { getMaxSharedConnectionInstances } from "../../src/util"
+import { createClient, createConsumer } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, getTestNodesFromEnv, password, username } from "../support/util"
-import { createClient, createConsumer } from "../support/fake_data"
-import { getMaxSharedConnectionInstances } from "../../src/util"
 
 describe("close consumer", () => {
   const rabbit = new Rabbit(username, password)
@@ -38,7 +40,7 @@ describe("close consumer", () => {
     await client.declarePublisher({ stream: testStreamName })
     const consumer = await client.declareConsumer({ stream: testStreamName, offset: Offset.first() }, () => null)
 
-    const response = await client.closeConsumer(consumer.consumerId)
+    const response = await client.closeConsumer(consumer.extendedId)
 
     expect(response).eql(true)
     expect(client.consumerCounts()).eql(0)
@@ -49,7 +51,7 @@ describe("close consumer", () => {
   }).timeout(5000)
 
   it("closing a non-existing consumer should rise an error", async () => {
-    const nonExistingConsumerId = 123456
+    const nonExistingConsumerId = computeExtendedConsumerId(123456, randomUUID())
     await client.declarePublisher({ stream: testStreamName })
 
     await expectToThrowAsync(() => client.closeConsumer(nonExistingConsumerId), Error)
@@ -68,7 +70,7 @@ describe("close consumer", () => {
     }
     const sharingConsumers = Array.from(consumers.values()).find((consumerArrays) => consumerArrays.length >= 2) || []
 
-    await client.closeConsumer(sharingConsumers[0].consumerId)
+    await client.closeConsumer(sharingConsumers[0].extendedId)
 
     const consumer2Info = sharingConsumers[1].getConnectionInfo()
     expect(sharingConsumers.length).gte(2)
@@ -89,7 +91,7 @@ describe("close consumer", () => {
     const sharingConsumers = Array.from(consumers.values()).find((consumerArrays) => consumerArrays.length >= 2) || []
 
     for (const c of sharingConsumers) {
-      await client.closeConsumer(c.consumerId)
+      await client.closeConsumer(c.extendedId)
     }
 
     await eventually(() => {
@@ -123,7 +125,7 @@ describe("close consumer", () => {
     }
 
     for (const c of closingConsumersSubset) {
-      await client.closeConsumer(c.consumerId)
+      await client.closeConsumer(c.extendedId)
     }
 
     expect(localPort).not.undefined
