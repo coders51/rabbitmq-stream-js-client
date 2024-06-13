@@ -135,7 +135,7 @@ export class Client {
 
   public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
     const publisherId = this.incPublisherId()
-    const connection = await this.getConnection(params.stream, true, params.connectionClosedListener)
+    const connection = await this.getConnection(params.stream, "publisher", params.connectionClosedListener)
     await this.declarePublisherOnConnection(params, publisherId, connection, filter)
     const streamPublisherParams = {
       connection: connection,
@@ -176,7 +176,7 @@ export class Client {
   public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
     const consumerId = this.incConsumerId()
 
-    const connection = await this.getConnection(params.stream, false, params.connectionClosedListener)
+    const connection = await this.getConnection(params.stream, "consumer", params.connectionClosedListener)
 
     if (params.filter && !connection.isFilteringEnabled) {
       throw new Error(`Broker does not support message filtering.`)
@@ -549,26 +549,26 @@ export class Client {
 
   private async getConnection(
     streamName: string,
-    leader: boolean,
+    purpose: "publisher" | "consumer",
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
-    const chosenNode = chooseNode(metadata, leader)
+    const chosenNode = chooseNode(metadata, purpose === "publisher")
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnection = ConnectionPool.getUsableCachedConnection(leader, streamName, chosenNode.host)
+    const cachedConnection = ConnectionPool.getUsableCachedConnection(purpose, streamName, chosenNode.host)
     if (cachedConnection) return cachedConnection
 
     const newConnection = await this.getConnectionOnChosenNode(
-      leader,
+      purpose,
       streamName,
       chosenNode,
       metadata,
       connectionClosedListener
     )
 
-    ConnectionPool.cacheConnection(leader, streamName, newConnection.hostname, newConnection)
+    ConnectionPool.cacheConnection(purpose, streamName, newConnection.hostname, newConnection)
     return newConnection
   }
 
@@ -605,13 +605,13 @@ export class Client {
   }
 
   private async getConnectionOnChosenNode(
-    leader: boolean,
+    purpose: "publisher" | "consumer",
     streamName: string,
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
-    const connectionParams = this.buildConnectionParams(leader, streamName, connectionClosedListener)
+    const connectionParams = this.buildConnectionParams(purpose === "publisher", streamName, connectionClosedListener)
     if (this.params.addressResolver && this.params.addressResolver.enabled) {
       const maxAttempts = computeMaxAttempts(metadata)
       const resolver = this.params.addressResolver
