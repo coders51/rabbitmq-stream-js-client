@@ -4,26 +4,27 @@ import { Message } from "../../src/publisher"
 import { Offset } from "../../src/requests/subscribe_request"
 import { createClient, createConsumerRef, createPublisher, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { always, eventually, password, username } from "../support/util"
+import { always, eventually, password, username, waitSleeping } from "../support/util"
 import {
+  CreditRequestWrapper,
   creditsOnChunkCompleted,
   creditsOnChunkProgress,
   creditsOnChunkReceived,
 } from "../../src/consumer_credit_policy"
 import spies from "chai-spies"
+import { mapSync } from "../../src/util"
 chaiUse(spies)
 
-const send = async (publisher: Publisher, chunks: Message[][]) => {
-  for (const chunk of chunks) {
-    for (const msg of chunk) {
-      await publisher.send(msg.content)
-    }
-    await publisher.flush()
-  }
+const send = async (publisher: Publisher, chunk: Message[]) => {
+  await mapSync(chunk, (m) => publisher.send(m.content))
+  await publisher.flush()
 }
 
 describe("consumer credit flow policies", () => {
   let streamName: string
+  let invocationTimestamp: undefined | number = undefined
+  let lowerBoundTimestamp: undefined | number = undefined
+  let upperBoundTimestamp: undefined | number = undefined
   const rabbit = new Rabbit(username, password)
   let client: Client
   let publisher: Publisher
@@ -36,8 +37,24 @@ describe("consumer credit flow policies", () => {
     { content: Buffer.from("new") },
     { content: Buffer.from("world") },
   ]
-  const chunks = [chunk, chunk]
-  const nMessages = chunk.length * chunks.length
+  const nMessages = chunk.length
+  const received: Message[] = []
+
+  const messageHandler = (lowerBoundThreshold: number, upperBoundThreshold: number) => async (message: Message) => {
+    received.push(message)
+    if (received.length % chunk.length === lowerBoundThreshold) {
+      lowerBoundTimestamp = Date.now()
+      await waitSleeping(10)
+    }
+    if (received.length % chunk.length === upperBoundThreshold) {
+      upperBoundTimestamp = Date.now()
+      await waitSleeping(10)
+    }
+  }
+
+  const requestCreditsWrapper = async (_requestWrapper: CreditRequestWrapper, _amount: number) => {
+    invocationTimestamp = Date.now()
+  }
 
   before(() => {
     process.env.MAX_SHARED_CLIENT_INSTANCES = "10"
@@ -56,6 +73,10 @@ describe("consumer credit flow policies", () => {
     streamName = createStreamName()
     await rabbit.createStream(streamName)
     publisher = await createPublisher(streamName, client)
+    invocationTimestamp = undefined
+    lowerBoundTimestamp = undefined
+    upperBoundTimestamp = undefined
+    received.splice(0, received.length)
   })
 
   afterEach(async () => {
@@ -71,8 +92,8 @@ describe("consumer credit flow policies", () => {
   it("NewCreditOnChunkReceived policy requests new credit when chunk is completely received", async () => {
     const consumerRef = createConsumerRef()
     const policy = creditsOnChunkReceived(1, 1)
+    sandbox.on(policy, "requestCredits", requestCreditsWrapper)
     sandbox.on(policy, "onChunkReceived")
-    const received: Message[] = []
     await client.declareConsumer(
       {
         stream: streamName,
@@ -81,23 +102,26 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      (message: Message) => {
-        received.push(message)
-      }
+      messageHandler(0, 1)
     )
 
-    await send(publisher, chunks)
+    await send(publisher, chunk)
 
     await eventually(() => expect(received.length).eql(nMessages))
-    await eventually(() => expect(policy.onChunkReceived).called.exactly(chunks.length))
-    await always(() => expect(policy.onChunkReceived).called.below(chunks.length + 1), 5000)
+    await eventually(() => expect(policy.requestCredits).called.exactly(1))
+    await eventually(() => expect(policy.onChunkReceived).called.exactly(1))
+    await always(() => expect(policy.onChunkReceived).called.below(1 + 1), 5000)
+    expect(invocationTimestamp).lessThanOrEqual(upperBoundTimestamp!)
   }).timeout(10000)
 
   it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 50% progress when the set ratio is 0.5", async () => {
     const consumerRef = createConsumerRef()
-    const policy = creditsOnChunkProgress(1, 0.5, 1)
+    const ratio = 0.5
+    const lowerBoundThreshold = Math.ceil(ratio * chunk.length)
+    const upperBoundThreshold = lowerBoundThreshold + 1
+    const policy = creditsOnChunkProgress(1, ratio, 1)
+    sandbox.on(policy, "requestCredits", requestCreditsWrapper)
     sandbox.on(policy, "onChunkProgress")
-    const received: Message[] = []
     await client.declareConsumer(
       {
         stream: streamName,
@@ -106,23 +130,24 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      (message: Message) => {
-        received.push(message)
-      }
+      messageHandler(lowerBoundThreshold, upperBoundThreshold)
     )
 
-    await send(publisher, chunks)
+    await send(publisher, chunk)
 
     await eventually(() => expect(received.length).eql(nMessages))
     await eventually(() => expect(policy.onChunkProgress).called.exactly(nMessages))
+    await eventually(() => expect(policy.requestCredits).called.exactly(1))
     await always(() => expect(policy.onChunkProgress).called.below(nMessages + 1), 5000)
+    expect(invocationTimestamp).greaterThanOrEqual(lowerBoundTimestamp!)
+    expect(invocationTimestamp).lessThanOrEqual(upperBoundTimestamp!)
   }).timeout(10000)
 
   it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 100% progress when the set ratio is 1.0", async () => {
     const consumerRef = createConsumerRef()
     const policy = creditsOnChunkProgress(1, 1.0, 1)
+    sandbox.on(policy, "requestCredits", requestCreditsWrapper)
     sandbox.on(policy, "onChunkProgress")
-    const received: Message[] = []
     await client.declareConsumer(
       {
         stream: streamName,
@@ -131,23 +156,24 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      (message: Message) => {
-        received.push(message)
-      }
+      messageHandler(1, chunk.length)
     )
 
-    await send(publisher, chunks)
+    await send(publisher, chunk)
 
     await eventually(() => expect(received.length).eql(nMessages))
+    await eventually(() => expect(invocationTimestamp).greaterThanOrEqual(lowerBoundTimestamp!))
     await eventually(() => expect(policy.onChunkProgress).called.exactly(nMessages))
+    await eventually(() => expect(policy.requestCredits).called.exactly(1))
     await always(() => expect(policy.onChunkProgress).called.below(nMessages + 1), 5000)
+    expect(invocationTimestamp).greaterThanOrEqual(lowerBoundTimestamp!)
   }).timeout(10000)
 
   it("NewCreditOnChunkCompleted policy requests new credit when chunk completely handled", async () => {
     const consumerRef = createConsumerRef()
     const policy = creditsOnChunkCompleted(1, 1)
+    sandbox.on(policy, "requestCredits", requestCreditsWrapper)
     sandbox.on(policy, "onChunkCompleted")
-    const received: Message[] = []
     await client.declareConsumer(
       {
         stream: streamName,
@@ -156,15 +182,15 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      async (message: Message) => {
-        received.push(message)
-      }
+      messageHandler(1, chunk.length)
     )
 
-    await send(publisher, chunks)
+    await send(publisher, chunk)
 
     await eventually(() => expect(received.length).eql(nMessages))
-    await eventually(() => expect(policy.onChunkCompleted).called.exactly(chunks.length))
-    await always(() => expect(policy.onChunkCompleted).called.below(chunks.length + 1), 5000)
+    await eventually(() => expect(policy.onChunkCompleted).called.exactly(1))
+    await eventually(() => expect(policy.requestCredits).called.exactly(1))
+    await always(() => expect(policy.onChunkCompleted).called.below(1 + 1), 5000)
+    expect(invocationTimestamp).greaterThanOrEqual(lowerBoundTimestamp!)
   }).timeout(10000)
 })

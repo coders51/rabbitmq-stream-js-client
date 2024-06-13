@@ -228,5 +228,11 @@ export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
   })
 }
 
+export const waitSleeping = async (ms: number) => {
+  return new Promise((res) => {
+    setTimeout(() => res(true), ms)
+  })
+}
+
 export const username = process.env.RABBITMQ_USER || "rabbit"
 export const password = process.env.RABBITMQ_PASSWORD || "rabbit"

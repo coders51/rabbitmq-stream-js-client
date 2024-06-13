@@ -1,7 +1,7 @@
 export type CreditRequestWrapper = (howMany: number) => Promise<void>
 
 export abstract class ConsumerCreditPolicy {
-  constructor(protected readonly onStartup: number) {}
+  constructor(protected readonly startFrom: number) {}
 
   public async onChunkReceived(_requestWrapper: CreditRequestWrapper) {
     return
@@ -13,27 +13,31 @@ export abstract class ConsumerCreditPolicy {
     return
   }
 
+  public async requestCredits(requestWrapper: CreditRequestWrapper, amount: number) {
+    return requestWrapper(amount)
+  }
+
   public onSubscription() {
-    return this.onStartup
+    return this.startFrom
   }
 }
 
 class NewCreditsOnChunkReceived extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly onRenewal: number = 1) {
-    super(onStartup)
+  constructor(startFrom: number = 1, private readonly step: number = 1) {
+    super(startFrom)
   }
 
   public async onChunkReceived(requestWrapper: CreditRequestWrapper) {
-    await requestWrapper(this.onRenewal)
+    await this.requestCredits(requestWrapper, this.step)
   }
 
   public onSubscription(): number {
-    return this.onStartup
+    return this.startFrom
   }
 }
 
 class NewCreditsOnChunkProgress extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly ratio: number = 0.5, private readonly onRenewal: number = 1) {
+  constructor(onStartup: number = 1, private readonly ratio: number = 0.5, private readonly step: number = 1) {
     super(onStartup)
   }
 
@@ -41,25 +45,25 @@ class NewCreditsOnChunkProgress extends ConsumerCreditPolicy {
     const threshold = Math.max(1, Math.ceil(this.ratio * total))
 
     if (current === threshold) {
-      await requestWrapper(this.onRenewal)
+      await this.requestCredits(requestWrapper, this.step)
     }
   }
 }
 
 class NewCreditsOnChunkCompleted extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly onRenewal: number = 1) {
+  constructor(onStartup: number = 1, private readonly step: number = 1) {
     super(onStartup)
   }
 
   public async onChunkCompleted(requestWrapper: CreditRequestWrapper) {
-    await requestWrapper(this.onRenewal)
+    await this.requestCredits(requestWrapper, this.step)
   }
 }
 
-export const creditsOnChunkReceived = (onStartup: number, onRenewal: number) =>
-  new NewCreditsOnChunkReceived(onStartup, onRenewal)
-export const creditsOnChunkProgress = (onStartup: number, ratio: number, onRenewal: number) =>
-  new NewCreditsOnChunkProgress(onStartup, ratio, onRenewal)
-export const creditsOnChunkCompleted = (onStartup: number, onRenewal: number) =>
-  new NewCreditsOnChunkCompleted(onStartup, onRenewal)
+export const creditsOnChunkReceived = (onStartup: number, step: number) =>
+  new NewCreditsOnChunkReceived(onStartup, step)
+export const creditsOnChunkProgress = (onStartup: number, ratio: number, step: number) =>
+  new NewCreditsOnChunkProgress(onStartup, ratio, step)
+export const creditsOnChunkCompleted = (onStartup: number, step: number) =>
+  new NewCreditsOnChunkCompleted(onStartup, step)
 export const defaultCreditPolicy = creditsOnChunkReceived(2, 1)

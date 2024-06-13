@@ -41,7 +41,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
-import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
+import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, mapSync, sample } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
@@ -54,6 +54,13 @@ type PublisherMappedValue = {
   publisher: StreamPublisher
   params: DeclarePublisherParams
   filter: FilterFunc | undefined
+}
+
+type DeliverData = {
+  messages: Message[]
+  messageFilteringSupported: boolean
+  subscriptionId: number
+  consumerId: string
 }
 export class Client {
   public readonly id: string = randomUUID()
@@ -499,58 +506,55 @@ export class Client {
 
   private getDeliverV1Callback(connectionId: string) {
     return async (response: DeliverResponse) => {
-      const { consumer, connection } = this.consumers.get(
-        computeExtendedConsumerId(response.subscriptionId, connectionId)
-      ) ?? {
-        consumer: undefined,
-        connection: undefined,
+      const deliverData = {
+        messages: response.messages,
+        subscriptionId: response.subscriptionId,
+        consumerId: computeExtendedConsumerId(response.subscriptionId, connectionId),
+        messageFilteringSupported: false,
       }
-      if (!consumer) {
-        this.logger.error(`On deliverV1 no consumer found`)
-        return
-      }
-      this.logger.debug(`on deliverV1 -> ${consumer.consumerRef}`)
-      this.logger.debug(`response.messages.length: ${response.messages.length}`)
-      const creditRequestWrapper = this.askForCredit(response.subscriptionId, connection)
-      await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
-      const chunkLength = response.messages.length
-      for (const [idx, message] of response.messages.entries()) {
-        consumer.handle(message)
-        await consumer.creditPolicy.onChunkProgress(idx + 1, chunkLength, creditRequestWrapper)
-      }
-      await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
+      await this.handleDelivery(deliverData)
     }
   }
 
   private getDeliverV2Callback(connectionId: string) {
     return async (response: DeliverResponseV2) => {
-      const { consumer, connection } = this.consumers.get(
-        computeExtendedConsumerId(response.subscriptionId, connectionId)
-      ) ?? {
-        consumer: undefined,
-        connection: undefined,
+      const deliverData = {
+        messages: response.messages,
+        subscriptionId: response.subscriptionId,
+        consumerId: computeExtendedConsumerId(response.subscriptionId, connectionId),
+        messageFilteringSupported: true,
       }
-      if (!consumer) {
-        this.logger.error(`On deliverV2 no consumer found`)
-        return
-      }
-      this.logger.debug(`on deliverV2 -> ${consumer.consumerRef}`)
-      this.logger.debug(`response.messages.length: ${response.messages.length}`)
-
-      const creditRequestWrapper = this.askForCredit(response.subscriptionId, connection)
-      await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
-      const chunkLength = response.messages.length
-      if (consumer.filter) {
-        response.messages.filter((x) => consumer.filter?.postFilterFunc(x)).map((x) => consumer.handle(x))
-        return
-      }
-
-      for (const [idx, message] of response.messages.entries()) {
-        consumer.handle(message)
-        await consumer.creditPolicy.onChunkProgress(idx + 1, chunkLength, creditRequestWrapper)
-      }
-      await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
+      await this.handleDelivery(deliverData)
     }
+  }
+
+  private handleDelivery = async (deliverData: DeliverData) => {
+    const { messages, subscriptionId, consumerId, messageFilteringSupported } = deliverData
+    const { consumer, connection } = this.consumers.get(consumerId) ?? {
+      consumer: undefined,
+      connection: undefined,
+    }
+    if (!consumer) {
+      this.logger.error(`On delivery, no consumer found`)
+      return
+    }
+    this.logger.debug(`on delivery -> ${consumer.consumerRef}`)
+    this.logger.debug(`response.messages.length: ${messages.length}`)
+
+    const creditRequestWrapper = this.askForCredit(subscriptionId, connection)
+    await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
+    const chunkLength = messages.length
+    let handled = 0
+    const messageFilter =
+      messageFilteringSupported && consumer.filter?.postFilterFunc
+        ? consumer.filter?.postFilterFunc
+        : (_msg: Message) => true
+    await mapSync<Message, void>(messages, async (message: Message) => {
+      if (messageFilter(message)) await consumer.handle(message)
+      handled++
+      await consumer.creditPolicy.onChunkProgress(handled, chunkLength, creditRequestWrapper)
+    })
+    await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
   }
 
   private getConsumerUpdateCallback(connectionId: string) {
@@ -731,9 +735,11 @@ export interface DeclareSuperStreamPublisherParams {
   routingStrategy?: RoutingStrategy
 }
 
+export type MessageFilter = (msg: Message) => boolean
+
 export interface ConsumerFilter {
   values: string[]
-  postFilterFunc: (msg: Message) => boolean
+  postFilterFunc: MessageFilter
   matchUnfiltered: boolean
 }
 
