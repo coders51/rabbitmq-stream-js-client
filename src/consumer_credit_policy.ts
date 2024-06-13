@@ -3,13 +3,13 @@ export type CreditRequestWrapper = (howMany: number) => Promise<void>
 export abstract class ConsumerCreditPolicy {
   constructor(protected readonly onStartup: number) {}
 
-  public onChunkReceived(_requestWrapper: CreditRequestWrapper) {
+  public async onChunkReceived(_requestWrapper: CreditRequestWrapper) {
     return
   }
-  public onChunkProgress(_idx: number, _total: number, _requestWrapper: CreditRequestWrapper) {
+  public async onChunkProgress(_idx: number, _total: number, _requestWrapper: CreditRequestWrapper) {
     return
   }
-  public onChunkCompleted(_requestWrapper: CreditRequestWrapper) {
+  public async onChunkCompleted(_requestWrapper: CreditRequestWrapper) {
     return
   }
 
@@ -33,7 +33,7 @@ class NewCreditsOnChunkReceived extends ConsumerCreditPolicy {
 }
 
 class NewCreditsOnChunkProgress extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly ratio: number = 0.5, private readonly howMany: number = 1) {
+  constructor(onStartup: number = 1, private readonly ratio: number = 0.5, private readonly onRenewal: number = 1) {
     super(onStartup)
   }
 
@@ -41,18 +41,18 @@ class NewCreditsOnChunkProgress extends ConsumerCreditPolicy {
     const threshold = Math.max(1, Math.ceil(this.ratio * total))
 
     if (current === threshold) {
-      await requestWrapper(this.howMany)
+      await requestWrapper(this.onRenewal)
     }
   }
 }
 
 class NewCreditsOnChunkCompleted extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly howMany: number = 1) {
+  constructor(onStartup: number = 1, private readonly onRenewal: number = 1) {
     super(onStartup)
   }
 
   public async onChunkCompleted(requestWrapper: CreditRequestWrapper) {
-    await requestWrapper(this.howMany)
+    await requestWrapper(this.onRenewal)
   }
 }
 

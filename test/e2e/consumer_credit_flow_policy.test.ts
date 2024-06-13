@@ -78,7 +78,7 @@ describe("consumer credit flow policies", () => {
         stream: streamName,
         offset: Offset.first(),
         singleActive: true,
-        consumerRef: consumerRef,
+        consumerRef,
         creditPolicy: policy,
       },
       (message: Message) => {
@@ -93,7 +93,7 @@ describe("consumer credit flow policies", () => {
     await always(() => expect(policy.onChunkReceived).called.below(chunks.length + 1), 5000)
   }).timeout(10000)
 
-  it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 50% progress", async () => {
+  it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 50% progress when the set ratio is 0.5", async () => {
     const consumerRef = createConsumerRef()
     const policy = creditsOnChunkProgress(1, 0.5, 1)
     sandbox.on(policy, "onChunkProgress")
@@ -103,7 +103,7 @@ describe("consumer credit flow policies", () => {
         stream: streamName,
         offset: Offset.first(),
         singleActive: true,
-        consumerRef: consumerRef,
+        consumerRef,
         creditPolicy: policy,
       },
       (message: Message) => {
@@ -118,9 +118,9 @@ describe("consumer credit flow policies", () => {
     await always(() => expect(policy.onChunkProgress).called.below(nMessages + 1), 5000)
   }).timeout(10000)
 
-  it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 100% progress", async () => {
+  it("NewCreditOnChunkProgress policy requests new credit when chunk handled at 100% progress when the set ratio is 1.0", async () => {
     const consumerRef = createConsumerRef()
-    const policy = creditsOnChunkProgress(1, 1, 1)
+    const policy = creditsOnChunkProgress(1, 1.0, 1)
     sandbox.on(policy, "onChunkProgress")
     const received: Message[] = []
     await client.declareConsumer(
@@ -128,7 +128,7 @@ describe("consumer credit flow policies", () => {
         stream: streamName,
         offset: Offset.first(),
         singleActive: true,
-        consumerRef: consumerRef,
+        consumerRef,
         creditPolicy: policy,
       },
       (message: Message) => {
@@ -153,7 +153,7 @@ describe("consumer credit flow policies", () => {
         stream: streamName,
         offset: Offset.first(),
         singleActive: true,
-        consumerRef: consumerRef,
+        consumerRef,
         creditPolicy: policy,
       },
       async (message: Message) => {
