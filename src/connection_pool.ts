@@ -8,10 +8,10 @@ export class ConnectionPool {
   private static publisherConnectionProxies = new Map<InstanceKey, Connection[]>()
 
   public static getUsableCachedConnection(purpose: "publisher" | "consumer", streamName: string, host: string) {
-    const m =
+    const map =
       purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
-    const k = ConnectionPool.getCacheKey(streamName, host)
-    const proxies = m.get(k) || []
+    const key = ConnectionPool.getCacheKey(streamName, host)
+    const proxies = map.get(key) || []
     const connection = proxies.at(-1)
     const refCount = connection?.refCount
     return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
@@ -23,12 +23,12 @@ export class ConnectionPool {
     host: string,
     client: Connection
   ) {
-    const m =
+    const map =
       purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
-    const k = ConnectionPool.getCacheKey(streamName, host)
-    const currentlyCached = m.get(k) || []
+    const key = ConnectionPool.getCacheKey(streamName, host)
+    const currentlyCached = map.get(key) || []
     currentlyCached.push(client)
-    m.set(k, currentlyCached)
+    map.set(key, currentlyCached)
   }
 
   public static removeIfUnused(connection: Connection) {
