@@ -108,6 +108,29 @@ describe("declare publisher", () => {
     expect(Array.from(counts.keys()).length).gt(1)
   }).timeout(10000)
 
+  it("declaring more than 256 publishers should not throw but rather open up multiple connections", async () => {
+    const publishersToCreate = 257
+    const counts = new Map<string, number>()
+    for (let i = 0; i < publishersToCreate; i++) {
+      const publisher = await createPublisher(streamName, client)
+      const { id } = publisher.getConnectionInfo()
+      counts.set(id, (counts.get(id) || 0) + 1)
+    }
+
+    expect(Array.from(counts.keys()).length).gt(1)
+  }).timeout(10000)
+
+  it("on a new connection, publisherId restarts from 0", async () => {
+    const publishersToCreate = getMaxSharedConnectionInstances() + 1
+    const publisherIds: number[] = []
+    for (let i = 0; i < publishersToCreate; i++) {
+      const publisher = await createPublisher(streamName, client)
+      publisherIds.push(publisher.publisherId)
+    }
+
+    expect(publisherIds.filter((id) => id === 0).length).gt(1)
+  }).timeout(10000)
+
   describe("when the client declares a named connection", () => {
     let connectionName: string | undefined = undefined
 

@@ -2,26 +2,29 @@ import { Connection } from "./connection"
 import { getMaxSharedConnectionInstances } from "./util"
 
 type InstanceKey = string
+export type ConnectionPurpose = "consumer" | "publisher"
 
 export class ConnectionPool {
   private static consumerConnectionProxies = new Map<InstanceKey, Connection[]>()
   private static publisherConnectionProxies = new Map<InstanceKey, Connection[]>()
 
-  public static getUsableCachedConnection(leader: boolean, streamName: string, host: string) {
-    const m = leader ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
-    const k = ConnectionPool.getCacheKey(streamName, host)
-    const proxies = m.get(k) || []
+  public static getUsableCachedConnection(purpose: ConnectionPurpose, streamName: string, host: string) {
+    const map =
+      purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
+    const key = ConnectionPool.getCacheKey(streamName, host)
+    const proxies = map.get(key) || []
     const connection = proxies.at(-1)
     const refCount = connection?.refCount
     return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
   }
 
-  public static cacheConnection(leader: boolean, streamName: string, host: string, client: Connection) {
-    const m = leader ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
-    const k = ConnectionPool.getCacheKey(streamName, host)
-    const currentlyCached = m.get(k) || []
+  public static cacheConnection(purpose: ConnectionPurpose, streamName: string, host: string, client: Connection) {
+    const map =
+      purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
+    const key = ConnectionPool.getCacheKey(streamName, host)
+    const currentlyCached = map.get(key) || []
     currentlyCached.push(client)
-    m.set(k, currentlyCached)
+    map.set(key, currentlyCached)
   }
 
   public static removeIfUnused(connection: Connection) {

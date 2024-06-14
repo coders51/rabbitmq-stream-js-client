@@ -17,7 +17,7 @@ export const DEFAULT_FRAME_MAX = 1048576
 export const DEFAULT_UNLIMITED_FRAME_MAX = 0
 export const REQUIRED_MANAGEMENT_VERSION = "3.13.0"
 export const getMaxSharedConnectionInstances = () => {
-  return +(process.env.MAX_SHARED_CLIENT_INSTANCES ?? 100)
+  return Math.max(+(process.env.MAX_SHARED_CLIENT_INSTANCES ?? 100), 256)
 }
 
 export const getAddressResolverFromEnv = (): { host: string; port: number } => {

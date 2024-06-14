@@ -5,6 +5,9 @@ import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
 export type ConsumerFunc = (message: Message) => void
+export const computeExtendedConsumerId = (consumerId: number, connectionId: string) => {
+  return `${consumerId}@${connectionId}`
+}
 
 export interface Consumer {
   close(manuallyClose: boolean): Promise<void>
@@ -13,6 +16,7 @@ export interface Consumer {
   getConnectionInfo(): ConnectionInfo
   consumerId: number
   consumerRef?: string
+  readonly extendedId: string
 }
 
 export class StreamConsumer implements Consumer {
@@ -100,5 +104,9 @@ export class StreamConsumer implements Consumer {
 
   public get streamName(): string {
     return this.stream
+  }
+
+  public get extendedId(): string {
+    return computeExtendedConsumerId(this.consumerId, this.connection.connectionId)
   }
 }

@@ -72,6 +72,10 @@ export interface MessageOptions {
   messageAnnotations?: Record<string, MessageAnnotationsValue>
 }
 
+export const computeExtendedPublisherId = (publisherId: number, connectionId: string) => {
+  return `${publisherId}@${connectionId}`
+}
+
 export interface Publisher {
   send(message: Buffer, opts?: MessageOptions): Promise<SendResult>
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult>
@@ -85,6 +89,7 @@ export interface Publisher {
   closed: boolean
   ref: string
   readonly publisherId: number
+  readonly extendedId: string
 }
 
 export type FilterFunc = (msg: Message) => string | undefined
@@ -288,5 +293,9 @@ export class StreamPublisher implements Publisher {
 
   private popChunk() {
     return this.queue.splice(0, this.maxChunkLength)
+  }
+
+  public get extendedId(): string {
+    return computeExtendedPublisherId(this.publisherId, this.connection.connectionId)
   }
 }
