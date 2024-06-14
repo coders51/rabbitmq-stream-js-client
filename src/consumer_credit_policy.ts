@@ -6,9 +6,7 @@ export abstract class ConsumerCreditPolicy {
   public async onChunkReceived(_requestWrapper: CreditRequestWrapper) {
     return
   }
-  public async onChunkProgress(_idx: number, _total: number, _requestWrapper: CreditRequestWrapper) {
-    return
-  }
+
   public async onChunkCompleted(_requestWrapper: CreditRequestWrapper) {
     return
   }
@@ -36,23 +34,9 @@ class NewCreditsOnChunkReceived extends ConsumerCreditPolicy {
   }
 }
 
-class NewCreditsOnChunkProgress extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly ratio: number = 0.5, private readonly step: number = 1) {
-    super(onStartup)
-  }
-
-  public async onChunkProgress(current: number, total: number, requestWrapper: CreditRequestWrapper) {
-    const threshold = Math.max(1, Math.ceil(this.ratio * total))
-
-    if (current === threshold) {
-      await this.requestCredits(requestWrapper, this.step)
-    }
-  }
-}
-
 class NewCreditsOnChunkCompleted extends ConsumerCreditPolicy {
-  constructor(onStartup: number = 1, private readonly step: number = 1) {
-    super(onStartup)
+  constructor(startFrom: number = 1, private readonly step: number = 1) {
+    super(startFrom)
   }
 
   public async onChunkCompleted(requestWrapper: CreditRequestWrapper) {
@@ -60,10 +44,8 @@ class NewCreditsOnChunkCompleted extends ConsumerCreditPolicy {
   }
 }
 
-export const creditsOnChunkReceived = (onStartup: number, step: number) =>
-  new NewCreditsOnChunkReceived(onStartup, step)
-export const creditsOnChunkProgress = (onStartup: number, ratio: number, step: number) =>
-  new NewCreditsOnChunkProgress(onStartup, ratio, step)
-export const creditsOnChunkCompleted = (onStartup: number, step: number) =>
-  new NewCreditsOnChunkCompleted(onStartup, step)
+export const creditsOnChunkReceived = (startFrom: number, step: number) =>
+  new NewCreditsOnChunkReceived(startFrom, step)
+export const creditsOnChunkCompleted = (startFrom: number, step: number) =>
+  new NewCreditsOnChunkCompleted(startFrom, step)
 export const defaultCreditPolicy = creditsOnChunkReceived(2, 1)

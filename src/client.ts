@@ -41,7 +41,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
-import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, mapSync, sample } from "./util"
+import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
@@ -543,17 +543,15 @@ export class Client {
 
     const creditRequestWrapper = this.askForCredit(subscriptionId, connection)
     await consumer.creditPolicy.onChunkReceived(creditRequestWrapper)
-    const chunkLength = messages.length
-    let handled = 0
     const messageFilter =
       messageFilteringSupported && consumer.filter?.postFilterFunc
         ? consumer.filter?.postFilterFunc
         : (_msg: Message) => true
-    await mapSync<Message, void>(messages, async (message: Message) => {
-      if (messageFilter(message)) await consumer.handle(message)
-      handled++
-      await consumer.creditPolicy.onChunkProgress(handled, chunkLength, creditRequestWrapper)
+
+    messages.map((message) => {
+      if (messageFilter(message)) consumer.handle(message)
     })
+
     await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
   }
 

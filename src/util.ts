@@ -39,11 +39,3 @@ export const bigIntMax = (n: bigint[]): bigint | undefined => {
   if (!n.length) return undefined
   return n.reduce((acc, i) => (i > acc ? i : acc), n[0])
 }
-
-export async function mapSync<T, U>(l: T[], fn: (value: T) => Promise<U>): Promise<U[]> {
-  const res: U[] = []
-  for (const e of l) {
-    res.push(await fn(e))
-  }
-  return res
-}
