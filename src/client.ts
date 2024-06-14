@@ -3,7 +3,7 @@ import { coerce, lt } from "semver"
 import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
-import { ConnectionPool } from "./connection_pool"
+import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
 import { Consumer, ConsumerFunc, StreamConsumer, computeExtendedConsumerId } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
@@ -548,7 +548,7 @@ export class Client {
 
   private async getConnection(
     streamName: string,
-    purpose: "publisher" | "consumer",
+    purpose: ConnectionPurpose,
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
@@ -611,7 +611,7 @@ export class Client {
   }
 
   private async getConnectionOnChosenNode(
-    purpose: "publisher" | "consumer",
+    purpose: ConnectionPurpose,
     streamName: string,
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,

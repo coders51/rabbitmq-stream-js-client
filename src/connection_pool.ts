@@ -2,12 +2,13 @@ import { Connection } from "./connection"
 import { getMaxSharedConnectionInstances } from "./util"
 
 type InstanceKey = string
+export type ConnectionPurpose = "consumer" | "publisher"
 
 export class ConnectionPool {
   private static consumerConnectionProxies = new Map<InstanceKey, Connection[]>()
   private static publisherConnectionProxies = new Map<InstanceKey, Connection[]>()
 
-  public static getUsableCachedConnection(purpose: "publisher" | "consumer", streamName: string, host: string) {
+  public static getUsableCachedConnection(purpose: ConnectionPurpose, streamName: string, host: string) {
     const map =
       purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const key = ConnectionPool.getCacheKey(streamName, host)
@@ -17,12 +18,7 @@ export class ConnectionPool {
     return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
   }
 
-  public static cacheConnection(
-    purpose: "publisher" | "consumer",
-    streamName: string,
-    host: string,
-    client: Connection
-  ) {
+  public static cacheConnection(purpose: ConnectionPurpose, streamName: string, host: string, client: Connection) {
     const map =
       purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const key = ConnectionPool.getCacheKey(streamName, host)
