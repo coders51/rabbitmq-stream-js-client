@@ -19,15 +19,10 @@ describe("react to a metadata update message from the server", () => {
     try {
       // eslint-disable-next-line no-invalid-this
       this.timeout(10000)
-      console.log("after each", 1)
       await client.close()
-      console.log("after each", 2)
       await rabbit.deleteStream(streamName)
-      console.log("after each", 3)
       await rabbit.closeAllConnections()
-      console.log("after each", 4)
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-      console.log("after each", 5)
     } catch (_e) {}
   })
 
