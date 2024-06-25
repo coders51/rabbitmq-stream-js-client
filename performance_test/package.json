@@ -16,7 +16,7 @@
     "winston": "^3.11.0"
   },
   "engines": {
-    "node": "16.x.x"
+    "node": "20.x.x"
   },
   "devDependencies": {
     "typescript": "^4.9.5"
