@@ -71,7 +71,7 @@ export class SuperStreamPublisher {
           messagesByPartition.set(partition, msgs)
         }
         msgs.push(m)
-      })
+      }),
     )
 
     // init all publishers, in sequence in order to avoid instantiating two publishers for the same node
@@ -85,7 +85,7 @@ export class SuperStreamPublisher {
       partitions.map(async (p) => {
         const pub = await this.getPublisher(p)
         return pub.sendSubEntries(messagesByPartition.get(p) ?? [], compressionType)
-      })
+      }),
     )
   }
 
@@ -112,7 +112,7 @@ export class SuperStreamPublisher {
         partition = targetPartitions.find((tp) => this.partitions.find((p) => p === tp))
         if (!partition) {
           throw new Error(
-            `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
+            `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`,
           )
         }
       }

@@ -44,11 +44,11 @@ describe("publish messages through multiple publishers", () => {
       plist.every((p) => {
         const connInfo = p.getConnectionInfo()
         return connInfo.localPort === localPort && connInfo.writable === true
-      })
+      }),
     )
     await eventually(
       async () => expect((await rabbit.getQueueInfo(streamName)).messages).eql(howMany * publishers.length),
-      10000
+      10000,
     )
   }).timeout(15000)
 

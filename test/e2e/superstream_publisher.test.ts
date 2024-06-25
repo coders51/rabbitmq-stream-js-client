@@ -43,7 +43,7 @@ describe("super stream publisher", () => {
         })
       },
       Error,
-      /Stream does not exist/
+      /Stream does not exist/,
     )
   })
 
@@ -61,7 +61,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
 
     await expectToThrowAsync(
@@ -69,7 +69,7 @@ describe("super stream publisher", () => {
         await publisher.send(Buffer.from("Hello world"), {})
       },
       Error,
-      /Routing key is empty or undefined with the provided extractor/
+      /Routing key is empty or undefined with the provided extractor/,
     )
   })
 
@@ -83,7 +83,7 @@ describe("super stream publisher", () => {
         await publisher.send(Buffer.from("Hello world"), {})
       },
       Error,
-      /Routing key is empty or undefined with the provided extractor/
+      /Routing key is empty or undefined with the provided extractor/,
     )
   })
 
@@ -96,7 +96,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
 
     await publisher.send(Buffer.from("Hello world"), { messageProperties: { messageId: "1" } })
@@ -115,7 +115,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName, publisherRef: "publisher-ref" },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
 
     await publisher.basicSend(1n, Buffer.from("Hello world"), { messageProperties: { messageId: "1" } })
@@ -131,7 +131,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
 
     for (let i = 0; i < noOfPartitions * 3; i++) {
@@ -150,7 +150,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
     for (let i = 0; i < noOfPartitions * 2; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
@@ -171,7 +171,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName },
       (_, opts: MessageOptions) => {
         return opts.messageProperties?.messageId
-      }
+      },
     )
     for (let i = 0; i < noOfPartitions * 2; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
@@ -190,7 +190,7 @@ describe("super stream publisher", () => {
   it("check the hashing algorithm - if it's properly implemented, the following should hold", async () => {
     const publisher = await client.declareSuperStreamPublisher(
       { superStream: superStreamName },
-      (_, opts) => opts.messageProperties?.messageId
+      (_, opts) => opts.messageProperties?.messageId,
     )
 
     for (let i = 0; i < 20; i++) {
@@ -213,7 +213,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName, routingStrategy: "key" },
       (_) => {
         return "0"
-      }
+      },
     )
 
     for (let i = 0; i < noOfPartitions * 2; i++) {
@@ -236,7 +236,7 @@ describe("super stream publisher", () => {
       { superStream: superStreamName, routingStrategy: "key" },
       (_) => {
         return "non-existent"
-      }
+      },
     )
     await expectToThrowAsync(
       async () => {
@@ -245,7 +245,7 @@ describe("super stream publisher", () => {
         })
       },
       Error,
-      /The server did not return any partition for routing key/
+      /The server did not return any partition for routing key/,
     )
   })
 

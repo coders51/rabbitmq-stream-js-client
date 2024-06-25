@@ -109,7 +109,7 @@ describe("connection closed callback", () => {
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
       (_msg) => {
         return
-      }
+      },
     )
 
     await client.closeConsumer(consumer.extendedId)
@@ -141,7 +141,7 @@ describe("connection closed callback", () => {
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
       (_msg) => {
         return
-      }
+      },
     )
     await client.declareConsumer(
       {
@@ -152,7 +152,7 @@ describe("connection closed callback", () => {
       },
       (_msg) => {
         return
-      }
+      },
     )
 
     await client.close()
@@ -181,7 +181,7 @@ describe("connection closed callback", () => {
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
       (_msg) => {
         return
-      }
+      },
     )
     await sleep(5000)
 

@@ -93,7 +93,10 @@ export class Connection {
   publisherId = 0
   consumerId = 0
 
-  constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
+  constructor(
+    private readonly params: ConnectionParams,
+    private readonly logger: Logger,
+  ) {
     this.hostname = params.hostname
     this.leader = params.leader ?? false
     this.streamName = params.streamName
@@ -124,7 +127,7 @@ export class Connection {
     return new Promise((res, rej) => {
       this.socket.on("error", (err) => {
         this.logger.warn(
-          `Error on connection ${this.connectionId} ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`
+          `Error on connection ${this.connectionId} ${this.params.hostname}:${this.params.port} vhost:${this.params.vhost} err: ${err}`,
         )
         return rej(err)
       })
@@ -152,7 +155,7 @@ export class Connection {
       this.socket.on("close", (had_error) => {
         this.setupCompleted = false
         this.logger.info(
-          `Close event on socket for connection ${this.connectionId}, close cloud had_error? ${had_error}`
+          `Close event on socket for connection ${this.connectionId}, close cloud had_error? ${had_error}`,
         )
         if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
       })
@@ -208,7 +211,7 @@ export class Connection {
       | PublishErrorListener
       | DeliverListener
       | DeliverV2Listener
-      | ConsumerUpdateQueryListener
+      | ConsumerUpdateQueryListener,
   ) {
     switch (event) {
       case "metadata_update":
@@ -242,7 +245,7 @@ export class Connection {
         this.socket.localAddress,
         this.socket.localPort,
         this.socket.readyState,
-      ])}`
+      ])}`,
     )
   }
 
@@ -259,7 +262,7 @@ export class Connection {
     const compression = this.compressions.get(compressionType)
     if (!compression) {
       throw new Error(
-        "invalid compression or compression not yet implemented, to add a new compression use the specific api"
+        "invalid compression or compression not yet implemented, to add a new compression use the specific api",
       )
     }
 
@@ -277,7 +280,7 @@ export class Connection {
   private async exchangeCommandVersions() {
     const versions = getClientSupportedVersions(this.peerProperties.version)
     const response = await this.sendAndWait<ExchangeCommandVersionsResponse>(
-      new ExchangeCommandVersionsRequest(versions)
+      new ExchangeCommandVersionsRequest(versions),
     )
     this.serverDeclaredVersions.push(...response.serverDeclaredVersions)
     return checkServerDeclaredVersions(this.serverVersions, this.logger, this.peerProperties.version)
@@ -290,12 +293,12 @@ export class Connection {
       const body = cmd.toBuffer(bufferSizeParams, correlationId)
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId}: data: ${inspect(
-          body.toJSON()
-        )} length: ${body.byteLength}`
+          body.toJSON(),
+        )} length: ${body.byteLength}`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(
-          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`
+          `Write COMPLETED for cmd key: ${cmd.key.toString(16)} - correlationId: ${correlationId} err: ${err}`,
         )
         if (err) {
           return rej(err)
@@ -312,8 +315,8 @@ export class Connection {
       if (response.key !== key) {
         throw new Error(
           `Error con correlationId: ${correlationId} waiting key: ${key.toString(
-            16
-          )} found key: ${response.key.toString(16)} `
+            16,
+          )} found key: ${response.key.toString(16)} `,
         )
       }
       return response.ok ? Promise.resolve(response as T) : Promise.reject(response.code)
@@ -366,7 +369,7 @@ export class Connection {
       this.logger.debug(
         `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
           body.byteLength
-        }`
+        }`,
       )
       this.socket.write(body, (err) => {
         this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
@@ -418,7 +421,7 @@ export class Connection {
 
     this.logger.debug(`Start SASL PLAIN authentication ...`)
     const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
-      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
+      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" }),
     )
     this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
     if (!authResponse.ok) {
@@ -474,12 +477,12 @@ export class Connection {
     const res = await this.sendAndWait<QueryPublisherResponse>(new QueryPublisherRequest(params))
     if (!res.ok) {
       throw new Error(
-        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`
+        `Query Publisher Sequence command returned error with code ${res.code} - ${errorMessageOf(res.code)}`,
       )
     }
 
     this.logger.info(
-      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`
+      `Sequence for stream name ${params.stream}, publisher ref ${params.publisherRef} at ${res.sequence}`,
     )
     return res.sequence
   }

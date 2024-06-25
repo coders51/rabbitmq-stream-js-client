@@ -16,7 +16,10 @@ export class Heartbeat {
   private timeout: NodeJS.Timeout | null = null
   private heartBeatStarted = false
 
-  constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
+  constructor(
+    private readonly connection: HeartbeatConnection,
+    private readonly logger: Logger,
+  ) {}
 
   start(secondsInterval: number) {
     if (this.heartBeatStarted) throw new Error("HeartBeat already started")
@@ -73,7 +76,7 @@ export class Heartbeat {
     const lastMessageReceived = this.lastMessageReceived.getTime()
     const noMessagesReceivedFor = Math.abs(new Date().getTime() - lastMessageReceived)
     this.logger.debug(
-      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`
+      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`,
     )
     const lastMessageSent = this.lastMessageSent.getTime()
     const noMessagesSentFor = Math.abs(new Date().getTime() - lastMessageSent)

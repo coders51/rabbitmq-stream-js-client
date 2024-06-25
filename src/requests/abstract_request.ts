@@ -8,7 +8,11 @@ export class BufferDataWriter implements DataWriter {
   private readonly growthTriggerRatio: number
   private readonly sizeMultiplier: number
 
-  constructor(private buffer: Buffer, startFrom: number, bufferSizeParameters?: BufferSizeParams) {
+  constructor(
+    private buffer: Buffer,
+    startFrom: number,
+    bufferSizeParameters?: BufferSizeParams,
+  ) {
     this._offset = startFrom
     this.maxBufferSize = bufferSizeParameters?.maxSize ?? 1048576
     this.growthTriggerRatio = bufferSizeParameters?.maxRatio ?? 0.9

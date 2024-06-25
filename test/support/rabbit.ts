@@ -74,7 +74,10 @@ interface RabbitQueueResponse {
 export class Rabbit {
   private port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   private firstNode = getTestNodesFromEnv().shift()!
-  constructor(private username: string, private password: string) {}
+  constructor(
+    private username: string,
+    private password: string,
+  ) {}
 
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()
@@ -96,7 +99,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
 
     return ret.body
@@ -109,7 +112,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
     return ret.body
   }
@@ -198,7 +201,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
     return resp.body.map((p) => p.reference)
   }
@@ -210,7 +213,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
     return resp.body.map((p) => p.consumer_tag)
   }
@@ -223,7 +226,7 @@ export class Rabbit {
         username: "rabbit",
         password: "rabbit",
         responseType: "json",
-      }
+      },
     )
     const consumerChannelDetails = allConsumersResp.body.map((d) => d.channel_details)
     for (const consumerChannelDetail of consumerChannelDetails) {
@@ -234,7 +237,7 @@ export class Rabbit {
           username: "rabbit",
           password: "rabbit",
           responseType: "json",
-        }
+        },
       )
       allConsumerCredits.push({ connectionName, allCredits: resp.body.map((rcd) => rcd.credits) })
     }
@@ -248,7 +251,7 @@ export class Rabbit {
         username: this.username,
         password: this.password,
         responseType: "json",
-      }
+      },
     )
     return ret.body
   }
@@ -257,7 +260,7 @@ export class Rabbit {
     vhost: string = "%2F",
     name: string,
     numberOfPartitions: number = 3,
-    bindingKeys?: string[]
+    bindingKeys?: string[],
   ): Promise<RabbitQueueResponse[]> {
     const streamNames = bindingKeys
       ? bindingKeys.map((bk) => `${name}-${bk}`)
@@ -280,7 +283,7 @@ export class Rabbit {
         json: { arguments: { "x-queue-type": "stream" }, durable: true },
         username: this.username,
         password: this.password,
-      }
+      },
     )
 
     return r.body

@@ -48,7 +48,7 @@ describe("Buffer Data Writer functionalities", () => {
     const payload = Buffer.from(
       Array.from(Array(DEFAULT_FRAME_MAX + 1).keys())
         .map((_k) => "")
-        .join(",")
+        .join(","),
     )
 
     b.writeData(payload)

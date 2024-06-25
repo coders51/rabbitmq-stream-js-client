@@ -47,7 +47,7 @@ type MessageAnnotationsList = { key: string; value: MessageAnnotationsValue }[]
 
 export function amqpEncode(
   writer: DataWriter,
-  { content, messageProperties, applicationProperties, messageAnnotations }: Message
+  { content, messageProperties, applicationProperties, messageAnnotations }: Message,
 ): void {
   writer.writeUInt32(messageSize({ content, messageProperties, applicationProperties, messageAnnotations }))
   writeMessageAnnotations(writer, toAnnotationsList(messageAnnotations))
@@ -204,7 +204,7 @@ function getListSize(list: MessageAnnotationsList): number {
   return list.reduce(
     (sum: number, elem: { key: string; value: MessageAnnotationsValue }) =>
       sum + getSizeOf(elem.key) + getSizeOf(elem.value),
-    0
+    0,
   )
 }
 
