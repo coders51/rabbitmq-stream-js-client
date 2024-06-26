@@ -65,7 +65,7 @@ describe("declare publisher", () => {
     await expectToThrowAsync(
       () => createPublisher(nonExistingStreamName, client),
       Error,
-      "Stream was not found on any node",
+      "Stream was not found on any node"
     )
   })
 
@@ -77,7 +77,7 @@ describe("declare publisher", () => {
     await expectToThrowAsync(
       () => publisher.send(Buffer.from(`test${randomUUID()}`)),
       Error,
-      "Publisher has been closed",
+      "Publisher has been closed"
     )
   })
 
@@ -102,7 +102,7 @@ describe("declare publisher", () => {
     }
 
     const countPublishersOverLimit = Array.from(counts.entries()).find(
-      ([_id, count]) => count > getMaxSharedConnectionInstances(),
+      ([_id, count]) => count > getMaxSharedConnectionInstances()
     )
     expect(countPublishersOverLimit).is.undefined
     expect(Array.from(counts.keys()).length).gt(1)

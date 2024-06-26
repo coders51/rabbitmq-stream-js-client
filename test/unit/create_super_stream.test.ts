@@ -64,7 +64,7 @@ describe("Super Stream", () => {
             "x-initial-cluster-size": payload["initial-cluster-size"],
             "x-max-length-bytes": payload["max-length-bytes"],
           })
-        }),
+        })
       )
     })
 
@@ -95,7 +95,7 @@ describe("Super Stream", () => {
       await expectToThrowAsync(
         () => client.createSuperStream({ streamName: "", arguments: payload }),
         Error,
-        "Create Super Stream command returned error with code 17",
+        "Create Super Stream command returned error with code 17"
       )
     })
   })

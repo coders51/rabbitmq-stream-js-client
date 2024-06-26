@@ -99,7 +99,7 @@ type PossibleRawResponses =
 function decode(
   data: DataReader,
   getCompressionBy: (type: CompressionType) => Compression,
-  logger: Logger,
+  logger: Logger
 ): { completed: true; response: PossibleRawResponses } | { completed: false; response: Buffer } {
   if (data.available() < UINT32_SIZE) return { completed: false, response: data.readBufferOf(data.available()) }
 
@@ -116,7 +116,7 @@ function decodeResponse(
   dataResponse: DataReader,
   size: number,
   getCompressionBy: (type: CompressionType) => Compression,
-  logger: Logger,
+  logger: Logger
 ): PossibleRawResponses {
   const key = dataResponse.readUInt16()
   const version = dataResponse.readUInt16()
@@ -125,7 +125,7 @@ function decodeResponse(
       dataResponse,
       getCompressionBy,
       logger,
-      version,
+      version
     )
     return {
       size,
@@ -204,7 +204,7 @@ function decodeDeliverResponse(
   dataResponse: DataReader,
   getCompressionBy: (type: CompressionType) => Compression,
   logger: Logger,
-  version = 1,
+  version = 1
 ): DeliveryResponseDecoded {
   const subscriptionId = dataResponse.readUInt8()
   const committedChunkId = version === 2 ? dataResponse.readUInt64() : undefined
@@ -301,7 +301,7 @@ function decodeSubEntries(dataResponse: DataReader, compression: Compression, lo
   const compressedLength = dataResponse.readUInt32()
   const decompressedData = new BufferDataReader(compression.decompress(dataResponse.readBufferOf(compressedLength)))
   logger.debug(
-    `Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${compressedLength}`,
+    `Decoding sub entries, uncompressed length is ${uncompressedLength} while actual length is ${compressedLength}`
   )
   for (let i = 0; i < noOfRecords; i++) {
     const entry: Message = decodeMessage(decompressedData, BigInt(i))
@@ -624,7 +624,7 @@ export class ResponseDecoder {
 
   constructor(
     private listener: DecoderListenerFunc,
-    private logger: Logger,
+    private logger: Logger
   ) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
@@ -716,7 +716,7 @@ export class ResponseDecoder {
       | CreditListener
       | PublishConfirmListener
       | PublishErrorListener
-      | ConsumerUpdateQueryListener,
+      | ConsumerUpdateQueryListener
   ) {
     this.emitter.on(event, listener)
   }

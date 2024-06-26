@@ -96,7 +96,7 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      messageHandler(0, 1),
+      messageHandler(0, 1)
     )
 
     await send(publisher, chunk)
@@ -121,7 +121,7 @@ describe("consumer credit flow policies", () => {
         consumerRef,
         creditPolicy: policy,
       },
-      messageHandler(1, chunk.length),
+      messageHandler(1, chunk.length)
     )
 
     await send(publisher, chunk)

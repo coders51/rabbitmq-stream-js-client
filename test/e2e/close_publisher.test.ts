@@ -98,13 +98,13 @@ describe("close publisher", () => {
       publisherArray.every((publisher) => {
         const { writable } = publisher.getConnectionInfo()
         return writable === true
-      }),
+      })
     )
     expect(closingPublishersSubset).satisfies((publisherArray: Publisher[]) =>
       publisherArray.every((publisher) => {
         const { writable } = publisher.getConnectionInfo()
         return writable !== true
-      }),
+      })
     )
   }).timeout(5000)
 })

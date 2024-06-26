@@ -20,9 +20,7 @@ export function createConsoleLog({ silent, level } = { silent: false, level: "de
       format.align(),
       format.splat(),
       format.label(),
-      format.printf(
-        (info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`,
-      ),
+      format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`)
     ),
     transports: new transports.Console(),
   })
@@ -73,7 +71,7 @@ export async function eventually(fn: Function, timeout = 1500) {
 export async function expectToThrowAsync(
   method: () => Promise<unknown>,
   expectedError: Function | Error,
-  errorMessage: string | RegExp | null = null,
+  errorMessage: string | RegExp | null = null
 ): Promise<void> {
   let error = null
   try {
@@ -97,7 +95,7 @@ export function wait(timeout: number) {
 export async function getMessageFrom(
   stream: string,
   user: string,
-  pwd: string,
+  pwd: string
 ): Promise<{ content: string; properties: amqp.MessageProperties }> {
   return new Promise(async (res, rej) => {
     const con = await amqp.connect(getAmqpConnectionString(user, pwd)).catch((e) => {
@@ -120,14 +118,14 @@ export async function getMessageFrom(
         await con.close()
         res({ content: msg.content.toString(), properties: msg.properties })
       },
-      { arguments: { "x-stream-offset": "first" } },
+      { arguments: { "x-stream-offset": "first" } }
     )
   })
 }
 
 export async function createClassicConsumer(
   stream: string,
-  cb: (msg: amqp.Message) => void,
+  cb: (msg: amqp.Message) => void
 ): Promise<{ conn: amqp.Connection; ch: amqp.Channel }> {
   const conn = await amqp.connect(getAmqpConnectionString(username, password))
   const ch = await conn.createChannel()
@@ -139,7 +137,7 @@ export async function createClassicConsumer(
       cb(msg)
       ch.ack(msg)
     },
-    { arguments: { "x-stream-offset": "first" } },
+    { arguments: { "x-stream-offset": "first" } }
   )
 
   return { conn, ch }

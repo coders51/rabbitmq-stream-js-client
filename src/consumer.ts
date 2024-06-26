@@ -40,7 +40,7 @@ export class StreamConsumer implements Consumer {
       offset: Offset
       creditPolicy?: ConsumerCreditPolicy
     },
-    readonly filter?: ConsumerFilter,
+    readonly filter?: ConsumerFilter
   ) {
     this.connection = params.connection
     this.stream = params.stream

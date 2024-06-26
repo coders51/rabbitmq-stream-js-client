@@ -11,7 +11,7 @@ export class BufferDataWriter implements DataWriter {
   constructor(
     private buffer: Buffer,
     startFrom: number,
-    bufferSizeParameters?: BufferSizeParams,
+    bufferSizeParameters?: BufferSizeParams
   ) {
     this._offset = startFrom
     this.maxBufferSize = bufferSizeParameters?.maxSize ?? 1048576

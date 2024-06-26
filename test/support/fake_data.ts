@@ -48,7 +48,7 @@ export async function createConsumer(streamName: string, client: Client): Promis
     { stream: streamName, offset: Offset.first(), consumerRef: `my-consumer-${id}` },
     () => {
       console.log(`Test consumer with id ${id} received a message`)
-    },
+    }
   )
   return consumer
 }
@@ -60,7 +60,7 @@ export async function createClient(
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings,
   port?: number,
-  connectionName?: string,
+  connectionName?: string
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
   return connect(
@@ -75,7 +75,7 @@ export async function createClient(
       listeners: listeners,
       bufferSizeSettings: bufferSizeSettings,
       connectionName: connectionName,
-    },
+    }
     // testLogger
   )
 }
@@ -88,7 +88,7 @@ export const testLogger = createLogger({
     format.align(),
     format.splat(),
     format.label(),
-    format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`),
+    format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} ${info.meta ? inspect(info.meta) : ""}`)
   ),
   transports: new transports.Console(),
 })

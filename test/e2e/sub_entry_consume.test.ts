@@ -36,7 +36,7 @@ describe("consume a batch of messages", () => {
   it("consuming a batch of messages without compression - should not raise error", async () => {
     const receivedMessages = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messages = [
       { content: Buffer.from("Ciao") },
@@ -52,7 +52,7 @@ describe("consume a batch of messages", () => {
   it("consume a batch of messages without compression - receive the same number of messages", async () => {
     const receivedMessages = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messages = [
       { content: Buffer.from("Ciao") },
@@ -72,7 +72,7 @@ describe("consume a batch of messages", () => {
   it("consume a batch of messages without compression - each received message contains the one that was sent", async () => {
     const receivedMessages: Message[] = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messageContents = range(5).map((_, i) => `Ciao${i}`)
     const messages = messageContents.map((m) => ({ content: Buffer.from(m) }))
@@ -88,7 +88,7 @@ describe("consume a batch of messages", () => {
   it("consuming a batch of messages with compression should not raise error", async () => {
     const receivedMessages = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messages = [
       { content: Buffer.from("Ciao") },
@@ -104,7 +104,7 @@ describe("consume a batch of messages", () => {
   it("consume a batch of messages with compression - receive the same number of messages", async () => {
     const receivedMessages = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messages = [
       { content: Buffer.from("Ciao") },
@@ -124,7 +124,7 @@ describe("consume a batch of messages", () => {
   it("consume a batch of messages with compression - each received message contains the one that was sent", async () => {
     const receivedMessages: Message[] = []
     consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (m: Message) =>
-      receivedMessages.push(m),
+      receivedMessages.push(m)
     )
     const messageContents = range(5).map((_, i) => `Ciao${i}`)
     const messages = messageContents.map((m) => ({ content: Buffer.from(m) }))

@@ -18,7 +18,7 @@ export class Heartbeat {
 
   constructor(
     private readonly connection: HeartbeatConnection,
-    private readonly logger: Logger,
+    private readonly logger: Logger
   ) {}
 
   start(secondsInterval: number) {
@@ -76,7 +76,7 @@ export class Heartbeat {
     const lastMessageReceived = this.lastMessageReceived.getTime()
     const noMessagesReceivedFor = Math.abs(new Date().getTime() - lastMessageReceived)
     this.logger.debug(
-      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`,
+      `No messages received for the last ${noMessagesReceivedFor} ms and the interval is ${this.interval}`
     )
     const lastMessageSent = this.lastMessageSent.getTime()
     const noMessagesSentFor = Math.abs(new Date().getTime() - lastMessageSent)

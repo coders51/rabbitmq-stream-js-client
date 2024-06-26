@@ -71,7 +71,7 @@ export class Client {
 
   private constructor(
     private readonly logger: Logger,
-    private readonly params: ClientParams,
+    private readonly params: ClientParams
   ) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
@@ -95,7 +95,7 @@ export class Client {
       (rej) => {
         if (rej instanceof Error) throw rej
         throw new Error(`${inspect(rej)}`)
-      },
+      }
     )
   }
 
@@ -165,7 +165,7 @@ export class Client {
     })
     this.publishers.set(publisher.extendedId, { publisher, connection, params, filter })
     this.logger.info(
-      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`,
+      `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
     return publisher
   }
@@ -204,7 +204,7 @@ export class Client {
         offset: params.offset,
         creditPolicy: params.creditPolicy,
       },
-      params.filter,
+      params.filter
     )
     connection.on("metadata_update", async (metadata) => {
       if (metadata.metadataInfo.stream === consumer.streamName) {
@@ -217,7 +217,7 @@ export class Client {
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection)
     this.logger.info(
-      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`,
+      `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
     return consumer
   }
@@ -245,7 +245,7 @@ export class Client {
 
   public async declareSuperStreamConsumer(
     { superStream, offset, consumerRef }: DeclareSuperStreamConsumerParams,
-    handle: ConsumerFunc,
+    handle: ConsumerFunc
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, {
@@ -258,7 +258,7 @@ export class Client {
 
   public async declareSuperStreamPublisher(
     { superStream, publisherRef, routingStrategy }: DeclareSuperStreamPublisherParams,
-    keyExtractor: MessageKeyExtractorFunction,
+    keyExtractor: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
       locator: this,
@@ -321,11 +321,11 @@ export class Client {
       arguments?: CreateStreamArguments
     },
     bindingKeys?: string[],
-    numberOfPartitions = 3,
+    numberOfPartitions = 3
   ): Promise<true> {
     if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
       throw new Error(
-        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Create Super Stream Command. To create the stream use the cli`,
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Create Super Stream Command. To create the stream use the cli`
       )
     }
 
@@ -333,10 +333,10 @@ export class Client {
     const { partitions, streamBindingKeys } = this.createSuperStreamPartitionsAndBindingKeys(
       params.streamName,
       numberOfPartitions,
-      bindingKeys,
+      bindingKeys
     )
     const res = await this.connection.sendAndWait<CreateSuperStreamResponse>(
-      new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys }),
+      new CreateSuperStreamRequest({ ...params, partitions, bindingKeys: streamBindingKeys })
     )
     if (res.code === STREAM_ALREADY_EXISTS_ERROR_CODE) {
       return true
@@ -352,13 +352,13 @@ export class Client {
   public async deleteSuperStream(params: { streamName: string }): Promise<true> {
     if (lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION)) {
       throw new Error(
-        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Delete Super Stream Command. To delete the stream use the cli`,
+        `Rabbitmq Management version ${this.rabbitManagementVersion} does not handle Delete Super Stream Command. To delete the stream use the cli`
       )
     }
 
     this.logger.debug(`Delete Super Stream...`)
     const res = await this.connection.sendAndWait<DeleteSuperStreamResponse>(
-      new DeleteSuperStreamRequest(params.streamName),
+      new DeleteSuperStreamRequest(params.streamName)
     )
     if (!res.ok) {
       throw new Error(`Delete Super Stream command returned error with code ${res.code}`)
@@ -454,10 +454,10 @@ export class Client {
     params: DeclarePublisherParams,
     publisherId: number,
     connection: Connection,
-    filter?: FilterFunc,
+    filter?: FilterFunc
   ) {
     const res = await connection.sendAndWait<DeclarePublisherResponse>(
-      new DeclarePublisherRequest({ stream: params.stream, publisherRef: params.publisherRef, publisherId }),
+      new DeclarePublisherRequest({ stream: params.stream, publisherRef: params.publisherRef, publisherId })
     )
     if (!res.ok) {
       await connection.close()
@@ -492,7 +492,7 @@ export class Client {
         subscriptionId: consumerId,
         credit: creditPolicy.onSubscription(),
         properties: properties,
-      }),
+      })
     )
 
     if (!res.ok) {
@@ -561,7 +561,7 @@ export class Client {
   private getConsumerUpdateCallback(connectionId: string) {
     return async (response: ConsumerUpdateQuery) => {
       const { consumer, connection } = this.consumers.get(
-        computeExtendedConsumerId(response.subscriptionId, connectionId),
+        computeExtendedConsumerId(response.subscriptionId, connectionId)
       ) ?? {
         consumer: undefined,
         connection: undefined,
@@ -572,7 +572,7 @@ export class Client {
       }
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
       await connection.send(
-        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset }),
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
       )
     }
   }
@@ -585,7 +585,7 @@ export class Client {
   private async getConnection(
     streamName: string,
     purpose: ConnectionPurpose,
-    connectionClosedListener?: ConnectionClosedListener,
+    connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
     const chosenNode = chooseNode(metadata, purpose === "publisher")
@@ -600,7 +600,7 @@ export class Client {
       streamName,
       chosenNode,
       metadata,
-      connectionClosedListener,
+      connectionClosedListener
     )
 
     ConnectionPool.cacheConnection(purpose, streamName, newConnection.hostname, newConnection)
@@ -610,7 +610,7 @@ export class Client {
   private createSuperStreamPartitionsAndBindingKeys(
     streamName: string,
     numberOfPartitions: number,
-    bindingKeys?: string[],
+    bindingKeys?: string[]
   ) {
     const partitions: string[] = []
     if (!bindingKeys) {
@@ -627,7 +627,7 @@ export class Client {
   private buildConnectionParams(
     leader: boolean,
     streamName: string,
-    connectionClosedListener?: ConnectionClosedListener,
+    connectionClosedListener?: ConnectionClosedListener
   ): ConnectionParams {
     const connectionId = randomUUID()
     const connectionListeners = {
@@ -651,7 +651,7 @@ export class Client {
     streamName: string,
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,
-    connectionClosedListener?: ConnectionClosedListener,
+    connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
     const connectionParams = this.buildConnectionParams(purpose === "publisher", streamName, connectionClosedListener)
     if (this.params.addressResolver && this.params.addressResolver.enabled) {

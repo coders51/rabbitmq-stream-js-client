@@ -31,7 +31,7 @@ describe("filtering", () => {
   it("can publish with filter value", async () => {
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
-      (msg) => msg.applicationProperties!["test"].toString(),
+      (msg) => msg.applicationProperties!["test"].toString()
     )
     const message1 = "test1"
     const message2 = "test2"
@@ -52,7 +52,7 @@ describe("filtering", () => {
     const filteredMsg: string[] = []
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
-      (msg) => msg.applicationProperties!["test"].toString(),
+      (msg) => msg.applicationProperties!["test"].toString()
     )
     const message1 = "test1"
     const message2 = "test2"
@@ -74,7 +74,7 @@ describe("filtering", () => {
           matchUnfiltered: true,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8")),
+      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
     )
 
     await eventually(async () => {
@@ -87,7 +87,7 @@ describe("filtering", () => {
     const filteredMsg: string[] = []
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
-      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined),
+      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined)
     )
     const applicationProperties1 = { test: "A" }
     const applicationProperties2 = { test: "B" }
@@ -107,7 +107,7 @@ describe("filtering", () => {
           matchUnfiltered: false,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8")),
+      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
     )
 
     await eventually(async () => {
@@ -119,7 +119,7 @@ describe("filtering", () => {
     const filteredMsg: string[] = []
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
-      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined),
+      (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined)
     )
     const applicationProperties1 = { test: "A" }
     const applicationProperties2 = { test: "B" }
@@ -139,7 +139,7 @@ describe("filtering", () => {
           matchUnfiltered: true,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8")),
+      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
     )
 
     await eventually(async () => {

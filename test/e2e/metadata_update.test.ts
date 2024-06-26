@@ -44,7 +44,7 @@ describe("react to a metadata update message from the server", () => {
       { offset: Offset.first(), stream: streamName, connectionClosedListener: (_) => cbCalled++ },
       () => {
         return
-      },
+      }
     )
 
     await rabbit.deleteStream(streamName)

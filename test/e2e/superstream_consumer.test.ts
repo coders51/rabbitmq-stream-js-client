@@ -93,11 +93,11 @@ describe("super stream consumer", () => {
 
     await client.declareSuperStreamConsumer(
       { superStream: superStreamName, consumerRef: "counting-messages" },
-      (message: Message) => messages.push(message),
+      (message: Message) => messages.push(message)
     )
     await client.declareSuperStreamConsumer(
       { superStream: superStreamName, consumerRef: "counting-messages" },
-      (message: Message) => messages.push(message),
+      (message: Message) => messages.push(message)
     )
 
     await sender(noOfMessages)
@@ -122,7 +122,7 @@ describe("super stream consumer", () => {
       },
       (message: Message) => {
         messages.push(message)
-      },
+      }
     )
 
     await eventually(() => {
