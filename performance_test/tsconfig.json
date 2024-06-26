@@ -1,5 +1,4 @@
 {
-  // "extends": "@tsconfig/node-lts/tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
     "preserveConstEnums": true,

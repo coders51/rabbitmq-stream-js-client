@@ -8,7 +8,7 @@
     "build": "tsc",
     "check": "npm run check-ts && npm run check-lint && npm run check-format && npm run check-spell",
     "check-ts": "tsc --noEmit && tsc --project test/tsconfig.json --noEmit",
-    "check-lint": "tsc --noEmit && eslint --fix 'src/**/*.ts' 'test/**/*.ts'",
+    "check-lint": "tsc --noEmit && eslint 'src/**/*.ts' 'test/**/*.ts'",
     "check-format": "prettier -c 'src/**/*.ts' 'test/**/*.ts'",
     "check-spell": "cspell 'src/**/*ts' 'test/**/*ts'",
     "format": "prettier -w './**/*.ts'"
