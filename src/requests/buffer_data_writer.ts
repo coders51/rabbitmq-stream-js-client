@@ -98,7 +98,7 @@ export class BufferDataWriter implements DataWriter {
   }
 
   toBuffer(): Buffer {
-    return this.buffer.slice(0, this._offset)
+    return this.buffer.subarray(0, this._offset)
   }
 
   private growIfNeeded(additionalBytes: number) {
