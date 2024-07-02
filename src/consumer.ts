@@ -62,6 +62,7 @@ export class StreamConsumer implements Consumer {
       console.log(`CONNECTION CLOSED`)
     }
     console.log(`CLOSE CONSUMER DONE`)
+    return
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {
