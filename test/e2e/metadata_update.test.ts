@@ -60,6 +60,7 @@ describe("react to a metadata update message from the server", () => {
       await rabbit.deleteStream(streamName)
 
       await eventually(() => {
+        expect(client.consumerCounts()).to.eql(0)
         expect(cbCalled).to.eql(1)
       }, 3000)
     }
