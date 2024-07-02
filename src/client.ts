@@ -101,16 +101,23 @@ export class Client {
 
   public async close(params: ClosingParams = { closingCode: 0, closingReason: "" }) {
     this.logger.info(`${this.id} Closing client...`)
+    console.log(`${this.id} Closing client...`)
     if (this.publisherCounts()) {
       this.logger.info(`Stopping all producers...`)
+      console.log(`Stopping all producers...`)
       await this.closeAllPublishers(true)
+      console.log(`Stopped all publishers`)
     }
     if (this.consumerCounts()) {
       this.logger.info(`Stopping all consumers...`)
+      console.log(`Stopping all consumers...`)
       await this.closeAllConsumers(true)
+      console.log("Stopped all consumers")
     }
     this.connection.decrRefCount()
+    console.log("Closing connection if unused")
     await this.closeConnectionIfUnused(this.connection, params)
+    console.log("Closed connection if unused")
   }
 
   private async closeConnectionIfUnused(connection: Connection, params: ClosingParams) {
