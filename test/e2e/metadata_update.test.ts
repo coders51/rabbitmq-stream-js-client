@@ -19,10 +19,15 @@ describe("react to a metadata update message from the server", () => {
     try {
       // eslint-disable-next-line no-invalid-this
       this.timeout(15000)
+      console.log("1. Cleaning up Rabbit's state after testing")
       await client.close()
+      console.log("2. Cleaning up Rabbit's state after testing")
       await rabbit.deleteStream(streamName)
+      console.log("3. Cleaning up Rabbit's state after testing")
       await rabbit.closeAllConnections()
+      console.log("4. Cleaning up Rabbit's state after testing")
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
+      console.log("5. Cleaning up Rabbit's state after testing")
     } catch (e) {
       console.error("Error while trying to clean up Rabbit's state after testing", e)
     }
