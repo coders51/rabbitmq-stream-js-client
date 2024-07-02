@@ -24,7 +24,7 @@ describe("react to a metadata update message from the server", () => {
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
     } catch (e) {
-      console.error("LOOK AT ME I'M AN ERROR IN THE AFTER EACH", e)
+      console.error("Error while trying to clean up Rabbit's state after testing", e)
     }
   })
 
