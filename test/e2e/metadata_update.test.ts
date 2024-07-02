@@ -23,7 +23,9 @@ describe("react to a metadata update message from the server", () => {
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-    } catch (_e) {}
+    } catch (e) {
+      console.error("LOOK AT ME I'M AN ERROR IN THE AFTER EACH", e)
+    }
   })
 
   it("when we have a metadata update on a stream any consumer on that stream gets removed from the consumers list", async () => {
