@@ -278,12 +278,16 @@ export class Client {
 
   private async closeAllConsumers(manuallyClose: boolean) {
     console.log(`Closing all consumers - INSIDE`, [...this.consumers.values()])
-    await Promise.all(
+    const promises = Promise.all(
       [...this.consumers.values()].map(({ consumer }) => {
         console.log(`Closing consumer`, consumer)
         return consumer.close(manuallyClose)
       })
     )
+      .then(() => console.log("ALL PROMISES DONE"))
+      .catch((e) => console.error(e))
+    console.log("Promises", promises)
+    await promises
     console.log(`Closed all consumers - INSIDE`)
     this.consumers = new Map<string, ConsumerMappedValue>()
   }
