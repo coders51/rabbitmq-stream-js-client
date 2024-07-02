@@ -17,13 +17,13 @@ describe("react to a metadata update message from the server", () => {
 
   afterEach(async function () {
     try {
-      // eslint-disable-next-line no-invalid-this
-      this.timeout(10000)
       await client.close()
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-    } catch (_e) {}
+    } catch (e) {
+      console.error("Error while trying to clean up Rabbit's state after testing", e)
+    }
   })
 
   it("when we have a metadata update on a stream any consumer on that stream gets removed from the consumers list", async () => {
@@ -50,6 +50,7 @@ describe("react to a metadata update message from the server", () => {
     await rabbit.deleteStream(streamName)
 
     await eventually(() => {
+      expect(client.consumerCounts()).to.eql(0)
       expect(cbCalled).to.eql(1)
     }, 3000)
   }).timeout(5000)

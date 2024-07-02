@@ -69,7 +69,10 @@ export class Client {
   private compressions = new Map<CompressionType, Compression>()
   private connection: Connection
 
-  private constructor(private readonly logger: Logger, private readonly params: ClientParams) {
+  private constructor(
+    private readonly logger: Logger,
+    private readonly params: ClientParams
+  ) {
     this.compressions.set(CompressionType.None, NoneCompression.create())
     this.compressions.set(CompressionType.Gzip, GzipCompression.create())
     this.connection = this.getLocatorConnection()

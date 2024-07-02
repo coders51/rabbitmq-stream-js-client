@@ -622,7 +622,10 @@ export class ResponseDecoder {
   private emitter = new EventEmitter()
   private lastData = Buffer.from("")
 
-  constructor(private listener: DecoderListenerFunc, private logger: Logger) {
+  constructor(
+    private listener: DecoderListenerFunc,
+    private logger: Logger
+  ) {
     this.addFactoryFor(PeerPropertiesResponse)
     this.addFactoryFor(SaslHandshakeResponse)
     this.addFactoryFor(SaslAuthenticateResponse)

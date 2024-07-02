@@ -2,7 +2,11 @@ import { PromiseResolver } from "./promise_resolver"
 import { Response } from "./responses/response"
 
 export class WaitingResponse<T extends Response> {
-  constructor(private correlationId: number, private key: number, private promise: PromiseResolver<T>) {}
+  constructor(
+    private correlationId: number,
+    private key: number,
+    private promise: PromiseResolver<T>
+  ) {}
 
   waitingFor(response: Response): boolean {
     const correlationFound = this.correlationId === response.correlationId

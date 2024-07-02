@@ -93,7 +93,10 @@ export class Connection {
   publisherId = 0
   consumerId = 0
 
-  constructor(private readonly params: ConnectionParams, private readonly logger: Logger) {
+  constructor(
+    private readonly params: ConnectionParams,
+    private readonly logger: Logger
+  ) {
     this.hostname = params.hostname
     this.leader = params.leader ?? false
     this.streamName = params.streamName

@@ -1,5 +1,4 @@
 {
-  // "extends": "@tsconfig/node16/tsconfig.json",
   "compilerOptions": {
     "module": "commonjs",
     "preserveConstEnums": true,
@@ -9,7 +8,6 @@
     "strictNullChecks": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "moduleResolution": "node",
     "sourceMap": true,
     "noEmit": true,
     "declaration": true,

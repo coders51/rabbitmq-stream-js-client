@@ -16,7 +16,7 @@
     "rabbitmq-stream-js-client": "file:../."
   },
   "engines": {
-    "node": "16.x.x"
+    "node": "20.x.x"
   },
   "devDependencies": {
     "typescript": "^4.9.5"

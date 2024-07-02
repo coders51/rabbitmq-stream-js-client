@@ -21,7 +21,10 @@ export abstract class ConsumerCreditPolicy {
 }
 
 class NewCreditsOnChunkReceived extends ConsumerCreditPolicy {
-  constructor(startFrom: number = 1, private readonly step: number = 1) {
+  constructor(
+    startFrom: number = 1,
+    private readonly step: number = 1
+  ) {
     super(startFrom)
   }
 
@@ -35,7 +38,10 @@ class NewCreditsOnChunkReceived extends ConsumerCreditPolicy {
 }
 
 class NewCreditsOnChunkCompleted extends ConsumerCreditPolicy {
-  constructor(startFrom: number = 1, private readonly step: number = 1) {
+  constructor(
+    startFrom: number = 1,
+    private readonly step: number = 1
+  ) {
     super(startFrom)
   }
 

@@ -74,7 +74,10 @@ interface RabbitQueueResponse {
 export class Rabbit {
   private port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   private firstNode = getTestNodesFromEnv().shift()!
-  constructor(private username: string, private password: string) {}
+  constructor(
+    private username: string,
+    private password: string
+  ) {}
 
   async closeAllConnections(): Promise<void> {
     const l = await this.getConnections()

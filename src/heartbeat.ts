@@ -16,7 +16,10 @@ export class Heartbeat {
   private timeout: NodeJS.Timeout | null = null
   private heartBeatStarted = false
 
-  constructor(private readonly connection: HeartbeatConnection, private readonly logger: Logger) {}
+  constructor(
+    private readonly connection: HeartbeatConnection,
+    private readonly logger: Logger
+  ) {}
 
   start(secondsInterval: number) {
     if (this.heartBeatStarted) throw new Error("HeartBeat already started")
