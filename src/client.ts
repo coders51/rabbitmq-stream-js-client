@@ -101,23 +101,16 @@ export class Client {
 
   public async close(params: ClosingParams = { closingCode: 0, closingReason: "" }) {
     this.logger.info(`${this.id} Closing client...`)
-    console.log(`${this.id} Closing client...`)
     if (this.publisherCounts()) {
       this.logger.info(`Stopping all producers...`)
-      console.log(`Stopping all producers...`)
       await this.closeAllPublishers(true)
-      console.log(`Stopped all publishers`)
     }
     if (this.consumerCounts()) {
       this.logger.info(`Stopping all consumers...`)
-      console.log(`Stopping all consumers...`)
       await this.closeAllConsumers(true)
-      console.log("Stopped all consumers")
     }
     this.connection.decrRefCount()
-    console.log("Closing connection if unused")
     await this.closeConnectionIfUnused(this.connection, params)
-    console.log("Closed connection if unused")
   }
 
   private async closeConnectionIfUnused(connection: Connection, params: ClosingParams) {
@@ -277,23 +270,7 @@ export class Client {
   }
 
   private async closeAllConsumers(manuallyClose: boolean) {
-    console.log(`Closing all consumers - INSIDE`)
-    // const promises = Promise.all(
-    //   [...this.consumers.values()].map(({ consumer }) => {
-    //     console.log(`Closing consumer`, consumer)
-    //     return consumer.close(manuallyClose)
-    //   })
-    // )
-    //   .then(() => console.log("ALL PROMISES DONE"))
-    //   .catch((e) => console.error(e))
-    for (const { consumer } of this.consumers.values()) {
-      console.log(`Closing consumer`, consumer.consumerId)
-      await consumer.close(manuallyClose)
-      console.log(`Closed consumer`, consumer.consumerId)
-    }
-    // console.log("Promises", promises)
-    // await promises
-    console.log(`Closed all consumers - INSIDE`)
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(manuallyClose)))
     this.consumers = new Map<string, ConsumerMappedValue>()
   }
 

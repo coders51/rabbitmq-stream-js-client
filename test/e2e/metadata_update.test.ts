@@ -17,17 +17,10 @@ describe("react to a metadata update message from the server", () => {
 
   afterEach(async function () {
     try {
-      // eslint-disable-next-line no-invalid-this
-      this.timeout(15000)
-      console.log("1. Cleaning up Rabbit's state after testing")
       await client.close()
-      console.log("2. Cleaning up Rabbit's state after testing")
       await rabbit.deleteStream(streamName)
-      console.log("3. Cleaning up Rabbit's state after testing")
       await rabbit.closeAllConnections()
-      console.log("4. Cleaning up Rabbit's state after testing")
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-      console.log("5. Cleaning up Rabbit's state after testing")
     } catch (e) {
       console.error("Error while trying to clean up Rabbit's state after testing", e)
     }
@@ -45,26 +38,22 @@ describe("react to a metadata update message from the server", () => {
     }, 3000)
   })
 
-  // eslint-disable-next-line no-only-tests/no-only-tests
-  it.only(
-    "when we have a metadata update on a stream the connection closed callback of its consumers fires",
-    async () => {
-      let cbCalled = 0
-      await client.declareConsumer(
-        { offset: Offset.first(), stream: streamName, connectionClosedListener: (_) => cbCalled++ },
-        () => {
-          return
-        }
-      )
+  it("when we have a metadata update on a stream the connection closed callback of its consumers fires", async () => {
+    let cbCalled = 0
+    await client.declareConsumer(
+      { offset: Offset.first(), stream: streamName, connectionClosedListener: (_) => cbCalled++ },
+      () => {
+        return
+      }
+    )
 
-      await rabbit.deleteStream(streamName)
+    await rabbit.deleteStream(streamName)
 
-      await eventually(() => {
-        expect(client.consumerCounts()).to.eql(0)
-        expect(cbCalled).to.eql(1)
-      }, 3000)
-    }
-  ).timeout(5000)
+    await eventually(() => {
+      expect(client.consumerCounts()).to.eql(0)
+      expect(cbCalled).to.eql(1)
+    }, 3000)
+  }).timeout(5000)
 
   it("when we have a metadata update on a stream any publisher on that stream gets closed", async () => {
     const publisher = await client.declarePublisher({ stream: streamName })
