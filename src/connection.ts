@@ -40,6 +40,7 @@ import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { coerce, lt } from "semver"
+import EventEmitter from "events"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -92,6 +93,9 @@ export class Connection {
   private setupCompleted: boolean = false
   publisherId = 0
   consumerId = 0
+  private consumers: { extendedId: string; stream: string }[] = []
+  private publishers: { extendedId: string; stream: string }[] = []
+  private closeEventsEmitter = new EventEmitter()
 
   constructor(
     private readonly params: ConnectionParams,
@@ -249,7 +253,33 @@ export class Connection {
     )
   }
 
+  public onPublisherClosed(publisherExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+    this.publishers.push({ extendedId: publisherExtendedId, stream: streamName })
+    this.closeEventsEmitter.once(`close_publisher_${publisherExtendedId}`, callback)
+  }
+
+  public onConsumerClosed(consumerExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+    this.consumers.push({ extendedId: consumerExtendedId, stream: streamName })
+    this.closeEventsEmitter.once(`close_consumer_${consumerExtendedId}`, callback)
+  }
+
   private registerListeners(listeners?: ConnectionListenersParams) {
+    this.decoder.on("metadata_update", (metadata) => {
+      this.publishers = this.publishers.filter((p) => {
+        const isImpacted = p.stream === metadata.metadataInfo.stream
+        if (isImpacted) {
+          this.closeEventsEmitter.emit(`close_publisher_${p.extendedId}`)
+        }
+        return !isImpacted
+      })
+      this.consumers = this.consumers.filter((c) => {
+        const isImpacted = c.stream === metadata.metadataInfo.stream
+        if (isImpacted) {
+          this.closeEventsEmitter.emit(`close_consumer_${c.extendedId}`)
+        }
+        return !isImpacted
+      })
+    })
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
     if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)

@@ -157,11 +157,9 @@ export class Client {
       logger: this.logger,
     }
     const publisher = new StreamPublisher(streamPublisherParams, filter)
-    connection.on("metadata_update", async (metadata) => {
-      if (metadata.metadataInfo.stream === publisher.streamName) {
-        await publisher.close(false)
-        this.publishers.delete(publisher.extendedId)
-      }
+    connection.onPublisherClosed(publisher.extendedId, params.stream, async () => {
+      await publisher.close(false)
+      this.publishers.delete(publisher.extendedId)
     })
     this.publishers.set(publisher.extendedId, { publisher, connection, params, filter })
     this.logger.info(
@@ -206,13 +204,11 @@ export class Client {
       },
       params.filter
     )
-    connection.on("metadata_update", async (metadata) => {
-      if (metadata.metadataInfo.stream === consumer.streamName) {
-        if (params.connectionClosedListener) {
-          params.connectionClosedListener(false)
-        }
-        await this.closeConsumer(consumer.extendedId)
+    connection.onConsumerClosed(consumer.extendedId, params.stream, async () => {
+      if (params.connectionClosedListener) {
+        params.connectionClosedListener(false)
       }
+      await this.closeConsumer(consumer.extendedId)
     })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection)
