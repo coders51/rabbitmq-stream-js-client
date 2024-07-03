@@ -265,20 +265,12 @@ export class Connection {
 
   private registerListeners(listeners?: ConnectionListenersParams) {
     this.decoder.on("metadata_update", (metadata) => {
-      this.publishers = this.publishers.filter((p) => {
-        const isImpacted = p.stream === metadata.metadataInfo.stream
-        if (isImpacted) {
-          this.closeEventsEmitter.emit(`close_publisher_${p.extendedId}`)
-        }
-        return !isImpacted
-      })
-      this.consumers = this.consumers.filter((c) => {
-        const isImpacted = c.stream === metadata.metadataInfo.stream
-        if (isImpacted) {
-          this.closeEventsEmitter.emit(`close_consumer_${c.extendedId}`)
-        }
-        return !isImpacted
-      })
+      const impactedPublishers = this.publishers.filter((p) => p.stream === metadata.metadataInfo.stream)
+      impactedPublishers.forEach((p) => this.closeEventsEmitter.emit(`close_publisher_${p.extendedId}`))
+      this.publishers = this.publishers.filter((p) => p.stream !== metadata.metadataInfo.stream)
+      const impactedConsumers = this.consumers.filter((c) => c.stream === metadata.metadataInfo.stream)
+      impactedConsumers.forEach((c) => this.closeEventsEmitter.emit(`close_consumer_${c.extendedId}`))
+      this.consumers = this.consumers.filter((c) => c.stream !== metadata.metadataInfo.stream)
     })
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
