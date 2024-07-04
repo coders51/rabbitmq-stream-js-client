@@ -40,6 +40,9 @@ import { StoreOffsetRequest } from "./requests/store_offset_request"
 import { QueryOffsetResponse } from "./responses/query_offset_response"
 import { QueryOffsetRequest } from "./requests/query_offset_request"
 import { coerce, lt } from "semver"
+import EventEmitter from "events"
+import { MetadataUpdateResponse } from "./responses/metadata_update_response"
+import { MetadataInfo } from "./responses/raw_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -68,6 +71,11 @@ function extractHeartbeatInterval(heartbeatInterval: number, tuneResponse: TuneR
   return heartbeatInterval === 0 ? tuneResponse.heartbeat : Math.min(heartbeatInterval, tuneResponse.heartbeat)
 }
 
+type ListenerEntry = {
+  extendedId: string
+  stream: string
+}
+
 export class Connection {
   public readonly hostname: string
   public readonly leader: boolean
@@ -92,6 +100,9 @@ export class Connection {
   private setupCompleted: boolean = false
   publisherId = 0
   consumerId = 0
+  private consumerListeners: ListenerEntry[] = []
+  private publisherListeners: ListenerEntry[] = []
+  private closeEventsEmitter = new EventEmitter()
 
   constructor(
     private readonly params: ConnectionParams,
@@ -249,7 +260,22 @@ export class Connection {
     )
   }
 
+  public onPublisherClosed(publisherExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+    this.publisherListeners.push({ extendedId: publisherExtendedId, stream: streamName })
+    this.closeEventsEmitter.once(`close_publisher_${publisherExtendedId}`, callback)
+  }
+
+  public onConsumerClosed(consumerExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+    this.consumerListeners.push({ extendedId: consumerExtendedId, stream: streamName })
+    this.closeEventsEmitter.once(`close_consumer_${consumerExtendedId}`, callback)
+  }
+
   private registerListeners(listeners?: ConnectionListenersParams) {
+    this.decoder.on("metadata_update", (metadata) => {
+      this.publisherListeners = notifyOnceClose(this.publisherListeners, metadata, this.closeEventsEmitter, "publisher")
+      this.consumerListeners = notifyOnceClose(this.consumerListeners, metadata, this.closeEventsEmitter, "consumer")
+    })
+
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
     if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
     if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
@@ -547,4 +573,30 @@ export function connect(logger: Logger, params: ConnectionParams) {
 
 export function create(logger: Logger, params: ConnectionParams) {
   return Connection.create(params, logger)
+}
+
+function notifyOnceClose(
+  listeners: ListenerEntry[],
+  metadata: MetadataUpdateResponse,
+  closeEventsEmitter: EventEmitter,
+  eventName: "publisher" | "consumer"
+): ListenerEntry[] {
+  const [toNotify, toKeep] = partition(listeners, isSameStream(metadata))
+  toNotify.forEach((l) => closeEventsEmitter.emit(`close_${eventName}_${l.extendedId}`))
+  return toKeep
+}
+
+export function partition<T>(arr: T[], predicate: (t: T) => boolean): [T[], T[]] {
+  const [truthy, falsy] = arr.reduce(
+    (acc, t) => {
+      acc[predicate(t) ? 0 : 1].push(t)
+      return acc
+    },
+    [[], []] as [T[], T[]]
+  )
+  return [truthy, falsy]
+}
+
+function isSameStream({ metadataInfo }: { metadataInfo: MetadataInfo }): (e: ListenerEntry) => boolean {
+  return (e) => e.stream === metadataInfo.stream
 }
