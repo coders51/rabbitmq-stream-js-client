@@ -26,29 +26,27 @@ async function main() {
     await publisher.send(Buffer.from(messageBody))
   }
 
-  let initialOffset = rabbit.Offset.offset(0n)
-  let firstOffset = initialOffset.value
-  let lastOffset = initialOffset.value
+  const startFrom = rabbit.Offset.offset(0n)
+  let firstOffset = startFrom.value
+  let lastOffset = startFrom.value
   let messageCount = 0
   const consumerRef = "offset-tracking-consumer"
-  const consumer = await client.declareConsumer(
-    { stream: streamName, offset: initialOffset, consumerRef },
-    (message) => {
-      messageCount++
-      if (message.offset === initialOffset.value) {
-        console.log("First message received")
-      }
-      if (messageCount % 10 === 0) {
-        console.log("Storing offset")
-        client.storeOffset({ stream: streamName, reference: consumerRef, offsetValue: message.offset })
-      }
-      if (message.content.toString() === "marker") {
-        console.log("Marker found")
-        client.storeOffset({ stream: streamName, reference: consumerRef, offsetValue: message.offset })
-        lastOffset = message.offset
-      }
+  const consumer = await client.declareConsumer({ stream: streamName, offset: startFrom, consumerRef }, (message) => {
+    messageCount++
+    if (message.offset === startFrom.value) {
+      console.log("First message received")
+      firstOffset = message.offset
     }
-  )
+    if (messageCount % 10 === 0) {
+      console.log("Storing offset")
+      client.storeOffset({ stream: streamName, reference: consumerRef, offsetValue: message.offset })
+    }
+    if (message.content.toString() === "marker") {
+      console.log("Marker found")
+      client.storeOffset({ stream: streamName, reference: consumerRef, offsetValue: message.offset })
+      lastOffset = message.offset
+    }
+  })
 
   console.log(`Start consuming...`)
   await sleep(2000)
