@@ -1,11 +1,10 @@
 const rabbit = require("rabbitmq-stream-js-client")
-const { randomUUID } = require("crypto")
 
 const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
 const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
 
 async function main() {
-  const streamName = `example-${randomUUID()}`
+  const streamName = `stream-offset-tracking-javascript`
   console.log(`Creating stream ${streamName}`)
 
   const client = await rabbit.connect({
@@ -18,26 +17,26 @@ async function main() {
   })
   await client.createStream({ stream: streamName, arguments: {} })
   const publisher = await client.declarePublisher({ stream: streamName })
-  const totalMessages = 100
+  const messageCount = 100
 
-  console.log(`Publishing ${totalMessages} messages`)
-  for (let i = 0; i < totalMessages; i++) {
-    const messageBody = i === totalMessages - 1 ? "marker" : `hello ${i}`
-    await publisher.send(Buffer.from(messageBody))
+  console.log(`Publishing ${messageCount} messages`)
+  for (let i = 0; i < messageCount; i++) {
+    const body = i === messageCount - 1 ? "marker" : `hello ${i}`
+    await publisher.send(Buffer.from(body))
   }
 
   const startFrom = rabbit.Offset.offset(0n)
   let firstOffset = startFrom.value
   let lastOffset = startFrom.value
-  let messageCount = 0
-  const consumerRef = "offset-tracking-consumer"
+  let messageReceivedCount = 0
+  const consumerRef = "offset-tracking-tutorial"
   const consumer = await client.declareConsumer({ stream: streamName, offset: startFrom, consumerRef }, (message) => {
-    messageCount++
+    messageReceivedCount++
     if (message.offset === startFrom.value) {
       console.log("First message received")
       firstOffset = message.offset
     }
-    if (messageCount % 10 === 0) {
+    if (messageReceivedCount % 10 === 0) {
       console.log("Storing offset")
       client.storeOffset({ stream: streamName, reference: consumerRef, offsetValue: message.offset })
     }
