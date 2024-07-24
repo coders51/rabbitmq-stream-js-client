@@ -204,23 +204,34 @@ describe("offset", () => {
   })
 
   describe("query", () => {
-    it("the consumer is able to track the offset of the stream through queryOffset method", async () => {
-      let offset: bigint = 0n
-      const consumer = await client.declareConsumer(
-        { stream: testStreamName, offset: Offset.next(), consumerRef: "my_consumer" },
-        async (message: Message) => {
-          await consumer.storeOffset(message.offset!)
-          offset = message.offset!
-        }
-      )
+    it("the consumer is able to track the offset and start from the stored offset", async () => {
+      const resumedMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
-
+      await publisher.send(Buffer.from("hello"))
+      await publisher.send(Buffer.from("marker"))
       await publisher.send(Buffer.from("hello"))
       await publisher.send(Buffer.from("world"))
 
+      const consumer = await client.declareConsumer(
+        { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
+        async (message: Message) => {
+          if (message.content.toString() === "marker") {
+            await consumer.storeOffset(message.offset!)
+          }
+        }
+      )
+      await wait(3000)
+      const storedOffset = await client.queryOffset({ stream: testStreamName, reference: "my_consumer" })
+      await client.declareConsumer(
+        { stream: testStreamName, offset: Offset.offset(storedOffset), consumerRef: "my_consumer" },
+        async (message: Message) => {
+          resumedMessages.push(message)
+        }
+      )
+
+      await wait(3000)
       await eventually(async () => {
-        const result = await consumer.queryOffset()
-        expect(result).eql(offset)
+        expect(resumedMessages.length).eql(3)
       })
     }).timeout(10000)
 
