@@ -204,8 +204,9 @@ describe("offset", () => {
   })
 
   describe("query", () => {
-    it("the consumer is able to track the offset and start from the stored offset", async () => {
-      const resumedMessages: Message[] = []
+    it.only("the consumer is able to track the offset and start from the stored offset", async () => {
+      const consumerOneMessages: Message[] = []
+      const consumerTwoMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
       await publisher.send(Buffer.from("hello"))
       await publisher.send(Buffer.from("marker"))
@@ -215,23 +216,28 @@ describe("offset", () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
         async (message: Message) => {
+          consumerOneMessages.push(message)
           if (message.content.toString() === "marker") {
             await consumer.storeOffset(message.offset!)
           }
         }
       )
-      await wait(3000)
+      await eventually(async () => {
+        const [foundMarker] = consumerOneMessages.filter((msg) => msg.content.toString() === "marker")
+        expect(foundMarker).to.not.be.undefined
+        const offset = await client.queryOffset({ stream: testStreamName, reference: "my_consumer" })
+        expect(offset).to.not.be.undefined
+      }, 3000)
       const storedOffset = await client.queryOffset({ stream: testStreamName, reference: "my_consumer" })
       await client.declareConsumer(
         { stream: testStreamName, offset: Offset.offset(storedOffset), consumerRef: "my_consumer" },
         async (message: Message) => {
-          resumedMessages.push(message)
+          consumerTwoMessages.push(message)
         }
       )
 
-      await wait(3000)
       await eventually(async () => {
-        expect(resumedMessages.length).eql(3)
+        expect(consumerTwoMessages.length).eql(3)
       })
     }).timeout(10000)
 
