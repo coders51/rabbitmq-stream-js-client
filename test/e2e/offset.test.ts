@@ -204,7 +204,7 @@ describe("offset", () => {
   })
 
   describe("query", () => {
-    it.only("the consumer is able to track the offset and start from the stored offset", async () => {
+    it("the consumer is able to track the offset and start from the stored offset", async () => {
       const consumerOneMessages: Message[] = []
       const consumerTwoMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
