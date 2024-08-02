@@ -265,6 +265,10 @@ export class Client {
     })
   }
 
+  public queryOffset(params: QueryOffsetParams) {
+    return this.connection.queryOffset(params)
+  }
+
   private async closeAllConsumers(manuallyClose: boolean) {
     await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(manuallyClose)))
     this.consumers = new Map<string, ConsumerMappedValue>()
