@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "cluster-example": "node cluster_example.js",
-    "rebuild-source": "cd .. && npm run build && cd - && npm install --force"
+    "rebuild-source": "cd .. && npm run build && cd - && npm install --force",
+    "offset-tracking-publish": "node offset_tracking_send.js",
+    "offset-tracking-receive": "node offset_tracking_receive.js"
   },
   "author": "",
   "license": "ISC",
