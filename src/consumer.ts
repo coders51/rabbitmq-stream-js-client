@@ -29,6 +29,7 @@ export class StreamConsumer implements Consumer {
   private clientLocalOffset: Offset
   private creditsHandler: ConsumerCreditPolicy
   readonly handle: ConsumerFunc
+  private closed: boolean
 
   constructor(
     handle: ConsumerFunc,
@@ -51,9 +52,11 @@ export class StreamConsumer implements Consumer {
     this.connection.incrRefCount()
     this.creditsHandler = params.creditPolicy || defaultCreditPolicy
     this.handle = this.wrapHandle(handle, params.offset)
+    this.closed = false
   }
 
   async close(manuallyClose: boolean): Promise<void> {
+    this.closed = true
     this.connection.decrRefCount()
     if (ConnectionPool.removeIfUnused(this.connection)) {
       await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
@@ -80,8 +83,15 @@ export class StreamConsumer implements Consumer {
   }
 
   private wrapHandle(handle: ConsumerFunc, offset: Offset) {
-    const updateLocalOffsetHandle = this.updateLocalOffsetHandle(handle)
+    const updateLocalOffsetHandle = this.updateLocalOffsetHandle(this.skipMessageIfClosed(handle))
     return this.addOffsetFilterToHandle(updateLocalOffsetHandle, offset)
+  }
+
+  private skipMessageIfClosed(handle: ConsumerFunc) {
+    return (message: Message) => {
+      if (this.closed) return
+      return handle(message)
+    }
   }
 
   private updateLocalOffsetHandle(handle: ConsumerFunc) {
