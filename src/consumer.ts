@@ -28,7 +28,8 @@ export class StreamConsumer implements Consumer {
   public offset: Offset
   private clientLocalOffset: Offset
   private creditsHandler: ConsumerCreditPolicy
-  readonly handle: ConsumerFunc
+  private consumerHandle: ConsumerFunc
+  private closed: boolean
 
   constructor(
     handle: ConsumerFunc,
@@ -50,10 +51,12 @@ export class StreamConsumer implements Consumer {
     this.clientLocalOffset = this.offset.clone()
     this.connection.incrRefCount()
     this.creditsHandler = params.creditPolicy || defaultCreditPolicy
-    this.handle = this.wrapHandle(handle, params.offset)
+    this.consumerHandle = handle
+    this.closed = false
   }
 
   async close(manuallyClose: boolean): Promise<void> {
+    this.closed = true
     this.connection.decrRefCount()
     if (ConnectionPool.removeIfUnused(this.connection)) {
       await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
@@ -79,31 +82,10 @@ export class StreamConsumer implements Consumer {
     return this.clientLocalOffset.clone()
   }
 
-  private wrapHandle(handle: ConsumerFunc, offset: Offset) {
-    const updateLocalOffsetHandle = this.updateLocalOffsetHandle(handle)
-    return this.addOffsetFilterToHandle(updateLocalOffsetHandle, offset)
-  }
-
-  private updateLocalOffsetHandle(handle: ConsumerFunc) {
-    const wrapped = (message: Message) => {
-      const result = handle(message)
-      if (message.offset !== undefined) this.clientLocalOffset = Offset.offset(message.offset)
-      return result
-    }
-    return wrapped
-  }
-
-  private addOffsetFilterToHandle(handle: ConsumerFunc, offset: Offset) {
-    if (offset.type === "numeric") {
-      const handlerWithFilter = (message: Message) => {
-        if (message.offset !== undefined && message.offset < offset.value!) {
-          return
-        }
-        handle(message)
-      }
-      return handlerWithFilter
-    }
-    return handle
+  public handle(message: Message) {
+    if (this.closed || this.isMessageOffsetLessThanConsumers(message)) return
+    this.consumerHandle(message)
+    this.maybeUpdateLocalOffset(message)
   }
 
   public get streamName(): string {
@@ -116,5 +98,14 @@ export class StreamConsumer implements Consumer {
 
   public get creditPolicy() {
     return this.creditsHandler
+  }
+
+  private maybeUpdateLocalOffset(message: Message) {
+    if (message.offset !== undefined) this.clientLocalOffset = Offset.offset(message.offset)
+  }
+
+  // TODO -- Find better name?
+  private isMessageOffsetLessThanConsumers(message: Message) {
+    return this.offset.type === "numeric" && message.offset !== undefined && message.offset < this.offset.value!
   }
 }
