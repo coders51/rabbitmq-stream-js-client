@@ -14,10 +14,19 @@ export class SaslAuthenticateRequest extends AbstractRequest {
 
   protected writeContent(writer: DataWriter): void {
     writer.writeString(this.params.mechanism)
-    writer.writeUInt32(this.params.password.length + this.params.username.length + 2)
-    writer.writeUInt8(0)
-    writer.writeData(this.params.username)
-    writer.writeUInt8(0)
-    writer.writeData(this.params.password)
+    switch (this.params.mechanism) {
+      case "PLAIN":
+        writer.writeUInt32(this.params.password.length + this.params.username.length + 2)
+        writer.writeUInt8(0)
+        writer.writeData(this.params.username)
+        writer.writeUInt8(0)
+        writer.writeData(this.params.password)
+        break
+      case "EXTERNAL":
+        writer.writeUInt32(0)
+        break
+      default:
+        throw new Error(`Auth mechanism ${this.params.mechanism} not implemented`)
+    }
   }
 }
