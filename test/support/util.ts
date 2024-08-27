@@ -220,7 +220,7 @@ export const sendANumberOfRandomMessages = async (publisher: Publisher, offset =
 }
 
 export const getTestNodesFromEnv = (): { host: string; port: number }[] => {
-  const envValue = process.env.RABBIT_MQ_TEST_NODES ?? "localhost:5552"
+  const envValue = process.env.RABBIT_MQ_TEST_NODES ?? "rabbitmq:5552"
   const nodes = envValue.split(";")
   return nodes.map((n) => {
     const [host, port] = n.split(":")
