@@ -146,7 +146,11 @@ export class Connection {
         this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
         this.peerProperties = (await this.exchangeProperties()).properties
         this.filteringEnabled = lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION) ? false : true
-        await this.auth({ username: this.params.username, password: this.params.password })
+        await this.auth({
+          username: this.params.username,
+          password: this.params.password,
+          mechanism: this.params.mechanism ?? "PLAIN",
+        })
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
         await this.open({ virtualHost: this.params.vhost })
         if (!this.heartbeat.started) this.heartbeat.start(heartbeat)
@@ -436,19 +440,17 @@ export class Connection {
     return this.setupCompleted
   }
 
-  private async auth(params: { username: string; password: string }) {
+  private async auth(params: { username: string; password: string; mechanism: string }) {
     this.logger.debug(`Start authentication process ...`)
     this.logger.debug(`Start SASL handshake ...`)
     const handshakeResponse = await this.sendAndWait<SaslHandshakeResponse>(new SaslHandshakeRequest())
     this.logger.debug(`Mechanisms: ${handshakeResponse.mechanisms}`)
-    if (!handshakeResponse.mechanisms.find((m) => m === "PLAIN")) {
-      throw new Error(`Unable to find PLAIN mechanism in ${handshakeResponse.mechanisms}`)
+    if (!handshakeResponse.mechanisms.find((m) => m === params.mechanism)) {
+      throw new Error(`Unable to find ${params.mechanism} mechanism in ${handshakeResponse.mechanisms}`)
     }
 
-    this.logger.debug(`Start SASL PLAIN authentication ...`)
-    const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(
-      new SaslAuthenticateRequest({ ...params, mechanism: "PLAIN" })
-    )
+    this.logger.debug(`Start SASL ${params.mechanism} authentication ...`)
+    const authResponse = await this.sendAndWait<SaslAuthenticateResponse>(new SaslAuthenticateRequest(params))
     this.logger.debug(`Authentication: ${authResponse.ok} - '${authResponse.data}'`)
     if (!authResponse.ok) {
       throw new Error(`Unable Authenticate -> ${authResponse.code}`)

@@ -707,6 +707,7 @@ export interface ClientParams {
   port: number
   username: string
   password: string
+  mechanism?: string
   vhost: string
   frameMax?: number
   heartbeat?: number
