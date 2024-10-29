@@ -2,27 +2,26 @@ import { expect } from "chai"
 import { Client, connect } from "../../src"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, username, password } from "../support/util"
-import { getTestNodesFromEnv } from "../support/util"
+import { eventually, username, password, getTestNodesFromEnv } from "../support/util"
 import { Version } from "../../src/versions"
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 
 async function createTlsClient(): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
-  return connect(
-    {
-      hostname: firstNode.host,
-      port: 5551,
-      mechanism: 'EXTERNAL',
-      ssl: {
-        ca: await readFile("./tls-gen/basic/result/ca_certificate.pem"),
-        cert: await readFile("./tls-gen/basic/result/client_rabbitmq_certificate.pem"),
-        key: await readFile("./tls-gen/basic/result/client_rabbitmq_key.pem"),
-      },
-      vhost: "/",
-    }
-  )
+  return connect({
+    hostname: firstNode.host,
+    port: 5551,
+    mechanism: "EXTERNAL",
+    ssl: {
+      ca: await readFile("./tls-gen/basic/result/ca_certificate.pem", "utf8"),
+      cert: await readFile("./tls-gen/basic/result/client_rabbitmq_certificate.pem", "utf8"),
+      key: await readFile("./tls-gen/basic/result/client_rabbitmq_key.pem", "utf8"),
+    },
+    username: "",
+    password: "",
+    vhost: "/",
+  })
 }
 
 describe("connect", () => {
