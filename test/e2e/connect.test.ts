@@ -1,10 +1,29 @@
 import { expect } from "chai"
-import { Client } from "../../src"
+import { Client, connect } from "../../src"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { eventually, username, password } from "../support/util"
+import { getTestNodesFromEnv } from "../support/util"
 import { Version } from "../../src/versions"
 import { randomUUID } from "node:crypto"
+import { readFile } from "node:fs/promises"
+
+async function createTlsClient(): Promise<Client> {
+  const [firstNode] = getTestNodesFromEnv()
+  return connect(
+    {
+      hostname: firstNode.host,
+      port: 5551,
+      mechanism: 'EXTERNAL',
+      ssl: {
+        ca: await readFile("./tls-gen/basic/result/ca_certificate.pem"),
+        cert: await readFile("./tls-gen/basic/result/client_rabbitmq_certificate.pem"),
+        key: await readFile("./tls-gen/basic/result/client_rabbitmq_key.pem"),
+      },
+      vhost: "/",
+    }
+  )
+}
 
 describe("connect", () => {
   let client: Client
@@ -22,6 +41,14 @@ describe("connect", () => {
 
   it("using parameters", async () => {
     client = await createClient(username, password)
+
+    await eventually(async () => {
+      expect(await rabbit.getConnections()).lengthOf(1)
+    }, 5000)
+  }).timeout(10000)
+
+  it("using EXTERNAL auth", async () => {
+    client = await createTlsClient()
 
     await eventually(async () => {
       expect(await rabbit.getConnections()).lengthOf(1)

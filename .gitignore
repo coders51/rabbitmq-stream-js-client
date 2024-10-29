@@ -2,3 +2,4 @@ dist/
 node_modules/
 performance_test/node_modules
 .envrc
+tls-gen/

@@ -1,5 +1,3 @@
-version: "2"
-
 services:
   rabbitmq-stream:
     image: rabbitmq:3.13-rc-management
@@ -8,10 +6,13 @@ services:
     hostname: "rabbitmq"
     ports:
       - "15672:15672"
+      - "5671:5671"
       - "5672:5672"
+      - "5551:5551"
       - "5552:5552"
     environment:
       RABBITMQ_DEFAULT_USER: "rabbit"
       RABBITMQ_DEFAULT_PASS: "rabbit"
     volumes:
-      - ./conf/enabled_plugins:/etc/rabbitmq/enabled_plugins
+     - ./conf/:/etc/rabbitmq/
+     - "./tls-gen/basic/result/:/certs"
