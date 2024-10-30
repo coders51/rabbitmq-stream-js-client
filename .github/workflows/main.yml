@@ -27,6 +27,7 @@ jobs:
           RABBITMQ_DEFAULT_PASS: "test-password"
         ports:
           - 5552:5552
+          - 5551:5551
           - 5672:5672
           - 15672:15672
           - 1883:1883
@@ -42,7 +43,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
       - name: Enable RabbitMQ Plugins
-        run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management
+        run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management rabbitmq_auth_mechanism_ssl
       - name: Restart RabbitMQ
         run: docker restart $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q)
       - name: Wait for rabbit instance restart
@@ -52,6 +53,12 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build --if-present
+      - run: git clone https://github.com/rabbitmq/tls-gen tls-gen && cd tls-gen/basic && make
+        env:
+          CN: test-node
+      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl add_user 'O=client,CN=test-node' ''
+      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl clear_password 'O=client,CN=test-node'
+      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl set_permissions 'O=client,CN=test-node' '.*' '.*' '.*'
       - run: npm test
         env:
           RABBITMQ_USER: "test-user"

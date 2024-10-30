@@ -401,7 +401,7 @@ Test:
 
 ```shell
 make rabbitmq-test
-npm run test
+RABBIT_MQ_TEST_NODES=rabbitmq:5552 npm run test
 ```
 
 Check everything:
