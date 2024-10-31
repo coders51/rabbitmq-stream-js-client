@@ -21,10 +21,15 @@ jobs:
     services:
       rabbitmq:
         image: rabbitmq:3.13-rc-management
-        options: --hostname test-node
+        options: --hostname test-node --name test-node
         env:
           RABBITMQ_DEFAULT_USER: "test-user"
           RABBITMQ_DEFAULT_PASS: "test-password"
+        volumes:
+          # these directories will be empty until checkout, but they will be
+          # populated by the time we restart the service
+          - ${{ github.workspace }}/conf:/etc/rabbitmq
+          - ${{ github.workspace }}/certs:/certs
         ports:
           - 5552:5552
           - 5551:5551
@@ -42,23 +47,32 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "npm"
-      - name: Enable RabbitMQ Plugins
-        run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmq-plugins enable rabbitmq_stream rabbitmq_stream_management rabbitmq_auth_mechanism_ssl
+      - name: Generate certificates
+        env:
+          CN: test-node
+        run: |
+          git clone https://github.com/rabbitmq/tls-gen tls-gen
+          cd tls-gen/basic
+          make
+          cd ../..
+          cp -a tls-gen/basic/result certs/
+          sudo chown -R 999:999 certs
+          sudo mv certs/server_test-node_certificate.pem certs/server_rabbitmq_certificate.pem
+          sudo mv certs/server_test-node_key.pem certs/server_rabbitmq_key.pem
       - name: Restart RabbitMQ
-        run: docker restart $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q)
-      - name: Wait for rabbit instance restart
-        run: sleep 10
+        run: |
+          docker restart test-node
+          sleep 2
+          docker exec test-node rabbitmqctl await_startup
       - name: Create SuperStream
-        run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmq-streams add_super_stream super-stream-test --partitions 2
+        run: docker exec test-node rabbitmq-streams add_super_stream super-stream-test --partitions 2
       - run: npm ci
       - run: npm run check
       - run: npm run build --if-present
-      - run: git clone https://github.com/rabbitmq/tls-gen tls-gen && cd tls-gen/basic && make
-        env:
-          CN: test-node
-      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl add_user 'O=client,CN=test-node' ''
-      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl clear_password 'O=client,CN=test-node'
-      - run: docker exec $(docker ps --filter ancestor=rabbitmq:3.13-rc-management -q) rabbitmqctl set_permissions 'O=client,CN=test-node' '.*' '.*' '.*'
+      - run: |
+          docker exec test-node rabbitmqctl add_user 'O=client,CN=test-node' ''
+          docker exec test-node rabbitmqctl clear_password 'O=client,CN=test-node'
+          docker exec test-node rabbitmqctl set_permissions 'O=client,CN=test-node' '.*' '.*' '.*'
       - run: npm test
         env:
           RABBITMQ_USER: "test-user"
