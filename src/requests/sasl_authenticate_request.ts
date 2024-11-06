@@ -2,6 +2,10 @@ import { SaslAuthenticateResponse } from "../responses/sasl_authenticate_respons
 import { AbstractRequest } from "./abstract_request"
 import { DataWriter } from "./data_writer"
 
+function assertUnreachable(mechanism: string): never {
+  throw new Error(`Auth mechanism '${mechanism}' not implemented`)
+}
+
 export class SaslAuthenticateRequest extends AbstractRequest {
   readonly responseKey = SaslAuthenticateResponse.key
   static readonly Key = 0x0013
@@ -26,7 +30,7 @@ export class SaslAuthenticateRequest extends AbstractRequest {
         writer.writeUInt32(0)
         break
       default:
-        throw new Error(`Auth mechanism ${this.params.mechanism} not implemented`)
+        assertUnreachable(this.params.mechanism)
     }
   }
 }
