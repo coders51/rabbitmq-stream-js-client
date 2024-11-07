@@ -7,3 +7,15 @@ rabbitmq-cluster:
 	cd cluster; chmod 755 -R tls-gen 
 	cd cluster; docker compose down
 	cd cluster; docker compose up -d
+
+rabbitmq-test:
+	rm -rf tls-gen;
+	git clone https://github.com/rabbitmq/tls-gen tls-gen; cd tls-gen/basic; CN=rabbitmq make
+	chmod 755 -R tls-gen
+	docker compose down
+	docker compose up -d
+	sleep 5
+	docker exec rabbitmq-stream rabbitmqctl await_startup
+	docker exec rabbitmq-stream rabbitmqctl add_user 'O=client,CN=rabbitmq' ''
+	docker exec rabbitmq-stream rabbitmqctl clear_password 'O=client,CN=rabbitmq'
+	docker exec rabbitmq-stream rabbitmqctl set_permissions 'O=client,CN=rabbitmq' '.*' '.*' '.*'

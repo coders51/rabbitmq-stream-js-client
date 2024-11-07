@@ -374,7 +374,7 @@ npm i
 run the docker-compose to launch a rabbit instance already stream enabled
 
 ```shell
-docker-compose up -d
+make rabbitmq-test
 ```
 
 add this line to your host file (on linux `/etc/hosts`) to correctly resolve rabbitmq
@@ -400,8 +400,8 @@ npm run build
 Test:
 
 ```shell
-docker-compose up -d
-npm run test
+make rabbitmq-test
+RABBIT_MQ_TEST_NODES=rabbitmq:5552 npm run test
 ```
 
 Check everything:

@@ -1,1 +1,1 @@
-[rabbitmq_management,rabbitmq_prometheus,rabbitmq_stream_management].
+[rabbitmq_management,rabbitmq_prometheus,rabbitmq_stream_management,rabbitmq_auth_mechanism_ssl].
