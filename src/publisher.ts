@@ -155,7 +155,7 @@ export interface Publisher {
 
 export type FilterFunc = (msg: Message) => string | undefined
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
-export type SendResult = { sent: boolean; publishingId: bigint }
+export type SendResult = { sent: boolean; publishingId: bigint; publisher: Publisher }
 export class StreamPublisher implements Publisher {
   private connection: Connection
   private stream: string
@@ -304,7 +304,7 @@ export class StreamPublisher implements Publisher {
     }
     this.checkMessageSize(publishRequestMessage)
     const sendCycleNeeded = this.add(publishRequestMessage)
-    const result = { sent: false, publishingId: publishRequestMessage.publishingId }
+    const result = { sent: false, publishingId: publishRequestMessage.publishingId, publisher: this }
     if (sendCycleNeeded) {
       result.sent = await this.sendBuffer()
     }

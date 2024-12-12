@@ -23,7 +23,7 @@ import { RouteQuery } from "./requests/route_query"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import { MetadataUpdateListener, PublishConfirmListener, PublishErrorListener } from "./response_decoder"
+import { MetadataUpdateListener } from "./response_decoder"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
@@ -43,8 +43,12 @@ import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
 import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, ResponseCode, sample, wait } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
+import { PublishConfirmResponse } from "./responses/publish_confirm_response"
+import { PublishErrorResponse } from "./responses/publish_error_response"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
+export type ConnectionPublishConfirmListener = (confirm: PublishConfirmResponse, connectionId: string) => void
+export type ConnectionPublishErrorListener = (confirm: PublishErrorResponse, connectionId: string) => void
 
 export type ClosingParams = { closingCode: number; closingReason: string; manuallyClose?: boolean }
 
@@ -738,8 +742,8 @@ export class Client {
 
 export type ClientListenersParams = {
   metadata_update?: MetadataUpdateListener
-  publish_confirm?: PublishConfirmListener
-  publish_error?: PublishErrorListener
+  publish_confirm?: ConnectionPublishConfirmListener
+  publish_error?: ConnectionPublishErrorListener
   connection_closed?: ConnectionClosedListener
 }
 
