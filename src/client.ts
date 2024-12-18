@@ -564,9 +564,11 @@ export class Client {
         ? consumer.filter?.postFilterFunc
         : (_msg: Message) => true
 
-    messages.map((message) => {
-      if (messageFilter(message)) consumer.handle(message)
-    })
+    for (const message of messages) {
+      if (messageFilter(message)) {
+        await consumer.handle(message)
+      }
+    }
 
     await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
   }

@@ -89,7 +89,7 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -108,7 +108,7 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message when specifying the publishing id", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -206,7 +206,7 @@ describe("super stream publisher", () => {
 
   it("superstream publishing with key routing strategy - select an existing partition", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -229,7 +229,7 @@ describe("super stream publisher", () => {
 
   it("superstream publishing with key routing strategy - the routingKey is not an existing bindingKey for the superstream", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -264,7 +264,9 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages without compression - receive the same number of messages", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+      receivedMessages.push(m)
+    })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
     const messages = messageContents.map((m, i) => ({
       content: Buffer.from(m),
@@ -296,7 +298,9 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages with compression - receive the same number of messages", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+      receivedMessages.push(m)
+    })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
     const messages = messageContents.map((m, i) => ({
       content: Buffer.from(m),
@@ -315,7 +319,9 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages with compression - content is readable", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => receivedMessages.push(m))
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+      receivedMessages.push(m)
+    })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
     const messages = messageContents.map((m, i) => ({
       content: Buffer.from(m),

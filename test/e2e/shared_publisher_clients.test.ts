@@ -64,7 +64,7 @@ describe("publish messages through multiple publishers", () => {
       }
     }
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (msg) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
       received.push(msg.content.toString("utf-8"))
     })
 
