@@ -191,7 +191,7 @@ describe("offset", () => {
     it("declaring a consumer without consumerRef and saving the store offset should rise an error", async () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
-        (_message: Message) => {
+        async (_message: Message) => {
           return
         }
       )
@@ -244,7 +244,7 @@ describe("offset", () => {
     it("declaring a consumer without consumerRef and querying for the offset should rise an error", async () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
-        (_message: Message) => {
+        async (_message: Message) => {
           return
         }
       )
@@ -258,7 +258,7 @@ describe("offset", () => {
     it("query offset is able to raise an error if the stream is closed", async () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
-        (_message: Message) => {
+        async (_message: Message) => {
           return
         }
       )

@@ -43,7 +43,7 @@ describe("super stream consumer", () => {
   })
 
   it("declaring a super stream consumer on an existing super stream - no error is thrown", async () => {
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_message: Message) => {
       return
     })
   })
@@ -52,7 +52,7 @@ describe("super stream consumer", () => {
     await sender(1)
     const messages: Message[] = []
 
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (message: Message) => {
       messages.push(message)
     })
 
@@ -64,7 +64,7 @@ describe("super stream consumer", () => {
   })
 
   it("for a consumer the number of connections should be equals to the partitions' number", async () => {
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_) => {
       return
     })
 
@@ -78,7 +78,7 @@ describe("super stream consumer", () => {
     await sender(noOfMessages)
     const messages: Message[] = []
 
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (message: Message) => {
       messages.push(message)
     })
 
@@ -93,11 +93,15 @@ describe("super stream consumer", () => {
 
     await client.declareSuperStreamConsumer(
       { superStream: superStreamName, consumerRef: "counting-messages" },
-      (message: Message) => messages.push(message)
+      async (message: Message) => {
+        messages.push(message)
+      }
     )
     await client.declareSuperStreamConsumer(
       { superStream: superStreamName, consumerRef: "counting-messages" },
-      (message: Message) => messages.push(message)
+      async (message: Message) => {
+        messages.push(message)
+      }
     )
 
     await sender(noOfMessages)
@@ -120,7 +124,7 @@ describe("super stream consumer", () => {
         superStream: superStreamName,
         offset: Offset.timestamp(new Date(Date.now() - (sleepingTime - 1000))),
       },
-      (message: Message) => {
+      async (message: Message) => {
         messages.push(message)
       }
     )
@@ -131,7 +135,7 @@ describe("super stream consumer", () => {
   }).timeout(10000)
 
   it("closing the locator closes all connections", async () => {
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_) => {
       return
     })
 

@@ -74,7 +74,9 @@ describe("filtering", () => {
           matchUnfiltered: true,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+      async (msg) => {
+        filteredMsg.push(msg.content.toString("utf-8"))
+      }
     )
 
     await eventually(async () => {
@@ -107,7 +109,9 @@ describe("filtering", () => {
           matchUnfiltered: false,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+      async (msg) => {
+        filteredMsg.push(msg.content.toString("utf-8"))
+      }
     )
 
     await eventually(async () => {
@@ -139,7 +143,9 @@ describe("filtering", () => {
           matchUnfiltered: true,
         },
       },
-      (msg) => filteredMsg.push(msg.content.toString("utf-8"))
+      async (msg) => {
+        filteredMsg.push(msg.content.toString("utf-8"))
+      }
     )
 
     await eventually(async () => {

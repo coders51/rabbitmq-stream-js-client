@@ -28,7 +28,7 @@ describe("consume messages through multiple consumers", () => {
     const howManyPublished = 10
     const spiedCallbacks: ChaiSpies.SpyFunc1Proxy<Message, void>[] = []
     for (let i = 0; i < howManyConsumers; i++) {
-      const cb = (_msg: Message) => {
+      const cb = async (_msg: Message) => {
         return
       }
       const spied = spy(cb)
@@ -58,7 +58,7 @@ describe("consume messages through multiple consumers", () => {
     ]
     const spiedCallbacks: ChaiSpies.SpyFunc1Proxy<Message, void>[] = []
     for (let i = 0; i < howManyConsumers; i++) {
-      const cb = (_msg: Message) => {
+      const cb = async (_msg: Message) => {
         return
       }
       const spied = spy(cb)

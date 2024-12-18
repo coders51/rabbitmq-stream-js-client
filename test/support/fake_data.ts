@@ -46,7 +46,7 @@ export async function createConsumer(streamName: string, client: Client): Promis
   const id = randomUUID()
   const consumer = await client.declareConsumer(
     { stream: streamName, offset: Offset.first(), consumerRef: `my-consumer-${id}` },
-    () => {
+    async () => {
       console.log(`Test consumer with id ${id} received a message`)
     }
   )

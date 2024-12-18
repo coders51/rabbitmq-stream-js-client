@@ -55,7 +55,7 @@ describe("connection closed callback", () => {
     const listenerSpy = spy(listener)
     client = await createClient(username, password, { connection_closed: listenerSpy })
     await client.declarePublisher({ stream: streamName, publisherRef })
-    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {
+    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, async (_msg) => {
       return
     })
 
@@ -107,7 +107,7 @@ describe("connection closed callback", () => {
     client = await createClient(username, password, { connection_closed: consumerListenerSpy })
     const consumer = await client.declareConsumer(
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
-      (_msg) => {
+      async (_msg) => {
         return
       }
     )
@@ -139,7 +139,7 @@ describe("connection closed callback", () => {
     })
     await client.declareConsumer(
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
-      (_msg) => {
+      async (_msg) => {
         return
       }
     )
@@ -150,7 +150,7 @@ describe("connection closed callback", () => {
         offset: Offset.first(),
         connectionClosedListener: consumerListenerSpy,
       },
-      (_msg) => {
+      async (_msg) => {
         return
       }
     )
@@ -179,7 +179,7 @@ describe("connection closed callback", () => {
     })
     await client.declareConsumer(
       { stream: streamName, consumerRef, offset: Offset.first(), connectionClosedListener: consumerListenerSpy },
-      (_msg) => {
+      async (_msg) => {
         return
       }
     )
@@ -212,7 +212,7 @@ describe("connection closed callback", () => {
       stream: streamName,
       publisherRef,
     })
-    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, (_msg) => {
+    await client.declareConsumer({ stream: streamName, consumerRef, offset: Offset.first() }, async (_msg) => {
       return
     })
     await sleep(5000)
