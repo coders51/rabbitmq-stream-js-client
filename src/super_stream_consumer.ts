@@ -5,6 +5,7 @@ import { Offset } from "./requests/subscribe_request"
 export class SuperStreamConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
   public consumerRef: string
+  readonly superStream: string
   private locator: Client
   private partitions: string[]
   private offset: Offset
@@ -12,12 +13,14 @@ export class SuperStreamConsumer {
   private constructor(
     readonly handle: ConsumerFunc,
     params: {
+      superStream: string
       locator: Client
       partitions: string[]
       consumerRef: string
       offset: Offset
     }
   ) {
+    this.superStream = params.superStream
     this.consumerRef = params.consumerRef
     this.locator = params.locator
     this.partitions = params.partitions
@@ -29,7 +32,8 @@ export class SuperStreamConsumer {
       this.partitions.map(async (p) => {
         const partitionConsumer = await this.locator.declareConsumer(
           { stream: p, consumerRef: this.consumerRef, offset: this.offset, singleActive: true },
-          this.handle
+          this.handle,
+          this
         )
         this.consumers.set(p, partitionConsumer)
         return
@@ -40,6 +44,7 @@ export class SuperStreamConsumer {
   static async create(
     handle: ConsumerFunc,
     params: {
+      superStream: string
       locator: Client
       partitions: string[]
       consumerRef: string
