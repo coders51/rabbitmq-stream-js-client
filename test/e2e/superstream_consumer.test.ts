@@ -158,9 +158,9 @@ describe("super stream consumer", () => {
       const noOfMessagesPerPartition = 10
       const messages: Message[][] = [[], []]
 
-      const allPartitionKeysAreTheSame = (messages) => {
-        const partitionKeys = messages.map(m => m.applicationProperties['partition-key'])
-        return partitionKeys.every(k => k === partitionKeys[0])
+      const allPartitionKeysAreTheSame = (messagesToCheck: Message[]) => {
+        const partitionKeys = messagesToCheck.map((m) => m.applicationProperties?.["partition-key"])
+        return partitionKeys.every((k) => k === partitionKeys[0])
       }
 
       await client.declareSuperStreamConsumer(
