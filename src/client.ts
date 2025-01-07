@@ -184,7 +184,11 @@ export class Client {
     return res.ok
   }
 
-  public async declareConsumer(params: DeclareConsumerParams, handle: ConsumerFunc): Promise<Consumer> {
+  public async declareConsumer(
+    params: DeclareConsumerParams,
+    handle: ConsumerFunc,
+    superStreamConsumer?: SuperStreamConsumer
+  ): Promise<Consumer> {
     const connection = await this.getConnection(params.stream, "consumer", params.connectionClosedListener)
     const consumerId = connection.getNextConsumerId()
 
@@ -211,7 +215,7 @@ export class Client {
       await this.closeConsumer(consumer.extendedId)
     })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
-    await this.declareConsumerOnConnection(params, consumerId, connection)
+    await this.declareConsumerOnConnection(params, consumerId, connection, superStreamConsumer?.superStream)
     this.logger.info(
       `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
@@ -245,6 +249,7 @@ export class Client {
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, {
+      superStream,
       locator: this,
       consumerRef: consumerRef || `${superStream}-${randomUUID()}`,
       offset: offset || Offset.first(),
@@ -468,7 +473,12 @@ export class Client {
     }
   }
 
-  private async declareConsumerOnConnection(params: DeclareConsumerParams, consumerId: number, connection: Connection) {
+  private async declareConsumerOnConnection(
+    params: DeclareConsumerParams,
+    consumerId: number,
+    connection: Connection,
+    superStream?: string
+  ) {
     const properties: Record<string, string> = {}
     if (params.singleActive && !params.consumerRef) {
       throw new Error("consumerRef is mandatory when declaring a single active consumer")
@@ -476,6 +486,9 @@ export class Client {
     if (params.singleActive) {
       properties["single-active-consumer"] = "true"
       properties["name"] = params.consumerRef!
+    }
+    if (superStream) {
+      properties["super-stream"] = superStream
     }
     if (params.filter) {
       for (let i = 0; i < params.filter.values.length; i++) {
