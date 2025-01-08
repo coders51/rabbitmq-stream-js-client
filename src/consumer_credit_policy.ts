@@ -54,4 +54,4 @@ export const creditsOnChunkReceived = (startFrom: number, step: number) =>
   new NewCreditsOnChunkReceived(startFrom, step)
 export const creditsOnChunkCompleted = (startFrom: number, step: number) =>
   new NewCreditsOnChunkCompleted(startFrom, step)
-export const defaultCreditPolicy = creditsOnChunkReceived(2, 1)
+export const defaultCreditPolicy = creditsOnChunkReceived(1, 1)
