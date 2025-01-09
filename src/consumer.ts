@@ -5,7 +5,7 @@ import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_pol
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
-export type ConsumerFunc = (message: Message) => Promise<void>
+export type ConsumerFunc = (message: Message) => Promise<void> | void
 export const computeExtendedConsumerId = (consumerId: number, connectionId: string) => {
   return `${consumerId}@${connectionId}`
 }
