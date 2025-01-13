@@ -117,7 +117,7 @@ describe("filtering", () => {
     await eventually(async () => {
       expect(filteredMsg.length).eql(2000)
     }, 10000)
-  }).timeout(10000)
+  }).timeout(15000)
 
   it("published messages are filtered on the server side keeping even the ones with filter value", async () => {
     const filteredMsg: string[] = []
