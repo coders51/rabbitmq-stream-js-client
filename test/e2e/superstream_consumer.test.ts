@@ -47,7 +47,7 @@ describe("super stream consumer", () => {
     })
 
     it("declaring a super stream consumer on an existing super stream - no error is thrown", async () => {
-      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_message: Message) => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_message: Message) => {
         return
       })
     })
@@ -56,7 +56,7 @@ describe("super stream consumer", () => {
       await sender(1)
       const messages: Message[] = []
 
-      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (message: Message) => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
         messages.push(message)
       })
 
@@ -68,7 +68,7 @@ describe("super stream consumer", () => {
     })
 
     it("for a consumer the number of connections should be equals to the partitions' number", async () => {
-      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_) => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
         return
       })
 
@@ -82,7 +82,7 @@ describe("super stream consumer", () => {
       await sender(noOfMessages)
       const messages: Message[] = []
 
-      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (message: Message) => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, (message: Message) => {
         messages.push(message)
       })
 

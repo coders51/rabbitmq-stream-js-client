@@ -267,7 +267,7 @@ describe("declare consumer", () => {
     await rabbit.createStream("testQ")
     await client.declareConsumer(
       { stream: "testQ", offset: Offset.next(), consumerRef: "test" },
-      async (message: Message) => {
+      (message: Message) => {
         messageAnnotations.push(message.messageAnnotations ?? {})
       }
     )

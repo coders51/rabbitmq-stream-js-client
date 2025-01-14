@@ -27,7 +27,7 @@ describe("react to a metadata update message from the server", () => {
   })
 
   it("when we have a metadata update on a stream any consumer on that stream gets removed from the consumers list", async () => {
-    await client.declareConsumer({ offset: Offset.first(), stream: streamName }, async () => {
+    await client.declareConsumer({ offset: Offset.first(), stream: streamName }, () => {
       return
     })
 
@@ -42,7 +42,7 @@ describe("react to a metadata update message from the server", () => {
     let cbCalled = 0
     await client.declareConsumer(
       { offset: Offset.first(), stream: streamName, connectionClosedListener: (_) => cbCalled++ },
-      async () => {
+      () => {
         return
       }
     )

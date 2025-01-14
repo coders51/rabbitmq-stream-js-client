@@ -89,7 +89,7 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -108,7 +108,7 @@ describe("super stream publisher", () => {
 
   it("publish a message and receive a message when specifying the publishing id", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -206,7 +206,7 @@ describe("super stream publisher", () => {
 
   it("superstream publishing with key routing strategy - select an existing partition", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
@@ -229,7 +229,7 @@ describe("super stream publisher", () => {
 
   it("superstream publishing with key routing strategy - the routingKey is not an existing bindingKey for the superstream", async () => {
     const messages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (msg) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
     const publisher = await client.declareSuperStreamPublisher(
