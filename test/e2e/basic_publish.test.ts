@@ -81,7 +81,7 @@ describe("publish a message", () => {
     const messageContent = `test${randomUUID()}`
     let message: Message | undefined = undefined
     const messageProperties: MessageProperties = { messageId: "test", subject: "test" }
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (msg) => {
       message = msg
     })
 

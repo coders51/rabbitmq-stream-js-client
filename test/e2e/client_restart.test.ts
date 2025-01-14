@@ -47,7 +47,7 @@ describe("restart connections", () => {
     const localPublisherPorts = new Map<number, number>()
     const localConsumerPorts = new Map<number, number>()
     const consumers = new Map<number, Consumer>()
-    const dummyMsgHandler = async (_msg: Message) => {
+    const dummyMsgHandler = (_msg: Message) => {
       return
     }
     for (const stream of streamNames) {
@@ -91,7 +91,7 @@ describe("restart connections", () => {
     const received = new Set<string>()
     const messageNumber = 10000
     const triggerIndex = Math.floor(messageNumber / 4)
-    const consumeHandle = async (msg: Message) => {
+    const consumeHandle = (msg: Message) => {
       received.add(msg.messageProperties?.messageId!)
     }
     const oldClientConnectionInfo = client.getConnectionInfo()
