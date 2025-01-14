@@ -29,6 +29,7 @@ import {
   getTestNodesFromEnv,
   password,
   username,
+  waitSleeping,
 } from "../support/util"
 
 describe("declare consumer", () => {
@@ -73,6 +74,18 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
 
     await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
+      messages.push(message.content)
+    })
+
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+  }).timeout(10000)
+
+  it("declaring an async consumer on an existing stream - the consumer should handle the message", async () => {
+    const messages: Buffer[] = []
+    await publisher.send(Buffer.from("hello"))
+
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+      await waitSleeping(10)
       messages.push(message.content)
     })
 
