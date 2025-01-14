@@ -40,13 +40,13 @@ describe("address resolver", () => {
   })
 
   it("declaring a consumer - should not throw", async () => {
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async () => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => {
       return
     })
   })
 
   it("declaring a consumer - if multiple nodes are present the consumer should be connected to a replica", async () => {
-    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async () => {
+    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => {
       return
     })
 

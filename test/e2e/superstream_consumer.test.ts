@@ -97,13 +97,13 @@ describe("super stream consumer", () => {
 
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "counting-messages" },
-        async (message: Message) => {
+        (message: Message) => {
           messages.push(message)
         }
       )
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "counting-messages" },
-        async (message: Message) => {
+        (message: Message) => {
           messages.push(message)
         }
       )
@@ -128,7 +128,7 @@ describe("super stream consumer", () => {
           superStream: superStreamName,
           offset: Offset.timestamp(new Date(Date.now() - (sleepingTime - 1000))),
         },
-        async (message: Message) => {
+        (message: Message) => {
           messages.push(message)
         }
       )
@@ -139,7 +139,7 @@ describe("super stream consumer", () => {
     }).timeout(10000)
 
     it("closing the locator closes all connections", async () => {
-      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_) => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
         return
       })
 
@@ -169,13 +169,13 @@ describe("super stream consumer", () => {
 
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "message-partitioning" },
-        async (message: Message) => {
+        (message: Message) => {
           messages[0].push(message)
         }
       )
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "message-partitioning" },
-        async (message: Message) => {
+        (message: Message) => {
           messages[1].push(message)
         }
       )

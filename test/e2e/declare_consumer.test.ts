@@ -72,7 +72,7 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
     })
 
@@ -86,19 +86,19 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
@@ -111,18 +111,18 @@ describe("declare consumer", () => {
     const consumerRef = createConsumerRef()
 
     await publisher.send(Buffer.from("hello"))
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
     })
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
@@ -138,25 +138,25 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      async (message: Message) => {
+      (message: Message) => {
         messages.push(message.content)
       }
     )
@@ -173,7 +173,7 @@ describe("declare consumer", () => {
       async () => {
         await client.declareConsumer(
           { stream: streamName, offset: Offset.first(), singleActive: true },
-          async (message: Message) => {
+          (message: Message) => {
             messages.push(message.content)
           }
         )
@@ -189,7 +189,7 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
     await publisher.send(Buffer.from("world"))
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
     })
 
@@ -198,7 +198,7 @@ describe("declare consumer", () => {
 
   it(`consume a lot of messages`, async () => {
     const receivedMessages: Buffer[] = []
-    await client.declareConsumer({ stream: streamName, offset: Offset.next() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.next() }, (message: Message) => {
       receivedMessages.push(message.content)
     })
 
@@ -213,7 +213,7 @@ describe("declare consumer", () => {
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
       () =>
-        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, async () => {
+        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, () => {
           return
         }),
       Error,
@@ -226,7 +226,7 @@ describe("declare consumer", () => {
     const properties = createProperties()
     await publisher.send(Buffer.from("hello"), { messageProperties: properties })
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageProperties.push(message.messageProperties || {})
     })
 
@@ -240,7 +240,7 @@ describe("declare consumer", () => {
     const applicationProperties = createApplicationProperties()
     await publisher.send(Buffer.from("hello"), { applicationProperties })
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageApplicationProperties.push(message.applicationProperties || {})
     })
 
@@ -254,7 +254,7 @@ describe("declare consumer", () => {
     const annotations = createAnnotations()
     await publisher.send(Buffer.from("hello"), { messageAnnotations: annotations })
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messageAnnotations.push(message.messageAnnotations || {})
     })
 

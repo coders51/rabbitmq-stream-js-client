@@ -264,7 +264,7 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages without compression - receive the same number of messages", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => {
       receivedMessages.push(m)
     })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
@@ -298,7 +298,7 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages with compression - receive the same number of messages", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => {
       receivedMessages.push(m)
     })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
@@ -319,7 +319,7 @@ describe("super stream publisher", () => {
 
   it("publishing a batch of messages with compression - content is readable", async () => {
     const receivedMessages: Message[] = []
-    await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (m: Message) => {
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => {
       receivedMessages.push(m)
     })
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
