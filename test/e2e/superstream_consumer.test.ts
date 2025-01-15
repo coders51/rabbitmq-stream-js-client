@@ -97,11 +97,15 @@ describe("super stream consumer", () => {
 
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "counting-messages" },
-        (message: Message) => messages.push(message)
+        (message: Message) => {
+          messages.push(message)
+        }
       )
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "counting-messages" },
-        (message: Message) => messages.push(message)
+        (message: Message) => {
+          messages.push(message)
+        }
       )
 
       await sender(noOfMessages)
@@ -165,11 +169,15 @@ describe("super stream consumer", () => {
 
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "message-partitioning" },
-        (message: Message) => messages[0].push(message)
+        (message: Message) => {
+          messages[0].push(message)
+        }
       )
       await client.declareSuperStreamConsumer(
         { superStream: superStreamName, consumerRef: "message-partitioning" },
-        (message: Message) => messages[1].push(message)
+        (message: Message) => {
+          messages[1].push(message)
+        }
       )
 
       await sender(noOfMessagesPerPartition)

@@ -210,6 +210,21 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
 // ...
 ```
 
+### Custom Policy
+By default the client uses the `creditsOnChunkCompleted(1, 1)` policy. This policy grants that messages will be processed in order, as a new chunk will only be requested once the current chunk has been processed. It is possible to override this policy by passing `creditPolicy` to the consumer options. Be aware that modifying this policy can lead to out-of-order message processing.
+
+```typescript
+const consumerOptions = {
+  stream: "stream-name",
+  creditPolicy: creditsOnChunkReceived(2, 1)
+}
+
+await client.declareConsumer(consumerOptions, async (message: Message) => {
+    console.log(message.content)
+  }
+)
+```
+
 ### Clustering
 
 Every time we create a new producer or a new consumer, a new connection object is created. The underlying TCP connections can be shared among different producers and different consumers. Note however that:

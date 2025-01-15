@@ -5,7 +5,7 @@ import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_pol
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
-export type ConsumerFunc = (message: Message) => void
+export type ConsumerFunc = (message: Message) => Promise<void> | void
 export const computeExtendedConsumerId = (consumerId: number, connectionId: string) => {
   return `${consumerId}@${connectionId}`
 }
@@ -82,9 +82,9 @@ export class StreamConsumer implements Consumer {
     return this.clientLocalOffset.clone()
   }
 
-  public handle(message: Message) {
+  public async handle(message: Message) {
     if (this.closed || this.isMessageOffsetLessThanConsumers(message)) return
-    this.consumerHandle(message)
+    await this.consumerHandle(message)
     this.maybeUpdateLocalOffset(message)
   }
 

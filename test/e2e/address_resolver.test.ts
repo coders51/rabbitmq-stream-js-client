@@ -40,11 +40,15 @@ describe("address resolver", () => {
   })
 
   it("declaring a consumer - should not throw", async () => {
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => null)
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => {
+      return
+    })
   })
 
   it("declaring a consumer - if multiple nodes are present the consumer should be connected to a replica", async () => {
-    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => null)
+    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => {
+      return
+    })
 
     const connectionInfo = consumer.getConnectionInfo()
     const queueInfo = await rabbit.getQueueInfo(streamName)

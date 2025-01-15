@@ -29,6 +29,7 @@ import {
   getTestNodesFromEnv,
   password,
   username,
+  waitSleeping,
 } from "../support/util"
 
 describe("declare consumer", () => {
@@ -72,9 +73,21 @@ describe("declare consumer", () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
-    )
+    })
+
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+  }).timeout(10000)
+
+  it("declaring an async consumer on an existing stream - the consumer should handle the message", async () => {
+    const messages: Buffer[] = []
+    await publisher.send(Buffer.from("hello"))
+
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (message: Message) => {
+      await waitSleeping(10)
+      messages.push(message.content)
+    })
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
@@ -86,15 +99,21 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
@@ -105,16 +124,20 @@ describe("declare consumer", () => {
     const consumerRef = createConsumerRef()
 
     await publisher.send(Buffer.from("hello"))
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
+    })
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
-    )
-    await client.declareConsumer(
-      { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
@@ -128,19 +151,27 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("hello"))
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
     await client.declareConsumer(
       { stream: streamName, offset: Offset.first(), singleActive: true, consumerRef: consumerRef1 },
-      (message: Message) => messages.push(message.content)
+      (message: Message) => {
+        messages.push(message.content)
+      }
     )
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
@@ -155,7 +186,9 @@ describe("declare consumer", () => {
       async () => {
         await client.declareConsumer(
           { stream: streamName, offset: Offset.first(), singleActive: true },
-          (message: Message) => messages.push(message.content)
+          (message: Message) => {
+            messages.push(message.content)
+          }
         )
       },
       Error,
@@ -169,9 +202,9 @@ describe("declare consumer", () => {
     await publisher.send(Buffer.from("world"))
     await publisher.send(Buffer.from("world"))
 
-    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) =>
+    await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (message: Message) => {
       messages.push(message.content)
-    )
+    })
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("world"), Buffer.from("world")]))
   }).timeout(10000)
@@ -192,7 +225,10 @@ describe("declare consumer", () => {
 
   it("declaring a consumer on a non-existing stream should raise an error", async () => {
     await expectToThrowAsync(
-      () => client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, () => null),
+      () =>
+        client.declareConsumer({ stream: nonExistingStreamName, offset: Offset.first() }, () => {
+          return
+        }),
       Error,
       "Stream was not found on any node"
     )
