@@ -244,7 +244,7 @@ export class Client {
   }
 
   public async declareSuperStreamConsumer(
-    { superStream, offset, consumerRef }: DeclareSuperStreamConsumerParams,
+    { superStream, offset, consumerRef, creditPolicy }: DeclareSuperStreamConsumerParams,
     handle: ConsumerFunc
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
@@ -254,6 +254,7 @@ export class Client {
       consumerRef: consumerRef || `${superStream}-${randomUUID()}`,
       offset: offset || Offset.first(),
       partitions,
+      creditPolicy,
     })
   }
 
@@ -774,6 +775,7 @@ export interface DeclareSuperStreamConsumerParams {
   superStream: string
   consumerRef?: string
   offset?: Offset
+  creditPolicy?: ConsumerCreditPolicy
 }
 
 export interface SubscribeParams {
