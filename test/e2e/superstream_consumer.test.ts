@@ -4,8 +4,9 @@ import { Message, MessageOptions } from "../../src/publisher"
 import { range } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, password, username } from "../support/util"
+import { eventually, password, username, waitSleeping } from "../support/util"
 import { randomUUID } from "crypto"
+import { creditsOnChunkCompleted } from "../../src/consumer_credit_policy"
 
 describe("super stream consumer", () => {
   let superStreamName: string
@@ -50,6 +51,22 @@ describe("super stream consumer", () => {
       await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_message: Message) => {
         return
       })
+    })
+
+    it("declaring an async super stream consumer on an existing super stream - no error is thrown", async () => {
+      await client.declareSuperStreamConsumer({ superStream: superStreamName }, async (_message: Message) => {
+        await waitSleeping(10)
+        return
+      })
+    })
+
+    it("declaring a super stream consumer with a custom credit policy - no error is thrown", async () => {
+      await client.declareSuperStreamConsumer(
+        { superStream: superStreamName, creditPolicy: creditsOnChunkCompleted(2, 1) },
+        (_message: Message) => {
+          return
+        }
+      )
     })
 
     it("declaring a super stream consumer on an existing super stream - read a message", async () => {

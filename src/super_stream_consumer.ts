@@ -1,5 +1,6 @@
 import { Client } from "./client"
 import { Consumer, ConsumerFunc } from "./consumer"
+import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_policy"
 import { Offset } from "./requests/subscribe_request"
 
 export class SuperStreamConsumer {
@@ -9,6 +10,7 @@ export class SuperStreamConsumer {
   private locator: Client
   private partitions: string[]
   private offset: Offset
+  private creditPolicy: ConsumerCreditPolicy
 
   private constructor(
     readonly handle: ConsumerFunc,
@@ -18,6 +20,7 @@ export class SuperStreamConsumer {
       partitions: string[]
       consumerRef: string
       offset: Offset
+      creditPolicy?: ConsumerCreditPolicy
     }
   ) {
     this.superStream = params.superStream
@@ -25,13 +28,20 @@ export class SuperStreamConsumer {
     this.locator = params.locator
     this.partitions = params.partitions
     this.offset = params.offset
+    this.creditPolicy = params.creditPolicy || defaultCreditPolicy
   }
 
   async start(): Promise<void> {
     await Promise.all(
       this.partitions.map(async (p) => {
         const partitionConsumer = await this.locator.declareConsumer(
-          { stream: p, consumerRef: this.consumerRef, offset: this.offset, singleActive: true },
+          {
+            stream: p,
+            consumerRef: this.consumerRef,
+            offset: this.offset,
+            singleActive: true,
+            creditPolicy: this.creditPolicy,
+          },
           this.handle,
           this
         )
@@ -49,6 +59,7 @@ export class SuperStreamConsumer {
       partitions: string[]
       consumerRef: string
       offset: Offset
+      creditPolicy?: ConsumerCreditPolicy
     }
   ): Promise<SuperStreamConsumer> {
     const superStreamConsumer = new SuperStreamConsumer(handle, params)
