@@ -150,6 +150,7 @@ describe("offset", () => {
       const receivedMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
       const previousMessages = await sendANumberOfRandomMessages(publisher)
+      await wait(1000)
       const offset = new Date()
       await wait(1000)
       const laterMessages = await sendANumberOfRandomMessages(publisher, previousMessages.length)
@@ -164,7 +165,7 @@ describe("offset", () => {
       await eventually(async () => {
         expect(receivedMessages).to.have.length(laterMessages.length)
       }, 2500)
-    }).timeout(5000)
+    }).timeout(7000)
   })
 
   describe("store", () => {
