@@ -120,7 +120,7 @@ describe("filtering", () => {
     //RabbitMQ uses a Bloom filter for server side filtering.
     //A Bloom filter is very efficient in terms of storage and speed, but it is probabilistic: it can return false positives.
     //Because of this, the broker can send messages it believes match the expected filter values whereas they do not. That's why some client-side filtering logic is necessary.
-    //For this reason some messages may not be correctly filtered, but we expecect the number of them to be very low.
+    //For this reason some messages may not be correctly filtered, but we expect the number of them to be very low.
     //For more information: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
     await eventually(async () => {
       expect(expectedMessages.length).eql(2000)
