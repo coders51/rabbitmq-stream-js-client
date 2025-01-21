@@ -1,6 +1,6 @@
 services:
   rabbitmq-stream:
-    image: rabbitmq:3.13-rc-management
+    image: rabbitmq:4-management
     container_name: rabbitmq-stream
     restart: unless-stopped
     hostname: "rabbitmq"

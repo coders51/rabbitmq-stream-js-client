@@ -9,7 +9,7 @@ services:
     networks:
       - back
     hostname: node0
-    image: rabbitmq:3.13-rc-management
+    image: rabbitmq:4-management
     ports:
       - "5560:5550"
       - "5561:5551"
@@ -27,7 +27,7 @@ services:
     networks:
       - back
     hostname: node1
-    image: rabbitmq:3.13-rc-management
+    image: rabbitmq:4-management
     ports:
       - "5570:5550"
       - "5571:5551"
@@ -45,7 +45,7 @@ services:
     networks:
       - back
     hostname: node2
-    image: rabbitmq:3.13-rc-management
+    image: rabbitmq:4-management
     ports:
       - "5580:5550"
       - "5581:5551"
