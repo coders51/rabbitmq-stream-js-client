@@ -216,6 +216,7 @@ export const sendANumberOfRandomMessages = async (publisher: Publisher, offset =
   const noOfMessages = Math.floor(Math.random() * 10) + 1
   const messages = Array.from(Array(noOfMessages).keys()).map((_, i) => `Message number ${i + offset + 1}`)
   await Promise.all(messages.map((m) => publisher.send(Buffer.from(m))))
+  await publisher.flush()
   return messages
 }
 

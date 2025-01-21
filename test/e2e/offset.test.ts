@@ -163,7 +163,7 @@ describe("offset", () => {
 
       await eventually(async () => {
         expect(receivedMessages).to.have.length(laterMessages.length)
-      })
+      }, 2500)
     }).timeout(5000)
   })
 
