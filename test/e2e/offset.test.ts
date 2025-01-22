@@ -146,7 +146,7 @@ describe("offset", () => {
       }, 5000)
     }).timeout(10000)
 
-    it.only("if offset is of type timestamp, all the messages belonging to batches sent earlier than the timestamp should be skipped", async () => {
+    it("if offset is of type timestamp, all the messages belonging to batches sent earlier than the timestamp should be skipped", async () => {
       const receivedMessages: Message[] = []
       const publisher = await client.declarePublisher({ stream: testStreamName })
       const previousMessages = await sendANumberOfRandomMessages(publisher)
