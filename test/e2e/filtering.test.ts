@@ -86,7 +86,8 @@ describe("filtering", () => {
   }).timeout(10000)
 
   it("published messages are filtered on the server side keeping only the ones with filter value", async () => {
-    const filteredMsg: string[] = []
+    const expectedMessages: string[] = []
+    const notCorrectlyFilteredMessages: string[] = []
     const publisher = await client.declarePublisher(
       { stream: streamName, publisherRef: `my-publisher-${randomUUID()}` },
       (msg) => (msg.applicationProperties ? msg.applicationProperties["test"].toString() : undefined)
@@ -110,12 +111,20 @@ describe("filtering", () => {
         },
       },
       (msg) => {
-        filteredMsg.push(msg.content.toString("utf-8"))
+        if (msg.applicationProperties?.test === "A" || msg.applicationProperties?.test === "B")
+          expectedMessages.push(msg.content.toString("utf-8"))
+        else notCorrectlyFilteredMessages.push(msg.content.toString("utf-8"))
       }
     )
 
+    //RabbitMQ uses a Bloom filter for server side filtering.
+    //A Bloom filter is very efficient in terms of storage and speed, but it is probabilistic: it can return false positives.
+    //Because of this, the broker can send messages it believes match the expected filter values whereas they do not. That's why some client-side filtering logic is necessary.
+    //For this reason some messages may not be correctly filtered, but we expect the number of them to be very low.
+    //For more information: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
     await eventually(async () => {
-      expect(filteredMsg.length).eql(2000)
+      expect(expectedMessages.length).eql(2000)
+      expect(notCorrectlyFilteredMessages.length).below(150)
     }, 10000)
   }).timeout(15000)
 

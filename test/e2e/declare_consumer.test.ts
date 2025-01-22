@@ -277,15 +277,15 @@ describe("declare consumer", () => {
   it("messageAnnotations with bytes are read correctly", async () => {
     const messageAnnotations: MessageAnnotations[] = []
     const annotations = { test: new AmqpByte(123) }
-    await rabbit.createStream("testQ")
+    await rabbit.createStream(streamName)
     await client.declareConsumer(
-      { stream: "testQ", offset: Offset.next(), consumerRef: "test" },
+      { stream: streamName, offset: Offset.next(), consumerRef: "test" },
       (message: Message) => {
         messageAnnotations.push(message.messageAnnotations ?? {})
       }
     )
 
-    const testP = await client.declarePublisher({ stream: "testQ" })
+    const testP = await client.declarePublisher({ stream: streamName })
     await testP.send(Buffer.from("Hello"), { messageAnnotations: annotations })
 
     await eventually(async () => {

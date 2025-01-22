@@ -37,6 +37,10 @@ describe("RouteQuery command", () => {
     const streamName = randomUUID()
     await rabbit.createStream(streamName)
 
-    await expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: streamName }), Error)
+    try {
+      await expectToThrowAsync(() => client.routeQuery({ routingKey: "0", superStream: streamName }), Error)
+    } finally {
+      await rabbit.deleteStream(streamName)
+    }
   })
 })
