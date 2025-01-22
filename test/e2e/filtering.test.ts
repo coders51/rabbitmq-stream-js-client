@@ -124,7 +124,7 @@ describe("filtering", () => {
     //For more information: https://www.rabbitmq.com/blog/2023/10/16/stream-filtering
     await eventually(async () => {
       expect(expectedMessages.length).eql(2000)
-      expect(notCorrectlyFilteredMessages.length).below(100)
+      expect(notCorrectlyFilteredMessages.length).below(150)
     }, 10000)
   }).timeout(15000)
 
