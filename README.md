@@ -123,6 +123,24 @@ await publisher.send(Buffer.from("my message content"))
 await client.close()
 ```
 
+### Boot
+
+By default when creating a publisher the `boot` property is set to false, this means that `publishingId` will start from zero and increase by one every time a message is sent.
+If you want to create a publisher with the latest `publishingId` used, you must set the `boot` property to true.
+
+```typescript
+const client = await connect({
+  hostname: "localhost",
+  port: 5552,
+  username: "rabbit",
+  password: "rabbit",
+  vhost: "/",
+})
+
+const publisher = await client.declarePublisher({ stream: "stream-name", boot: true }) //the client gets the latest publishingId used and increases it by one
+await publisher.send(Buffer.from("my message"))
+```
+
 ### Sub Batch Entry Publishing
 
 ```typescript
