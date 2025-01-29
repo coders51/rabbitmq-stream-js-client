@@ -123,24 +123,6 @@ await publisher.send(Buffer.from("my message content"))
 await client.close()
 ```
 
-### Boot
-
-By default when creating a publisher the `boot` property is set to false, this means that `publishingId` will start from zero and increase by one every time a message is sent.
-If you want to create a publisher with the latest `publishingId` used, you must set the `boot` property to true.
-
-```typescript
-const client = await connect({
-  hostname: "localhost",
-  port: 5552,
-  username: "rabbit",
-  password: "rabbit",
-  vhost: "/",
-})
-
-const publisher = await client.declarePublisher({ stream: "stream-name", boot: true }) //the client gets the latest publishingId used and increases it by one
-await publisher.send(Buffer.from("my message"))
-```
-
 ### Sub Batch Entry Publishing
 
 ```typescript
@@ -229,18 +211,18 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
 ```
 
 ### Custom Policy
+
 By default the client uses the `creditsOnChunkCompleted(1, 1)` policy. This policy grants that messages will be processed in order, as a new chunk will only be requested once the current chunk has been processed. It is possible to override this policy by passing `creditPolicy` to the consumer options. Be aware that modifying this policy can lead to out-of-order message processing.
 
 ```typescript
 const consumerOptions = {
   stream: "stream-name",
-  creditPolicy: creditsOnChunkReceived(2, 1)
+  creditPolicy: creditsOnChunkReceived(2, 1),
 }
 
 await client.declareConsumer(consumerOptions, async (message: Message) => {
-    console.log(message.content)
-  }
-)
+  console.log(message.content)
+})
 ```
 
 ### Clustering
