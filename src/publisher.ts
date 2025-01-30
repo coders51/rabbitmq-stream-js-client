@@ -77,6 +77,7 @@ export const computeExtendedPublisherId = (publisherId: number, connectionId: st
 }
 
 export interface Publisher {
+  init(): Promise<void>
   send(message: Buffer, opts?: MessageOptions): Promise<SendResult>
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult>
   flush(): Promise<boolean>
@@ -137,12 +138,18 @@ export class StreamPublisher implements Publisher {
     return this._closed
   }
 
+  async init(): Promise<void> {
+    if (this.publisherRef && this.publishingId === -1n) {
+      this.publishingId = await this.getLastPublishingId()
+    }
+  }
+
   async send(message: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
     if (this._closed) {
       throw new Error(`Publisher has been closed`)
     }
     if (this.publisherRef && this.publishingId === -1n) {
-      this.publishingId = await this.getLastPublishingId()
+      throw new Error(`Please initialize the publisher before sending messages`)
     }
     this.publishingId = this.publishingId + 1n
 

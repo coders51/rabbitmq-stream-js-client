@@ -156,6 +156,7 @@ export class Client {
       logger: this.logger,
     }
     const publisher = new StreamPublisher(streamPublisherParams, filter)
+    await publisher.init()
     connection.onPublisherClosed(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
