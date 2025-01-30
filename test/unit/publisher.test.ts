@@ -42,7 +42,7 @@ describe("Publisher", () => {
 
   it("do not increase publishing id from server when publisherRef is not defined (deduplication not active)", async () => {
     const oldClient = await createClient(username, password)
-    const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
@@ -51,8 +51,9 @@ describe("Publisher", () => {
 
     const newPublisher = await newClient.declarePublisher({ stream: testStreamName })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
+    await newPublisher.flush()
 
-    expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length))
+    expect(await newPublisher.getLastPublishingId()).eql(BigInt(0))
     await newClient.close()
   }).timeout(10000)
 
