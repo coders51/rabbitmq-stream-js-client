@@ -34,10 +34,14 @@ export function createConsumerRef(): string {
   return `my-consumer-${randomUUID()}`
 }
 
-export async function createPublisher(streamName: string, client: Client): Promise<Publisher> {
+export async function createPublisher(
+  streamName: string,
+  client: Client,
+  deduplication: Boolean = false
+): Promise<Publisher> {
   const publisher = await client.declarePublisher({
     stream: streamName,
-    publisherRef: `my-publisher-${randomUUID()}`,
+    ...(deduplication && { publisherRef: `my-publisher-${randomUUID()}` }),
   })
   return publisher
 }
