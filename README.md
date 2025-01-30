@@ -123,6 +123,34 @@ await publisher.send(Buffer.from("my message content"))
 await client.close()
 ```
 
+### Deduplication
+
+If you want to make sure that a given message isn't sent more than once, you must use deduplication.
+To activate the deduplication, you just need to pass `publisherRef` to the `declarePublisher` function.
+This way, RabbitMQ will detect messages with the same id and filter them.
+Note that these ids are incremental, so you have to be careful about how your application publishes the messages, as the order cannot be guaranteed in multi-threaded applications.
+
+```typescript
+const client = await connect({
+  hostname: "localhost",
+  port: 5552,
+  username: "rabbit",
+  password: "rabbit",
+  vhost: "/",
+})
+
+const deduplicationPublisher = await client.declarePublisher({
+  stream: "stream-name",
+  publisherRef: "my-publisher",
+})
+
+await deduplicationPublisher.send(Buffer.from("my message content"))
+
+// ...
+
+await client.close()
+```
+
 ### Sub Batch Entry Publishing
 
 ```typescript
@@ -211,18 +239,18 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
 ```
 
 ### Custom Policy
+
 By default the client uses the `creditsOnChunkCompleted(1, 1)` policy. This policy grants that messages will be processed in order, as a new chunk will only be requested once the current chunk has been processed. It is possible to override this policy by passing `creditPolicy` to the consumer options. Be aware that modifying this policy can lead to out-of-order message processing.
 
 ```typescript
 const consumerOptions = {
   stream: "stream-name",
-  creditPolicy: creditsOnChunkReceived(2, 1)
+  creditPolicy: creditsOnChunkReceived(2, 1),
 }
 
 await client.declareConsumer(consumerOptions, async (message: Message) => {
-    console.log(message.content)
-  }
-)
+  console.log(message.content)
+})
 ```
 
 ### Clustering
