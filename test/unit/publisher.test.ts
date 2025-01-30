@@ -103,7 +103,10 @@ describe("Publisher", () => {
       })
       const msgs = [Buffer.from([1]), Buffer.from([2])]
 
-      const result = await Promise.all(msgs.map((msg) => publisher.send(msg, {})))
+      const result = []
+      for (const msg of msgs) {
+        result.push(await publisher.send(msg, {}))
+      }
 
       expect(result[0].sent).is.false
       expect(result[1].sent).is.true
