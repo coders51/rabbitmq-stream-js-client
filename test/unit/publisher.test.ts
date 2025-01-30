@@ -23,7 +23,7 @@ describe("Publisher", () => {
 
   afterEach(() => rabbit.deleteStream(testStreamName))
 
-  it("increase publishing id from server when boot is true", async () => {
+  it("increase publishing id from server when publisherRef is defined (deduplication active)", async () => {
     const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
@@ -32,7 +32,7 @@ describe("Publisher", () => {
     await oldClient.close()
     const newClient = await createClient(username, password)
 
-    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
     await newPublisher.flush()
 
@@ -40,7 +40,7 @@ describe("Publisher", () => {
     await newClient.close()
   }).timeout(10000)
 
-  it("do not increase publishing id from server when boot is false", async () => {
+  it("do not increase publishing id from server when publisherRef is not defined (deduplication not active)", async () => {
     const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
@@ -49,7 +49,7 @@ describe("Publisher", () => {
     await oldClient.close()
     const newClient = await createClient(username, password)
 
-    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
 
     expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length))
