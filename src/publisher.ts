@@ -100,7 +100,6 @@ export class StreamPublisher implements Publisher {
   private stream: string
   readonly publisherId: number
   protected publisherRef: string
-  private boot: boolean
   private publishingId: bigint
   private maxFrameSize: number
   private queue: PublishRequestMessage[]
@@ -115,7 +114,6 @@ export class StreamPublisher implements Publisher {
       stream: string
       publisherId: number
       publisherRef?: string
-      boot?: boolean
       maxFrameSize: number
       maxChunkLength?: number
       logger: Logger
@@ -126,8 +124,7 @@ export class StreamPublisher implements Publisher {
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef || ""
-    this.boot = params.boot || false
-    this.publishingId = params.boot ? -1n : 0n
+    this.publishingId = params.publisherRef ? -1n : 0n
     this.maxFrameSize = params.maxFrameSize || 1048576
     this.queue = []
     this.scheduled = null
@@ -144,7 +141,7 @@ export class StreamPublisher implements Publisher {
     if (this._closed) {
       throw new Error(`Publisher has been closed`)
     }
-    if (this.boot && this.publishingId === -1n) {
+    if (this.publisherRef && this.publishingId === -1n) {
       this.publishingId = await this.getLastPublishingId()
     }
     this.publishingId = this.publishingId + 1n

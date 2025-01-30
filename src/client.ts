@@ -151,7 +151,6 @@ export class Client {
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
-      boot: params.boot,
       maxFrameSize: this.maxFrameSize,
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
@@ -740,7 +739,6 @@ export interface ClientParams {
 export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
-  boot?: boolean
   maxChunkLength?: number
   connectionClosedListener?: ConnectionClosedListener
 }
