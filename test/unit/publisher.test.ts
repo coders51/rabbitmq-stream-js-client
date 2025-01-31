@@ -74,6 +74,32 @@ describe("Publisher", () => {
     await client.close()
   }).timeout(10000)
 
+  it("should autoincrement publishing id when publishing id is not passed from outside (deduplication active)", async () => {
+    const client = await createClient(username, password)
+    const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 1n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 2n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.flush()
+
+    expect(await publisher.getLastPublishingId()).eql(4n)
+    await client.close()
+  })
+
+  it("should set latest publishing id when passing it from outside (deduplication active)", async () => {
+    const client = await createClient(username, password)
+    const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 3n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 4n })
+    await publisher.flush()
+
+    expect(await publisher.getLastPublishingId()).eql(4n)
+    await client.close()
+  })
+
   it("do not increase publishing id from server when publisherRef is not defined (deduplication not active)", async () => {
     const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName })
