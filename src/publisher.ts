@@ -70,6 +70,7 @@ export interface MessageOptions {
   messageProperties?: MessageProperties
   applicationProperties?: Record<string, string | number>
   messageAnnotations?: Record<string, MessageAnnotationsValue>
+  publishingId?: bigint
 }
 
 export const computeExtendedPublisherId = (publisherId: number, connectionId: string) => {
@@ -77,7 +78,6 @@ export const computeExtendedPublisherId = (publisherId: number, connectionId: st
 }
 
 export interface Publisher {
-  init(): Promise<void>
   send(message: Buffer, opts?: MessageOptions): Promise<SendResult>
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult>
   flush(): Promise<boolean>
@@ -119,13 +119,14 @@ export class StreamPublisher implements Publisher {
       maxChunkLength?: number
       logger: Logger
     },
+    publishingId: bigint,
     private readonly filter?: FilterFunc
   ) {
     this.connection = params.connection
     this.stream = params.stream
     this.publisherId = params.publisherId
     this.publisherRef = params.publisherRef || ""
-    this.publishingId = params.publisherRef ? -1n : 0n
+    this.publishingId = publishingId
     this.maxFrameSize = params.maxFrameSize || 1048576
     this.queue = []
     this.scheduled = null
@@ -138,22 +139,23 @@ export class StreamPublisher implements Publisher {
     return this._closed
   }
 
-  async init(): Promise<void> {
-    if (this.publisherRef && this.publishingId === -1n) {
-      this.publishingId = await this.getLastPublishingId()
-    }
-  }
-
   async send(message: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
     if (this._closed) {
       throw new Error(`Publisher has been closed`)
     }
-    if (this.publisherRef && this.publishingId === -1n) {
-      throw new Error(`Please initialize the publisher before sending messages`)
-    }
-    this.publishingId = this.publishingId + 1n
 
-    return await this.basicSend(this.publishingId, message, opts)
+    let localPublishingId = 0n
+    if (this.publisherRef && opts.publishingId) {
+      localPublishingId = opts.publishingId
+      if (opts.publishingId > this.publishingId) {
+        this.publishingId = opts.publishingId
+      }
+    } else {
+      this.publishingId = this.publishingId + 1n
+      localPublishingId = this.publishingId
+    }
+
+    return await this.basicSend(localPublishingId, message, opts)
   }
 
   async basicSend(publishingId: bigint, content: Buffer, opts: MessageOptions = {}): Promise<SendResult> {

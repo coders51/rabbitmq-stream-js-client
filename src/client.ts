@@ -155,8 +155,14 @@ export class Client {
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     }
-    const publisher = new StreamPublisher(streamPublisherParams, filter)
-    await publisher.init()
+    let lastPublishingId = 0n
+    if (streamPublisherParams.publisherRef) {
+      lastPublishingId = await this.connection.queryPublisherSequence({
+        stream: streamPublisherParams.stream,
+        publisherRef: streamPublisherParams.publisherRef,
+      })
+    }
+    const publisher = new StreamPublisher(streamPublisherParams, lastPublishingId, filter)
     connection.onPublisherClosed(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
