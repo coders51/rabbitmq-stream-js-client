@@ -74,7 +74,7 @@ describe("Publisher", () => {
     await client.close()
   }).timeout(10000)
 
-  it("should autoincrement publishing id when publishing id is not passed from outside (deduplication active)", async () => {
+  it("should auto increment publishing id when publishing id is not passed from outside (deduplication active)", async () => {
     const client = await createClient(username, password)
     const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
     await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 1n })
