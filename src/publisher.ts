@@ -144,18 +144,18 @@ export class StreamPublisher implements Publisher {
       throw new Error(`Publisher has been closed`)
     }
 
-    let localPublishingId = 0n
+    let publishingIdToSend: bigint
     if (this.publisherRef && opts.publishingId) {
-      localPublishingId = opts.publishingId
+      publishingIdToSend = opts.publishingId
       if (opts.publishingId > this.publishingId) {
         this.publishingId = opts.publishingId
       }
     } else {
       this.publishingId = this.publishingId + 1n
-      localPublishingId = this.publishingId
+      publishingIdToSend = this.publishingId
     }
 
-    return await this.basicSend(localPublishingId, message, opts)
+    return await this.basicSend(publishingIdToSend, message, opts)
   }
 
   async basicSend(publishingId: bigint, content: Buffer, opts: MessageOptions = {}): Promise<SendResult> {
