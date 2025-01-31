@@ -126,9 +126,13 @@ await client.close()
 ### Deduplication
 
 If you want to make sure that a given message isn't sent more than once, you must use deduplication.
-To activate the deduplication, you just need to pass `publisherRef` to the `declarePublisher` function.
-This way, RabbitMQ will detect messages with the same id and filter them.
+To create a publisher with deduplication, you just need to pass `publisherRef` to the `declarePublisher` function, this way RabbitMQ will detect messages with lower ids and discard them.
 Note that these ids are incremental, so you have to be careful about how your application publishes the messages, as the order cannot be guaranteed in multi-threaded applications.
+It's also important to remember that the client doesn't control that the `publisherRef` is unique, it's the user's responsibility to guarantee that.
+
+You can publish messages either defining a `publishingId` or not:
+In the first case you call the `send` function with `publishingId` defined inside the `MessageOptions`. It's the users responsability to guarantee a valid `publishingId`.
+In the latter case you just call `send` and the publisher will use the next valid `publishingId`.
 
 ```typescript
 const client = await connect({
@@ -144,7 +148,8 @@ const deduplicationPublisher = await client.declarePublisher({
   publisherRef: "my-publisher",
 })
 
-await deduplicationPublisher.send(Buffer.from("my message content"))
+await deduplicationPublisher.send(Buffer.from("my message content"), { publishingId: 5n }) //here we are passing 5 as publishingId, the message will be sent only if the last publishingId was lower
+await deduplicationPublisher.send(Buffer.from("my message content")) //here we are not passing any publishingId, the publisher will use the next valid publishingId
 
 // ...
 
