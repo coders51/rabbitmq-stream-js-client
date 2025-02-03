@@ -23,7 +23,7 @@ describe("Publisher", () => {
 
   afterEach(() => rabbit.deleteStream(testStreamName))
 
-  it("increase publishing id from server when boot is true", async () => {
+  it("increase publishing id from server when publisherRef is defined and publishing id is not set (deduplication active)", async () => {
     const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
     const oldMessages = [...Array(3).keys()]
@@ -32,7 +32,7 @@ describe("Publisher", () => {
     await oldClient.close()
     const newClient = await createClient(username, password)
 
-    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: true })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
     await newPublisher.flush()
 
@@ -40,19 +40,80 @@ describe("Publisher", () => {
     await newClient.close()
   }).timeout(10000)
 
-  it("do not increase publishing id from server when boot is false", async () => {
+  it("increase publishing id from server when publisherRef is defined and publishing id is set (deduplication active)", async () => {
     const oldClient = await createClient(username, password)
     const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName, publisherRef })
+    const oldMessages = [...Array(3).keys()]
+    await Promise.all(
+      oldMessages.map((_, index) =>
+        oldPublisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: BigInt(index + 1) })
+      )
+    )
+    await oldPublisher.flush()
+    await oldClient.close()
+    const newClient = await createClient(username, password)
+
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef })
+    await newPublisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: BigInt(4) })
+    await newPublisher.flush()
+
+    expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length) + 1n)
+    await newClient.close()
+  }).timeout(10000)
+
+  it("should not increase publishing id when publishRef is defined and publishing two messages with same id (deduplication active)", async () => {
+    const client = await createClient(username, password)
+    const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
+
+    const publishingId = BigInt(1)
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: publishingId })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: publishingId })
+    await publisher.flush()
+
+    expect(await publisher.getLastPublishingId()).eql(publishingId)
+    await client.close()
+  }).timeout(10000)
+
+  it("should auto increment publishing id when publishing id is not passed from outside (deduplication active)", async () => {
+    const client = await createClient(username, password)
+    const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 1n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 2n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.flush()
+
+    expect(await publisher.getLastPublishingId()).eql(4n)
+    await client.close()
+  })
+
+  it("should set latest publishing id when passing it from outside (deduplication active)", async () => {
+    const client = await createClient(username, password)
+    const publisher = await client.declarePublisher({ stream: testStreamName, publisherRef })
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`))
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 3n })
+    await publisher.send(Buffer.from(`test${randomUUID()}`), { publishingId: 4n })
+    await publisher.flush()
+
+    expect(await publisher.getLastPublishingId()).eql(4n)
+    await client.close()
+  })
+
+  it("do not increase publishing id from server when publisherRef is not defined (deduplication not active)", async () => {
+    const oldClient = await createClient(username, password)
+    const oldPublisher = await oldClient.declarePublisher({ stream: testStreamName })
     const oldMessages = [...Array(3).keys()]
     await Promise.all(oldMessages.map(() => oldPublisher.send(Buffer.from(`test${randomUUID()}`))))
     await oldPublisher.flush()
     await oldClient.close()
     const newClient = await createClient(username, password)
 
-    const newPublisher = await newClient.declarePublisher({ stream: testStreamName, publisherRef, boot: false })
+    const newPublisher = await newClient.declarePublisher({ stream: testStreamName })
     await newPublisher.send(Buffer.from(`test${randomUUID()}`))
+    await newPublisher.flush()
 
-    expect(await newPublisher.getLastPublishingId()).eql(BigInt(oldMessages.length))
+    expect(await newPublisher.getLastPublishingId()).eql(BigInt(0))
     await newClient.close()
   }).timeout(10000)
 

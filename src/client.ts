@@ -151,12 +151,18 @@ export class Client {
       stream: params.stream,
       publisherId: publisherId,
       publisherRef: params.publisherRef,
-      boot: params.boot,
       maxFrameSize: this.maxFrameSize,
       maxChunkLength: params.maxChunkLength,
       logger: this.logger,
     }
-    const publisher = new StreamPublisher(streamPublisherParams, filter)
+    let lastPublishingId = 0n
+    if (streamPublisherParams.publisherRef) {
+      lastPublishingId = await this.connection.queryPublisherSequence({
+        stream: streamPublisherParams.stream,
+        publisherRef: streamPublisherParams.publisherRef,
+      })
+    }
+    const publisher = new StreamPublisher(streamPublisherParams, lastPublishingId, filter)
     connection.onPublisherClosed(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
@@ -740,7 +746,6 @@ export interface ClientParams {
 export interface DeclarePublisherParams {
   stream: string
   publisherRef?: string
-  boot?: boolean
   maxChunkLength?: number
   connectionClosedListener?: ConnectionClosedListener
 }

@@ -20,7 +20,7 @@ describe("publish a message", () => {
     client = await createClient(username, password, undefined, maxFrameSize, bufferSizeSettings)
     streamName = createStreamName()
     await rabbit.createStream(streamName)
-    publisher = await createPublisher(streamName, client)
+    publisher = await createPublisher(streamName, client, true)
   })
 
   afterEach(async () => {
