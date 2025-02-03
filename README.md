@@ -128,7 +128,7 @@ await client.close()
 If you want to make sure that a given message isn't sent more than once, you must use deduplication.
 To create a publisher with deduplication, you just need to pass `publisherRef` to the `declarePublisher` function, this way RabbitMQ will detect messages with lower ids and discard them.
 Note that these ids are incremental, so you have to be careful about how your application publishes the messages, as the order cannot be guaranteed in multi-threaded applications.
-It's also important to remember that the client doesn't control that the `publisherRef` is unique, it's the user's responsibility to guarantee that.
+Note: The server does not control the publisherRef across the producers. It's the user's responsibility to guarantee that.
 
 You can publish messages either defining a `publishingId` or not:
 In the first case you call the `send` function with `publishingId` defined inside the `MessageOptions`. It's the users responsability to guarantee a valid `publishingId`.
