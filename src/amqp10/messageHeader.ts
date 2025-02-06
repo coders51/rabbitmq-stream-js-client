@@ -9,11 +9,7 @@ export class Header {
       if (dataResponse.isAtEnd()) return acc
       switch (index) {
         case 0:
-          const formatCode = dataResponse.readUInt8()
-          dataResponse.rewind(1)
-          const decodedBoolean = decodeFormatCode(dataResponse, formatCode)
-          if (!decodedBoolean) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
-          acc.durable = decodedBoolean as boolean
+          acc.durable = decodeBooleanType(dataResponse, dataResponse.readUInt8())
           break
         case 1:
           dataResponse.readUInt8() // Read type
@@ -24,13 +20,13 @@ export class Header {
           acc.ttl = decodeFormatCode(dataResponse, type) as number
           break
         case 3:
-          acc.firstAcquirer = decodeBooleanType(dataResponse, true)
+          acc.firstAcquirer = decodeBooleanType(dataResponse, dataResponse.readUInt8())
           break
         case 4:
-          acc.deliveryCount = dataResponse.readUInt32()
+          acc.deliveryCount = decodeFormatCode(dataResponse, dataResponse.readUInt8()) as number
           break
         default:
-          throw new Error(`PropertiesError`)
+          throw new Error(`HeaderError`)
       }
       return acc
     }, {})

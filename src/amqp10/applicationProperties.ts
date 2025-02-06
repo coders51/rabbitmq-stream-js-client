@@ -10,7 +10,7 @@ export class ApplicationProperties {
     return range(numEntries).reduce((acc: MessageApplicationProperties, _) => {
       const propertyKey = readUTF8String(dataReader)
       const nextByteType = dataReader.readUInt8()
-      dataReader.rewind(1)
+      //dataReader.rewind(1)
       const propertyValue = decodeFormatCode(dataReader, nextByteType, true)
       if (!propertyValue) throw new Error(`invalid nextByteType %#02x: ${nextByteType}`)
       acc[propertyKey] = propertyValue as string | number

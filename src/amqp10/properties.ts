@@ -1,5 +1,5 @@
 import { MessageProperties } from "../publisher"
-import { readUTF8String } from "../response_decoder"
+import { decodeFormatCode, readUTF8String } from "../response_decoder"
 import { DataReader } from "../responses/raw_response"
 import { range } from "../util"
 import { FormatCode } from "./decoder"
@@ -12,52 +12,52 @@ export class Properties {
       if (formatCode === FormatCode.Null) {
         return acc
       }
-      dataResponse.rewind(1)
+      //dataResponse.rewind(1)
       switch (index) {
         case 0:
-          acc.messageId = readUTF8String(dataResponse)
+          acc.messageId = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 1:
           // Reading of binary type
-          dataResponse.readUInt8()
+          // dataResponse.readUInt8()
           const userIdLength = dataResponse.readUInt8()
           acc.userId = dataResponse.readBufferOf(userIdLength)
           break
         case 2:
-          acc.to = readUTF8String(dataResponse)
+          acc.to = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 3:
-          acc.subject = readUTF8String(dataResponse)
+          acc.subject = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 4:
-          acc.replyTo = readUTF8String(dataResponse)
+          acc.replyTo = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 5:
-          acc.correlationId = readUTF8String(dataResponse)
+          acc.correlationId = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 6:
-          acc.contentType = readUTF8String(dataResponse)
+          acc.contentType = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 7:
-          acc.contentEncoding = readUTF8String(dataResponse)
+          acc.contentEncoding = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 8:
-          dataResponse.readUInt8()
+          // dataResponse.readUInt8()
           acc.absoluteExpiryTime = new Date(Number(dataResponse.readInt64()))
           break
         case 9:
-          dataResponse.readUInt8()
+          // dataResponse.readUInt8()
           acc.creationTime = new Date(Number(dataResponse.readInt64()))
           break
         case 10:
-          acc.groupId = readUTF8String(dataResponse)
+          acc.groupId = decodeFormatCode(dataResponse, formatCode) as string
           break
         case 11:
-          dataResponse.readUInt8()
+          // dataResponse.readUInt8()
           acc.groupSequence = dataResponse.readUInt32()
           break
         case 12:
-          acc.replyToGroupId = readUTF8String(dataResponse)
+          acc.replyToGroupId = decodeFormatCode(dataResponse, formatCode) as string
           break
         default:
           throw new Error(`PropertiesError`)

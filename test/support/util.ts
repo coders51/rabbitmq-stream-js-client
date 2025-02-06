@@ -201,7 +201,7 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
         break
       case FormatCodeType.AmqpValue:
         const amqpFormatCode = dataResponse.readUInt8()
-        dataResponse.rewind(1)
+        //dataResponse.rewind(1)
         amqpValue = decodeFormatCode(dataResponse, amqpFormatCode, true) as string
         break
       default:
