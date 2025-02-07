@@ -20,6 +20,7 @@ import {
   createConsumerRef,
   createPublisher,
   createStreamName,
+  createAmqpClient,
 } from "../support/fake_data"
 import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
 import {
@@ -31,6 +32,7 @@ import {
   username,
   waitSleeping,
 } from "../support/util"
+import { Connection, Channel } from "amqplib"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -38,6 +40,8 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let publisher: Publisher
+  let amqpClient: Connection
+  let amqpChannel: Channel
   const previousMaxSharedClientInstances = process.env.MAX_SHARED_CLIENT_INSTANCES
 
   before(() => {
@@ -381,6 +385,50 @@ describe("declare consumer", () => {
         })
       }, 5000)
     }).timeout(6000)
+  })
+
+  describe("when receiving a message published from amqplib", () => {
+    beforeEach(async () => {
+      amqpClient = await createAmqpClient(username, password)
+      amqpChannel = await amqpClient.createChannel()
+    })
+
+    afterEach(async () => {
+      try {
+        await amqpChannel.close()
+        await amqpClient.close()
+      } catch (_e) {}
+    })
+
+    it("the message should be handled", async () => {
+      const message = "helloworld"
+      amqpChannel.sendToQueue(streamName, Buffer.from(message))
+
+      let recevedMessage: Message
+      await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
+        recevedMessage = msg
+      })
+
+      await eventually(async () => {
+        expect(recevedMessage.content.toString()).deep.equal(message)
+      })
+    }).timeout(10000)
+
+    it("the message with headers should be handled", async () => {
+      const message = "helloworld"
+      const headers = { priority: 5 }
+      amqpChannel.sendToQueue(streamName, Buffer.from(message), headers)
+
+      let recevedMessage: Message
+      await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
+        recevedMessage = msg
+      })
+
+      await eventually(async () => {
+        expect(recevedMessage.content.toString()).deep.equal(message)
+        expect(recevedMessage.messageHeader!.priority).deep.equal(headers.priority)
+      })
+    }).timeout(10000)
   })
 })
 
