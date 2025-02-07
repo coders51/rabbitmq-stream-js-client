@@ -410,7 +410,7 @@ describe("declare consumer", () => {
       })
 
       await eventually(async () => {
-        expect(recevedMessage.content.toString()).deep.equal(message)
+        expect(recevedMessage?.content.toString()).eql(message)
       })
     }).timeout(10000)
 
@@ -425,8 +425,8 @@ describe("declare consumer", () => {
       })
 
       await eventually(async () => {
-        expect(recevedMessage.content.toString()).deep.equal(message)
-        expect(recevedMessage.messageHeader!.priority).deep.equal(headers.priority)
+        expect(recevedMessage?.content.toString()).eql(message)
+        expect(recevedMessage?.messageHeader!.priority).deep.equal(headers.priority)
       })
     }).timeout(10000)
   })
