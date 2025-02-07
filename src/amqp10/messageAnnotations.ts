@@ -10,7 +10,6 @@ export class Annotations {
     return range(numEntries).reduce((acc: MessageAnnotations, _) => {
       const propertyKey = readUTF8String(dataReader)
       const nextByteType = dataReader.readUInt8()
-      //dataReader.rewind(1)
       const propertyValue = decodeFormatCode(dataReader, nextByteType, true)
       if (propertyValue === undefined) throw new Error(`invalid nextByteType %#02x: ${nextByteType}`)
       acc[propertyKey] = propertyValue as string | number
