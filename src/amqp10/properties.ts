@@ -1,5 +1,5 @@
 import { MessageProperties } from "../publisher"
-import { decodeFormatCode, readUTF8String } from "../response_decoder"
+import { decodeFormatCode } from "../response_decoder"
 import { DataReader } from "../responses/raw_response"
 import { range } from "../util"
 import { FormatCode } from "./decoder"

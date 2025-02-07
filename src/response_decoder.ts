@@ -364,7 +364,7 @@ function decodeApplicationData(dataResponse: DataReader) {
 
 function decodeAmqpValue(dataResponse: DataReader) {
   const amqpFormatCode = dataResponse.readUInt8()
-  return decodeFormatCode(dataResponse, amqpFormatCode, true) as string
+  return decodeFormatCode(dataResponse, amqpFormatCode) as string
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
@@ -396,7 +396,7 @@ export function decodeBooleanType(dataResponse: DataReader, boolType: number) {
   }
 }
 
-export function decodeFormatCode(dataResponse: DataReader, formatCode: number, skipByte = false) {
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
   switch (formatCode) {
     case FormatCode.Map8:
       // Read first empty byte
