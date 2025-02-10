@@ -404,13 +404,13 @@ describe("declare consumer", () => {
       const message = "helloworld"
       amqpChannel.sendToQueue(streamName, Buffer.from(message))
 
-      let recevedMessage: Message
+      let receivedMessage: Message
       await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
-        recevedMessage = msg
+        receivedMessage = msg
       })
 
       await eventually(async () => {
-        expect(recevedMessage?.content.toString()).eql(message)
+        expect(receivedMessage?.content.toString()).eql(message)
       })
     }).timeout(10000)
 
@@ -419,14 +419,14 @@ describe("declare consumer", () => {
       const headers = { priority: 5 }
       amqpChannel.sendToQueue(streamName, Buffer.from(message), headers)
 
-      let recevedMessage: Message
+      let receivedMessage: Message
       await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
-        recevedMessage = msg
+        receivedMessage = msg
       })
 
       await eventually(async () => {
-        expect(recevedMessage?.content.toString()).eql(message)
-        expect(recevedMessage?.messageHeader!.priority).deep.equal(headers.priority)
+        expect(receivedMessage?.content.toString()).eql(message)
+        expect(receivedMessage?.messageHeader!.priority).deep.equal(headers.priority)
       })
     }).timeout(10000)
   })
@@ -469,7 +469,6 @@ function createMessageHeader(): MessageHeader {
   return {
     deliveryCount: 300,
     durable: true,
-    ttl: 0,
     firstAcquirer: true,
     priority: 100,
   }
