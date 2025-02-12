@@ -328,7 +328,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
   dataResponse.rewind(3)
   const type = dataResponse.readInt8()
   if (type !== 0) {
-    throw new Error(`invalid composite header: ${type}`)
+    throw new Error(`invalid message properties: ${type}`)
   }
 
   const nextType = dataResponse.readInt8()
@@ -347,8 +347,7 @@ function decodeMessageHeader(dataResponse: DataReader) {
     throw new Error(`invalid composite header: ${type}`)
   }
 
-  // next, the composite type is encoded as an AMQP uint8
-  dataResponse.readUInt64()
+  decodeAmqpValue(dataResponse)
 
   const formatCode = dataResponse.readUInt8()
   const headerLength = decodeFormatCode(dataResponse, formatCode)
@@ -365,8 +364,7 @@ function decodeApplicationData(dataResponse: DataReader) {
 
 function decodeAmqpValue(dataResponse: DataReader) {
   const amqpFormatCode = dataResponse.readUInt8()
-  dataResponse.rewind(1)
-  return decodeFormatCode(dataResponse, amqpFormatCode, true) as string
+  return decodeFormatCode(dataResponse, amqpFormatCode) as string
 }
 
 function readFormatCodeType(dataResponse: DataReader) {
@@ -379,13 +377,12 @@ function readFormatCodeType(dataResponse: DataReader) {
 export function readUTF8String(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const decodedString = decodeFormatCode(dataResponse, formatCode)
-  if (!decodedString) throw new Error(`invalid formatCode %#02x: ${formatCode}`)
+  if (!decodedString) throw new Error(`invalid formatCode 0x${formatCode.toString(16)}`)
 
   return decodedString as string
 }
 
-export function decodeBooleanType(dataResponse: DataReader, defaultValue: boolean) {
-  const boolType = dataResponse.readInt8()
+export function decodeBooleanType(dataResponse: DataReader, boolType: number) {
   switch (boolType) {
     case FormatCode.Bool:
       const boolValue = dataResponse.readInt8()
@@ -395,11 +392,11 @@ export function decodeBooleanType(dataResponse: DataReader, defaultValue: boolea
     case FormatCode.BoolFalse:
       return false
     default:
-      return defaultValue
+      throw new Error(`Expected boolean format code, got 0x${boolType.toString(16)}`)
   }
 }
 
-export function decodeFormatCode(dataResponse: DataReader, formatCode: number, skipByte = false) {
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
   switch (formatCode) {
     case FormatCode.Map8:
       // Read first empty byte
@@ -412,7 +409,6 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
     case FormatCode.SmallUlong:
       return dataResponse.readInt8() // Read a SmallUlong
     case FormatCode.Ubyte:
-      dataResponse.forward(1)
       return dataResponse.readUInt8()
     case FormatCode.ULong:
       return dataResponse.readUInt64() // Read an ULong
@@ -430,35 +426,30 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number, s
       return dataResponse.readUInt32()
     case FormatCode.Str8:
     case FormatCode.Sym8:
-      if (skipByte) dataResponse.forward(1)
       return dataResponse.readString8()
     case FormatCode.Str32:
     case FormatCode.Sym32:
-      if (skipByte) dataResponse.forward(1)
       return dataResponse.readString32()
     case FormatCode.Uint0:
       return 0
     case FormatCode.SmallUint:
-      dataResponse.forward(1) // Skipping formatCode
       return dataResponse.readUInt8()
     case FormatCode.Uint:
-      dataResponse.forward(1) // Skipping formatCode
       return dataResponse.readUInt32()
     case FormatCode.SmallInt:
-      dataResponse.forward(1) // Skipping formatCode
       return dataResponse.readInt8()
     case FormatCode.Int:
-      dataResponse.forward(1) // Skipping formatCode
       return dataResponse.readInt32()
     case FormatCode.Bool:
     case FormatCode.BoolTrue:
     case FormatCode.BoolFalse:
-      return decodeBooleanType(dataResponse, true)
+      return decodeBooleanType(dataResponse, formatCode)
     case FormatCode.Null:
-      dataResponse.forward(1) // Skipping formatCode
+      return 0
+    case FormatCode.ULong0:
       return 0
     default:
-      throw new Error(`ReadCompositeHeader Invalid type ${formatCode}`)
+      throw new Error(`FormatCode Invalid type ${formatCode}`)
   }
 }
 

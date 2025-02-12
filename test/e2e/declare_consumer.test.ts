@@ -20,6 +20,7 @@ import {
   createConsumerRef,
   createPublisher,
   createStreamName,
+  createAmqpClient,
 } from "../support/fake_data"
 import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
 import {
@@ -31,6 +32,7 @@ import {
   username,
   waitSleeping,
 } from "../support/util"
+import { Connection, Channel } from "amqplib"
 
 describe("declare consumer", () => {
   let streamName: string
@@ -38,6 +40,8 @@ describe("declare consumer", () => {
   const rabbit = new Rabbit(username, password)
   let client: Client
   let publisher: Publisher
+  let amqpClient: Connection
+  let amqpChannel: Channel
   const previousMaxSharedClientInstances = process.env.MAX_SHARED_CLIENT_INSTANCES
 
   before(() => {
@@ -382,6 +386,50 @@ describe("declare consumer", () => {
       }, 5000)
     }).timeout(6000)
   })
+
+  describe("when receiving a message published from amqplib", () => {
+    beforeEach(async () => {
+      amqpClient = await createAmqpClient(username, password)
+      amqpChannel = await amqpClient.createChannel()
+    })
+
+    afterEach(async () => {
+      try {
+        await amqpChannel.close()
+        await amqpClient.close()
+      } catch (_e) {}
+    })
+
+    it("the message should be handled", async () => {
+      const message = "helloworld"
+      amqpChannel.sendToQueue(streamName, Buffer.from(message))
+
+      let receivedMessage: Message
+      await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
+        receivedMessage = msg
+      })
+
+      await eventually(async () => {
+        expect(receivedMessage?.content.toString()).eql(message)
+      })
+    }).timeout(10000)
+
+    it("the message with headers should be handled", async () => {
+      const message = "helloworld"
+      const headers = { priority: 5 }
+      amqpChannel.sendToQueue(streamName, Buffer.from(message), headers)
+
+      let receivedMessage: Message
+      await client.declareConsumer({ stream: streamName, offset: Offset.first() }, async (msg) => {
+        receivedMessage = msg
+      })
+
+      await eventually(async () => {
+        expect(receivedMessage?.content.toString()).eql(message)
+        expect(receivedMessage?.messageHeader!.priority).deep.equal(headers.priority)
+      })
+    }).timeout(10000)
+  })
 })
 
 function createProperties(): MessageProperties {
@@ -421,7 +469,6 @@ function createMessageHeader(): MessageHeader {
   return {
     deliveryCount: 300,
     durable: true,
-    ttl: 0,
     firstAcquirer: true,
     priority: 100,
   }

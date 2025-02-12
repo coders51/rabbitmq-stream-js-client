@@ -7,6 +7,7 @@ import { Consumer, Publisher } from "../../src"
 import { getTestNodesFromEnv } from "./util"
 import { createLogger, format, transports } from "winston"
 import { inspect } from "util"
+import { connect as amqpConnect, Connection } from "amqplib"
 
 export function createProperties(): MessageProperties {
   return {
@@ -96,3 +97,8 @@ export const testLogger = createLogger({
   ),
   transports: new transports.Console(),
 })
+
+export async function createAmqpClient(username: string, password: string): Promise<Connection> {
+  const [firstNode] = getTestNodesFromEnv()
+  return await amqpConnect(`amqp://${username}:${password}@${firstNode.host}:5672/`)
+}
