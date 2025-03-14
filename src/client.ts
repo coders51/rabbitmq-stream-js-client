@@ -704,7 +704,10 @@ export class Client {
   }
 
   static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
-    return new Client(logger ?? new NullLogger(), params).start()
+    return new Client(logger ?? new NullLogger(), {
+      ...params,
+      vhost: getVhostOrDefault(params.vhost),
+    }).start()
   }
 }
 
@@ -837,3 +840,5 @@ const extractConsumerId = (extendedConsumerId: string) => {
 const extractPublisherId = (extendedPublisherId: string) => {
   return parseInt(extendedPublisherId.split("@").shift() ?? "0")
 }
+
+const getVhostOrDefault = (vhost: string) => (vhost === "" ? "/" : vhost)

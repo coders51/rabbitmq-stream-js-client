@@ -46,6 +46,23 @@ describe("connect", () => {
     }, 5000)
   }).timeout(10000)
 
+  it("with default vhost as '/' ", async () => {
+    const [firstNode] = getTestNodesFromEnv()
+    client = await connect({
+      hostname: firstNode.host,
+      port: firstNode.port,
+      username,
+      password,
+      vhost: "",
+      frameMax: 0,
+      heartbeat: 0,
+    })
+
+    await eventually(async () => {
+      expect(await rabbit.getConnections()).lengthOf(1)
+    }, 5000)
+  }).timeout(10000)
+
   it("using EXTERNAL auth", async () => {
     client = await createTlsClient()
 
