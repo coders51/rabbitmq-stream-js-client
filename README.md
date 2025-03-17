@@ -211,6 +211,8 @@ const consumerOptions = { stream: "stream-name", offset: Offset.next() }
     - Offset.offset(x)      ---> Start reading from the specified offset. The parameter has to be a bigint.
     - Offset.timestamp(t)   ---> Start reading from the messages stored after the timestamp t.
 
+  Optionally a consumer identifier can be set in the consumer option.
+  It's an optional property called consumerTag.
 */
 
 const consumer = await client.declareConsumer(consumerOptions, (message: Message) => {

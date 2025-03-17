@@ -95,7 +95,11 @@ describe("declare consumer", () => {
       }
     )
 
-    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+    await eventually(async () => {
+      const ids = await rabbit.returnConsumersIdentifiers()
+      expect(ids).length(1)
+      expect(ids[0]).eql("test-id")
+    })
   }).timeout(10000)
 
   it("declaring an async consumer on an existing stream - the consumer should handle the message", async () => {
