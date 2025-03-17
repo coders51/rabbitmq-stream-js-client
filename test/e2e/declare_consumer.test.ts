@@ -84,6 +84,20 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
+  it("declaring a consumer on an existing stream with identifiers", async () => {
+    const messages: Buffer[] = []
+    await publisher.send(Buffer.from("hello"))
+
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), consumerTag: "test-id" },
+      (message: Message) => {
+        messages.push(message.content)
+      }
+    )
+
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+  }).timeout(10000)
+
   it("declaring an async consumer on an existing stream - the consumer should handle the message", async () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))

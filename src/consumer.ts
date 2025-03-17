@@ -25,6 +25,7 @@ export class StreamConsumer implements Consumer {
   private stream: string
   public consumerId: number
   public consumerRef?: string
+  public consumerTag?: string
   public offset: Offset
   private clientLocalOffset: Offset
   private creditsHandler: ConsumerCreditPolicy
@@ -38,6 +39,7 @@ export class StreamConsumer implements Consumer {
       stream: string
       consumerId: number
       consumerRef?: string
+      consumerTag?: string
       offset: Offset
       creditPolicy?: ConsumerCreditPolicy
     },

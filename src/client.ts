@@ -209,6 +209,7 @@ export class Client {
         stream: params.stream,
         consumerId,
         consumerRef: params.consumerRef,
+        consumerTag: params.consumerTag,
         offset: params.offset,
         creditPolicy: params.creditPolicy,
       },
@@ -503,6 +504,9 @@ export class Client {
       }
       properties["match-unfiltered"] = `${params.filter.matchUnfiltered}`
     }
+    if (params.consumerTag) {
+      properties["identifier"] = params.consumerTag
+    }
 
     const creditPolicy = params.creditPolicy || defaultCreditPolicy
 
@@ -774,6 +778,7 @@ export interface DeclareConsumerParams {
   singleActive?: boolean
   filter?: ConsumerFilter
   creditPolicy?: ConsumerCreditPolicy
+  consumerTag?: string
 }
 
 export interface DeclareSuperStreamConsumerParams {
