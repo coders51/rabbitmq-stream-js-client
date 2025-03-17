@@ -50,9 +50,14 @@ interface RabbitChannelDetails {
   user: string
 }
 
+interface RabbitConsumerProperties {
+  identifier?: string
+}
+
 interface RabbitConsumersResponse {
   queue: RabbitConsumersResponseQueue
   consumer_tag: string
+  properties: RabbitConsumerProperties
   channel_details: RabbitChannelDetails
 }
 
@@ -216,6 +221,18 @@ export class Rabbit {
       }
     )
     return resp.body.map((p) => p.consumer_tag)
+  }
+
+  async returnConsumersIdentifiers(): Promise<string[]> {
+    const resp = await got.get<RabbitConsumersResponse[]>(
+      `http://${this.firstNode.host}:${this.port}/api/stream/consumers/%2F/`,
+      {
+        username: this.username,
+        password: this.password,
+        responseType: "json",
+      }
+    )
+    return resp.body.map((p) => p.properties.identifier ?? "")
   }
 
   async returnConsumersCredits(): Promise<RabbitConsumerCredits[]> {
