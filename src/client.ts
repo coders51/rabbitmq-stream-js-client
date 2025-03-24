@@ -719,7 +719,7 @@ export class Client {
   private streamExistsGiven(streamInfo: StreamMetadata) {
     return (
       streamInfo.responseCode !== ResponseCode.StreamDoesNotExist &&
-      streamInfo.responseCode === ResponseCode.SubscriptionIdDoesNotExist
+      streamInfo.responseCode !== ResponseCode.SubscriptionIdDoesNotExist
     )
   }
 
