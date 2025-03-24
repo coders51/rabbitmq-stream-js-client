@@ -41,7 +41,7 @@ import { SubscribeResponse } from "./responses/subscribe_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
 import { SuperStreamConsumer } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
-import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, sample } from "./util"
+import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, ResponseCode, sample, wait } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
@@ -240,14 +240,17 @@ export class Client {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${extendedConsumerId} does not exist`)
     }
-    const res = await connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
-    await consumer.close(true)
-    this.consumers.delete(extendedConsumerId)
-    if (!res.ok) {
-      throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    const { streamInfos } = await this.connection.sendAndWait<MetadataResponse>(
+      new MetadataRequest({ streams: [consumer.streamName] })
+    )
+    const [streamInfo] = streamInfos
+    if (this.streamExistsGiven(streamInfo)) {
+      const res = await this.unsubscribe(connection, consumerId)
+      await this.closing(consumer, extendedConsumerId)
+      return res.ok
     }
-    this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
-    return res.ok
+    await this.closing(consumer, extendedConsumerId)
+    return true
   }
 
   public async declareSuperStreamConsumer(
@@ -406,11 +409,7 @@ export class Client {
     const uniqueConnectionIds = new Set<string>()
     uniqueConnectionIds.add(this.connection.connectionId)
 
-    await new Promise(async (res) => {
-      setTimeout(() => {
-        res(true)
-      }, 5000)
-    })
+    await wait(5000)
     await this.connection.restart()
 
     for (const { consumer, connection, params } of this.consumers.values()) {
@@ -701,6 +700,27 @@ export class Client {
       throw new Error(`Could not find broker (${chosenNode.host}:${chosenNode.port}) after ${maxAttempts} attempts`)
     }
     return Connection.connect({ ...connectionParams, hostname: chosenNode.host, port: chosenNode.port }, this.logger)
+  }
+
+  private async unsubscribe(connection: Connection, consumerId: number) {
+    const res = await connection.sendAndWait<UnsubscribeResponse>(new UnsubscribeRequest(consumerId))
+    if (!res.ok) {
+      throw new Error(`Unsubscribe command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
+    }
+    return res
+  }
+
+  private async closing(consumer: StreamConsumer, extendedConsumerId: string) {
+    await consumer.close(true)
+    this.consumers.delete(extendedConsumerId)
+    this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
+  }
+
+  private streamExistsGiven(streamInfo: StreamMetadata) {
+    return (
+      streamInfo.responseCode !== ResponseCode.StreamDoesNotExist &&
+      streamInfo.responseCode === ResponseCode.SubscriptionIdDoesNotExist
+    )
   }
 
   static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
