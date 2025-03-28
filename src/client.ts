@@ -841,4 +841,4 @@ const extractPublisherId = (extendedPublisherId: string) => {
   return parseInt(extendedPublisherId.split("@").shift() ?? "0")
 }
 
-const getVhostOrDefault = (vhost: string) => (vhost === "" ? "/" : vhost)
+const getVhostOrDefault = (vhost: string) => vhost ?? "/"
