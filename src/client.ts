@@ -163,7 +163,7 @@ export class Client {
       })
     }
     const publisher = new StreamPublisher(streamPublisherParams, lastPublishingId, filter)
-    connection.onPublisherClosed(publisher.extendedId, params.stream, async () => {
+    connection.registerForClosePublisher(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
     })
@@ -215,7 +215,7 @@ export class Client {
       },
       params.filter
     )
-    connection.onConsumerClosed(consumer.extendedId, params.stream, async () => {
+    connection.registerForCloseConsumer(consumer.extendedId, params.stream, async () => {
       if (params.connectionClosedListener) {
         params.connectionClosedListener(false)
       }
@@ -230,26 +230,20 @@ export class Client {
   }
 
   public async closeConsumer(extendedConsumerId: string) {
-    const { consumer, connection } = this.consumers.get(extendedConsumerId) ?? {
-      consumer: undefined,
-      connection: undefined,
-    }
-    const consumerId = extractConsumerId(extendedConsumerId)
-
-    if (!consumer) {
+    const activeConsumer = this.consumers.get(extendedConsumerId)
+    if (!activeConsumer) {
       this.logger.error("Consumer does not exist")
       throw new Error(`Consumer with id: ${extendedConsumerId} does not exist`)
     }
+
+    const consumerId = extractConsumerId(extendedConsumerId)
     const { streamInfos } = await this.connection.sendAndWait<MetadataResponse>(
-      new MetadataRequest({ streams: [consumer.streamName] })
+      new MetadataRequest({ streams: [activeConsumer.consumer.streamName] })
     )
-    const [streamInfo] = streamInfos
-    if (this.streamExistsGiven(streamInfo)) {
-      const res = await this.unsubscribe(connection, consumerId)
-      await this.closing(consumer, extendedConsumerId)
-      return res.ok
+    if (streamInfos.length > 0 && streamExists(streamInfos[0])) {
+      await this.unsubscribe(activeConsumer.connection, consumerId)
     }
-    await this.closing(consumer, extendedConsumerId)
+    await this.closing(activeConsumer.consumer, extendedConsumerId)
     return true
   }
 
@@ -716,13 +710,6 @@ export class Client {
     this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
   }
 
-  private streamExistsGiven(streamInfo: StreamMetadata) {
-    return (
-      streamInfo.responseCode !== ResponseCode.StreamDoesNotExist &&
-      streamInfo.responseCode !== ResponseCode.SubscriptionIdDoesNotExist
-    )
-  }
-
   static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
     return new Client(logger ?? new NullLogger(), {
       ...params,
@@ -862,3 +849,10 @@ const extractPublisherId = (extendedPublisherId: string) => {
 }
 
 const getVhostOrDefault = (vhost: string) => vhost ?? "/"
+
+const streamExists = (streamInfo: StreamMetadata): boolean => {
+  return (
+    streamInfo.responseCode !== ResponseCode.StreamDoesNotExist &&
+    streamInfo.responseCode !== ResponseCode.SubscriptionIdDoesNotExist
+  )
+}
