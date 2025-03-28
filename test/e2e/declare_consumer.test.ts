@@ -84,6 +84,24 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
+  it.skip("closing a consumer on an existing stream - raises connectionClosedListener", async () => {
+    const messages: Buffer[] = []
+    await publisher.send(Buffer.from("hello"))
+    let called = false
+    await client.declareConsumer(
+      { stream: streamName, offset: Offset.first(), connectionClosedListener: () => (called = true) },
+      (message: Message) => {
+        messages.push(message.content)
+      }
+    )
+    await eventually(() => expect(messages).eql([Buffer.from("hello")]))
+
+    // await consumer.close(false)
+    await client.close({ closingCode: 0, closingReason: "", manuallyClose: false })
+
+    await eventually(() => expect(called).true)
+  }).timeout(10000)
+
   it("declaring a consumer on an existing stream with identifiers", async () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
