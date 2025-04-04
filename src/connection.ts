@@ -152,7 +152,8 @@ export class Connection {
           mechanism: this.params.mechanism ?? "PLAIN",
         })
         const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
-        await this.open({ virtualHost: this.params.vhost })
+        const connectionOpened = await this.open({ virtualHost: this.params.vhost })
+        if (!connectionOpened.ok) return rej(connectionOpened.error)
         if (!this.heartbeat.started) this.heartbeat.start(heartbeat)
         await this.exchangeCommandVersions()
         this.setupCompleted = true
@@ -461,12 +462,25 @@ export class Connection {
 
   private async open(params: { virtualHost: string }) {
     this.logger.debug(`Open ...`)
+    if (this.virtualHostIsNotValid(params.virtualHost)) {
+      const errorMessage = `[ERROR]: VirtualHost '${params.virtualHost}' is not valid`
+      this.logger.error(errorMessage)
+      return { ok: false, error: new Error(errorMessage) }
+    }
     const res = await this.sendAndWait<OpenResponse>(new OpenRequest(params))
     this.logger.debug(`Open response: ${res.ok} - '${inspect(res.properties)}'`)
     const advertisedHost = res.properties["advertised_host"] ?? ""
     const advertisedPort = parseInt(res.properties["advertised_port"] ?? "5552")
     this.serverEndpoint = { host: advertisedHost, port: advertisedPort }
-    return res
+    return { ok: true, response: res }
+  }
+
+  private virtualHostIsNotValid(virtualHost: string) {
+    if (!virtualHost || virtualHost.split("/").length !== 2) {
+      return true
+    }
+
+    return false
   }
 
   private async tune(heartbeatInterval: number): Promise<{ heartbeat: number }> {

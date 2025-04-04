@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Client, connect } from "../../src"
 import { createClient } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, username, password, getTestNodesFromEnv } from "../support/util"
+import { eventually, username, password, getTestNodesFromEnv, expectToThrowAsync } from "../support/util"
 import { Version } from "../../src/versions"
 import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
@@ -44,6 +44,26 @@ describe("connect", () => {
     await eventually(async () => {
       expect(await rabbit.getConnections()).lengthOf(1)
     }, 5000)
+  }).timeout(10000)
+
+  it("throw exception if vhost is not valid", async () => {
+    const [firstNode] = getTestNodesFromEnv()
+
+    await expectToThrowAsync(
+      async () => {
+        client = await connect({
+          hostname: firstNode.host,
+          port: firstNode.port,
+          username,
+          password,
+          vhost: "",
+          frameMax: 0,
+          heartbeat: 0,
+        })
+      },
+      Error,
+      `[ERROR]: VirtualHost '' is not valid`
+    )
   }).timeout(10000)
 
   it("using EXTERNAL auth", async () => {
