@@ -39,3 +39,14 @@ export const bigIntMax = (n: bigint[]): bigint | undefined => {
   if (!n.length) return undefined
   return n.reduce((acc, i) => (i > acc ? i : acc), n[0])
 }
+
+export const wait = async (ms: number) => {
+  return new Promise((res) => {
+    setTimeout(() => res(true), ms)
+  })
+}
+
+export const ResponseCode = {
+  StreamDoesNotExist: 2,
+  SubscriptionIdDoesNotExist: 4,
+} as const

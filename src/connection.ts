@@ -265,12 +265,20 @@ export class Connection {
     )
   }
 
-  public onPublisherClosed(publisherExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+  public registerForClosePublisher(
+    publisherExtendedId: string,
+    streamName: string,
+    callback: () => void | Promise<void>
+  ) {
     this.publisherListeners.push({ extendedId: publisherExtendedId, stream: streamName })
     this.closeEventsEmitter.once(`close_publisher_${publisherExtendedId}`, callback)
   }
 
-  public onConsumerClosed(consumerExtendedId: string, streamName: string, callback: () => void | Promise<void>) {
+  public registerForCloseConsumer(
+    consumerExtendedId: string,
+    streamName: string,
+    callback: () => void | Promise<void>
+  ) {
     this.consumerListeners.push({ extendedId: consumerExtendedId, stream: streamName })
     this.closeEventsEmitter.once(`close_consumer_${consumerExtendedId}`, callback)
   }
