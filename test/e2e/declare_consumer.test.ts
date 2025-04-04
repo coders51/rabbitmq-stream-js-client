@@ -96,7 +96,6 @@ describe("declare consumer", () => {
     )
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
 
-    // await consumer.close(false)
     await client.close({ closingCode: 0, closingReason: "", manuallyClose: false })
 
     await eventually(() => expect(called).true)
