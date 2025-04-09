@@ -78,6 +78,7 @@ type ListenerEntry = {
 
 export class Connection {
   public readonly hostname: string
+  public readonly vhost: string
   public readonly leader: boolean
   public readonly streamName: string | undefined
   private socket: Socket
@@ -109,6 +110,7 @@ export class Connection {
     private readonly logger: Logger
   ) {
     this.hostname = params.hostname
+    this.vhost = params.vhost
     this.leader = params.leader ?? false
     this.streamName = params.streamName
     if (params.frameMax) this.frameMax = params.frameMax
