@@ -377,7 +377,7 @@ export class Connection {
       writable: this.socket.writable,
       localPort: this.socket.localPort,
       ready: this.ready,
-      vhost: this.vhost
+      vhost: this.vhost,
     }
   }
 

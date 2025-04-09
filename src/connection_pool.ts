@@ -18,7 +18,13 @@ export class ConnectionPool {
     return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
   }
 
-  public static cacheConnection(purpose: ConnectionPurpose, streamName: string, vhost: string, host: string, client: Connection) {
+  public static cacheConnection(
+    purpose: ConnectionPurpose,
+    streamName: string,
+    vhost: string,
+    host: string,
+    client: Connection
+  ) {
     const map =
       purpose === "publisher" ? ConnectionPool.publisherConnectionProxies : ConnectionPool.consumerConnectionProxies
     const key = ConnectionPool.getCacheKey(streamName, vhost, host)

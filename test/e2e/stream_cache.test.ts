@@ -1,51 +1,37 @@
 import { expect } from "chai"
 import got from "got"
 import { Client } from "../../src"
-import {
-  createClient,
-  createStreamName,
-} from "../support/fake_data"
+import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
-import {
-  getTestNodesFromEnv,
-  password,
-  username,
-} from "../support/util"
+import { getTestNodesFromEnv, password, username } from "../support/util"
 
 async function createVhost(vhost: string): Promise<undefined> {
   const port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   const firstNode = getTestNodesFromEnv().shift()!
-  await got.put<RabbitConnectionResponse>(
-    `http://${firstNode.host}:${port}/api/vhosts/${vhost}`,
-    {
-      username: username,
-      password: password,
-    }
-  )
-  await got.put<RabbitConnectionResponse>(
-    `http://${firstNode.host}:${port}/api/permissions/${vhost}/${username}`,
-    {
+  await got.put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${vhost}`, {
+    username: username,
+    password: password,
+  })
+  await got
+    .put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/permissions/${vhost}/${username}`, {
       json: {
-        read: '.*',
-        write: '.*',
-        configure: '.*'
+        read: ".*",
+        write: ".*",
+        configure: ".*",
       },
       username: username,
       password: password,
-    }
-  ).json()
+    })
+    .json()
 }
 
 async function deleteVhost(vhost: string): Promise<RabbitConnectionResponse> {
   const port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   const firstNode = getTestNodesFromEnv().shift()!
-  const r = await got.delete<RabbitConnectionResponse>(
-    `http://${firstNode.host}:${port}/api/vhosts/${vhost}`,
-    {
-      username: username,
-      password: password,
-    }
-  )
+  const r = await got.delete<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${vhost}`, {
+    username: username,
+    password: password,
+  })
 
   return r.body
 }
@@ -61,15 +47,7 @@ describe("cache", () => {
   })
   beforeEach(async () => {
     client = await createClient(username, password)
-    client2 = await createClient(
-      username,
-      password,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      vhost1)
+    client2 = await createClient(username, password, undefined, undefined, undefined, undefined, undefined, vhost1)
     streamName = createStreamName()
     await client.createStream({ stream: streamName })
     await client2.createStream({ stream: streamName })
@@ -82,7 +60,7 @@ describe("cache", () => {
       await rabbit.deleteStream(streamName)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
-    } catch (_e) { }
+    } catch (_e) {}
   })
 
   it("should cache using the vhost as well as the stream name", async () => {
