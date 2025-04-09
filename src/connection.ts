@@ -538,6 +538,7 @@ export class Connection {
   }
 
   public storeOffset(params: StoreOffsetParams): Promise<void> {
+    console.log("AHAH")
     return this.send(new StoreOffsetRequest(params))
   }
 
