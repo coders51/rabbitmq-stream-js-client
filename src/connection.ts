@@ -486,7 +486,7 @@ export class Connection {
   }
 
   private virtualHostIsNotValid(virtualHost: string) {
-    if (!virtualHost || virtualHost.split("/").length !== 2) {
+    if (!virtualHost) {
       return true
     }
 
