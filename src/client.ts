@@ -4,7 +4,7 @@ import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
-import { Consumer, ConsumerFunc, StreamConsumer, computeExtendedConsumerId } from "./consumer"
+import { Consumer, ConsumerFunc, ConsumerUpdateListener, StreamConsumer, computeExtendedConsumerId } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
 import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
@@ -23,7 +23,12 @@ import { RouteQuery } from "./requests/route_query"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import { MetadataUpdateListener, PublishConfirmListener, PublishErrorListener } from "./response_decoder"
+import {
+  ConsumerUpdateQueryListener,
+  MetadataUpdateListener,
+  PublishConfirmListener,
+  PublishErrorListener,
+} from "./response_decoder"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
@@ -212,6 +217,8 @@ export class Client {
         consumerTag: params.consumerTag,
         offset: params.offset,
         creditPolicy: params.creditPolicy,
+        singleActive: params.singleActive,
+        consumerUpdateListener: params.consumerUpdateListener,
       },
       params.filter
     )
@@ -589,11 +596,27 @@ export class Client {
         this.logger.error(`On consumer_update_query no consumer found`)
         return
       }
+      const offset = await this.getConsumerOrServerSavedOffset(consumer)
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
       await connection.send(
-        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset })
       )
     }
+  }
+
+  private async getConsumerOrServerSavedOffset(consumer: StreamConsumer) {
+    console.log("HI", consumer.isSingleActive, consumer.consumerRef, consumer.consumerUpdateListener)
+    if (consumer.isSingleActive && consumer.consumerRef && consumer.consumerUpdateListener) {
+      try {
+        const offset = await consumer.consumerUpdateListener(consumer.consumerRef, consumer.streamName)
+        console.log("HELLO from", offset)
+        return offset
+      } catch (error) {
+        return consumer.offset
+      }
+    }
+
+    return consumer.offset
   }
 
   private getLocatorConnection() {
@@ -790,6 +813,7 @@ export interface DeclareConsumerParams {
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
+  consumerUpdateListener?: ConsumerUpdateListener
   singleActive?: boolean
   filter?: ConsumerFilter
   creditPolicy?: ConsumerCreditPolicy

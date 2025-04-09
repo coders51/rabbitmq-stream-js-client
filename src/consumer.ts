@@ -6,6 +6,7 @@ import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
 export type ConsumerFunc = (message: Message) => Promise<void> | void
+export type ConsumerUpdateListener = (consumerRef: string, streamName: string) => Promise<Offset>
 export const computeExtendedConsumerId = (consumerId: number, connectionId: string) => {
   return `${consumerId}@${connectionId}`
 }
@@ -52,10 +53,12 @@ export class StreamConsumer implements Consumer {
   public consumerRef?: string
   public consumerTag?: string
   public offset: Offset
+  public consumerUpdateListener?: ConsumerUpdateListener
   private clientLocalOffset: Offset
   private creditsHandler: ConsumerCreditPolicy
   private consumerHandle: ConsumerFunc
   private closed: boolean
+  private singleActive: boolean = false
 
   constructor(
     handle: ConsumerFunc,
@@ -67,6 +70,8 @@ export class StreamConsumer implements Consumer {
       consumerTag?: string
       offset: Offset
       creditPolicy?: ConsumerCreditPolicy
+      singleActive?: boolean
+      consumerUpdateListener?: ConsumerUpdateListener
     },
     readonly filter?: ConsumerFilter
   ) {
@@ -79,7 +84,9 @@ export class StreamConsumer implements Consumer {
     this.connection.incrRefCount()
     this.creditsHandler = params.creditPolicy || defaultCreditPolicy
     this.consumerHandle = handle
+    this.consumerUpdateListener = params.consumerUpdateListener
     this.closed = false
+    this.singleActive = params.singleActive ?? false
   }
 
   async close(manuallyClose: boolean): Promise<void> {
@@ -125,6 +132,10 @@ export class StreamConsumer implements Consumer {
 
   public get creditPolicy() {
     return this.creditsHandler
+  }
+
+  public get isSingleActive() {
+    return this.singleActive
   }
 
   private maybeUpdateLocalOffset(message: Message) {
