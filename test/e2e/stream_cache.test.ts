@@ -81,10 +81,10 @@ describe("cache", () => {
     const publisher1 = await client.declarePublisher({
       stream: streamName,
     })
-    expect(publisher1.connection.params.vhost).eql("/")
+    expect(publisher1.getConnectionInfo().vhost).eql("/")
     const publisher2 = await client2.declarePublisher({
       stream: streamName,
     })
-    expect(publisher2.connection.params.vhost).eql(vhost1)
+    expect(publisher2.getConnectionInfo().vhost).eql(vhost1)
   })
 })

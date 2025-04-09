@@ -62,6 +62,7 @@ export type ConnectionInfo = {
   port: number
   id: string
   ready: boolean
+  vhost: string
   readable?: boolean
   writable?: boolean
   localPort?: number
@@ -376,6 +377,7 @@ export class Connection {
       writable: this.socket.writable,
       localPort: this.socket.localPort,
       ready: this.ready,
+      vhost: this.vhost
     }
   }
 

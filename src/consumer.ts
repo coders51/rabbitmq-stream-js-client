@@ -76,8 +76,8 @@ export class StreamConsumer implements Consumer {
   }
 
   public getConnectionInfo(): ConnectionInfo {
-    const { host, port, id, readable, localPort, ready } = this.connection.getConnectionInfo()
-    return { host, port, id, readable, localPort, ready }
+    const { host, port, id, readable, localPort, ready, vhost } = this.connection.getConnectionInfo()
+    return { host, port, id, readable, localPort, ready, vhost }
   }
 
   public get localOffset() {
