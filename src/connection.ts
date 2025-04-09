@@ -62,6 +62,7 @@ export type ConnectionInfo = {
   port: number
   id: string
   ready: boolean
+  vhost: string
   readable?: boolean
   writable?: boolean
   localPort?: number
@@ -78,6 +79,7 @@ type ListenerEntry = {
 
 export class Connection {
   public readonly hostname: string
+  public readonly vhost: string
   public readonly leader: boolean
   public readonly streamName: string | undefined
   private socket: Socket
@@ -109,6 +111,7 @@ export class Connection {
     private readonly logger: Logger
   ) {
     this.hostname = params.hostname
+    this.vhost = params.vhost
     this.leader = params.leader ?? false
     this.streamName = params.streamName
     if (params.frameMax) this.frameMax = params.frameMax
@@ -374,6 +377,7 @@ export class Connection {
       writable: this.socket.writable,
       localPort: this.socket.localPort,
       ready: this.ready,
+      vhost: this.vhost,
     }
   }
 
@@ -484,7 +488,7 @@ export class Connection {
   }
 
   private virtualHostIsNotValid(virtualHost: string) {
-    if (!virtualHost || virtualHost.split("/").length !== 2) {
+    if (!virtualHost) {
       return true
     }
 

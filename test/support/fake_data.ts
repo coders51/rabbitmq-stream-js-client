@@ -65,7 +65,8 @@ export async function createClient(
   frameMax?: number,
   bufferSizeSettings?: BufferSizeSettings,
   port?: number,
-  connectionName?: string
+  connectionName?: string,
+  vhost?: string
 ): Promise<Client> {
   const [firstNode] = getTestNodesFromEnv()
   return connect(
@@ -74,7 +75,7 @@ export async function createClient(
       port: port ?? firstNode.port,
       username,
       password,
-      vhost: "/",
+      vhost: vhost ?? "/",
       frameMax: frameMax ?? 0,
       heartbeat: 0,
       listeners: listeners,
