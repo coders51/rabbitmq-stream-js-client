@@ -611,7 +611,7 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnection = ConnectionPool.getUsableCachedConnection(purpose, streamName, chosenNode.host)
+    const cachedConnection = ConnectionPool.getUsableCachedConnection(purpose, streamName, this.connection.vhost, chosenNode.host)
     if (cachedConnection) return cachedConnection
 
     const newConnection = await this.getConnectionOnChosenNode(
@@ -622,7 +622,7 @@ export class Client {
       connectionClosedListener
     )
 
-    ConnectionPool.cacheConnection(purpose, streamName, newConnection.hostname, newConnection)
+    ConnectionPool.cacheConnection(purpose, streamName, this.connection.vhost, newConnection.hostname, newConnection)
     return newConnection
   }
 
