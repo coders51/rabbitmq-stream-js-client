@@ -1,6 +1,6 @@
 import { expect } from "chai"
 import got from "got"
-import { Client, Publisher } from "../../src"
+import { Client } from "../../src"
 import {
   createClient,
   createStreamName,
@@ -12,7 +12,7 @@ import {
   username,
 } from "../support/util"
 
-async function createVhost(vhost: string): Promise<RabbitConnectionResponse> {
+async function createVhost(vhost: string): Promise<undefined> {
   const port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   const firstNode = getTestNodesFromEnv().shift()!
   await got.put<RabbitConnectionResponse>(
@@ -22,7 +22,7 @@ async function createVhost(vhost: string): Promise<RabbitConnectionResponse> {
       password: password,
     }
   )
-  const res = await got.put<RabbitConnectionResponse>(
+  await got.put<RabbitConnectionResponse>(
     `http://${firstNode.host}:${port}/api/permissions/${vhost}/${username}`,
     {
       json: {
@@ -61,7 +61,15 @@ describe("cache", () => {
   })
   beforeEach(async () => {
     client = await createClient(username, password)
-    client2 = await createClient(username, password, null, null, null, null, null, vhost1)
+    client2 = await createClient(
+      username,
+      password,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      vhost1)
     streamName = createStreamName()
     await client.createStream({ stream: streamName })
     await client2.createStream({ stream: streamName })
