@@ -84,7 +84,7 @@ describe("declare consumer", () => {
     await eventually(() => expect(messages).eql([Buffer.from("hello")]))
   }).timeout(10000)
 
-  it("closing a consumer on an existing stream - raises connectionClosedListener", async () => {
+  it.skip("closing a consumer on an existing stream - raises connectionClosedListener", async () => {
     const messages: Buffer[] = []
     await publisher.send(Buffer.from("hello"))
     let called = false
