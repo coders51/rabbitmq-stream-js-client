@@ -6,14 +6,15 @@ import { Rabbit, RabbitConnectionResponse } from "../support/rabbit"
 import { getTestNodesFromEnv, password, username } from "../support/util"
 
 async function createVhost(vhost: string): Promise<undefined> {
+  const uriVhost = encodeURIComponent(vhost)
   const port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   const firstNode = getTestNodesFromEnv().shift()!
-  await got.put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${vhost}`, {
+  await got.put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${uriVhost}`, {
     username: username,
     password: password,
   })
   await got
-    .put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/permissions/${vhost}/${username}`, {
+    .put<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/permissions/${uriVhost}/${username}`, {
       json: {
         read: ".*",
         write: ".*",
@@ -26,9 +27,10 @@ async function createVhost(vhost: string): Promise<undefined> {
 }
 
 async function deleteVhost(vhost: string): Promise<RabbitConnectionResponse> {
+  const uriVhost = encodeURIComponent(vhost)
   const port = process.env.RABBIT_MQ_MANAGEMENT_PORT || 15672
   const firstNode = getTestNodesFromEnv().shift()!
-  const r = await got.delete<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${vhost}`, {
+  const r = await got.delete<RabbitConnectionResponse>(`http://${firstNode.host}:${port}/api/vhosts/${uriVhost}`, {
     username: username,
     password: password,
   })
