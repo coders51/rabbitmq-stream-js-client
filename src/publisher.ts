@@ -78,15 +78,78 @@ export const computeExtendedPublisherId = (publisherId: number, connectionId: st
 }
 
 export interface Publisher {
+  /**
+   * Sends a message in the stream
+   *
+   * @param {Buffer} message - The encoded content of the message
+   * @param {MessageOptions} opts - The optional message options and properties
+   * @returns {SendResult} Returns a boolean value and the associated publishingId
+   */
   send(message: Buffer, opts?: MessageOptions): Promise<SendResult>
+
+  /**
+   * Sends a message in the stream with a specific publishingId
+   *
+   * @param {bigint} publishingId - The associated publishingId
+   * @param {Buffer} content - The encoded content of the message
+   * @param {MessageOptions} opts - The optional message options and properties
+   * @returns {SendResult} Returns a boolean value and the associated publishingId
+   */
   basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult>
+
+  /**
+   * Sends all the accumulated messages on the internal buffer
+   *
+   * @returns {boolean} Returns false if there was an error
+   */
   flush(): Promise<boolean>
+
+  /**
+   * Sends a batch of messages
+   *
+   * @param {Message[]} messages - A batch of messages to send
+   * @param {CompressionType} compressionType - Can optionally compress the messages
+   */
   sendSubEntries(messages: Message[], compressionType?: CompressionType): Promise<void>
+
+  /**
+   * Setup the listener for the metadata update event
+   *
+   * @param {"metadata_update"} event - The name of the event
+   * @param {MetadataUpdateListener} listener - The listener which will be called when the event is fired
+   */
   on(event: "metadata_update", listener: MetadataUpdateListener): void
+
+  /**
+   * Setup the listener for the publish confirm event
+   *
+   * @param {"publish_confirm"} event - The name of the event
+   * @param {PublishConfirmCallback} listener - The listener which will be called when the event is fired
+   */
   on(event: "publish_confirm", listener: PublishConfirmCallback): void
+
+  /**
+   * Gets the last publishing id in the stream
+   *
+   * @returns {bigint} Last publishing id
+   */
   getLastPublishingId(): Promise<bigint>
+
+  /**
+   * Gets the infos of the publisher's connection
+   *
+   * @returns {ConnectionInfo} Infos on the publisher's connection
+   */
   getConnectionInfo(): ConnectionInfo
+
+  /**
+   * Close the publisher
+   *
+   * @param {boolean} manuallyClose - Weather you want to close the publisher manually or not
+   */
+  // TODO - clarify the parameter
   close(manuallyClose: boolean): Promise<void>
+
   closed: boolean
   ref: string
   readonly publisherId: number

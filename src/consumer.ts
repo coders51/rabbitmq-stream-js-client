@@ -11,10 +11,35 @@ export const computeExtendedConsumerId = (consumerId: number, connectionId: stri
 }
 
 export interface Consumer {
+  /**
+   * Close the publisher
+   *
+   * @param {boolean} manuallyClose - Weather you want to close the publisher manually or not
+   */
+  // TODO - clarify the parameter
   close(manuallyClose: boolean): Promise<void>
+
+  /**
+   * Store the stream offset on the server
+   *
+   * @param {bigint} offsetValue - The value of the offset to save
+   */
   storeOffset(offsetValue: bigint): Promise<void>
+
+  /**
+   * Get the saved offset on the server
+   *
+   * @returns {bigint} The value of the stream offset
+   */
   queryOffset(): Promise<bigint>
+
+  /**
+   * Gets the infos of the publisher's connection
+   *
+   * @returns {ConnectionInfo} Infos on the publisher's connection
+   */
   getConnectionInfo(): ConnectionInfo
+
   consumerId: number
   consumerRef?: string
   readonly extendedId: string
