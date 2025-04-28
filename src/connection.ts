@@ -30,7 +30,13 @@ import { Response } from "./responses/response"
 import { SaslAuthenticateResponse } from "./responses/sasl_authenticate_response"
 import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
-import { DEFAULT_FRAME_MAX, DEFAULT_UNLIMITED_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, removeFrom } from "./util"
+import {
+  DEFAULT_FRAME_MAX,
+  DEFAULT_UNLIMITED_FRAME_MAX,
+  REQUIRED_MANAGEMENT_VERSION,
+  isString,
+  removeFrom,
+} from "./util"
 import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
 import { ClientListenersParams, ClientParams, ClosingParams, QueryOffsetParams, StoreOffsetParams } from "./client"
@@ -474,7 +480,7 @@ export class Connection {
 
   private async open(params: { virtualHost: string }) {
     this.logger.debug(`Open ...`)
-    if (this.virtualHostIsNotValid(params.virtualHost)) {
+    if (!this.virtualHostIsValid(params.virtualHost)) {
       const errorMessage = `[ERROR]: VirtualHost '${params.virtualHost}' is not valid`
       this.logger.error(errorMessage)
       return { ok: false, error: new Error(errorMessage) }
@@ -487,8 +493,8 @@ export class Connection {
     return { ok: true, response: res }
   }
 
-  private virtualHostIsNotValid(virtualHost: string) {
-    if (!virtualHost) {
+  private virtualHostIsValid(virtualHost: string) {
+    if (isString(virtualHost) && virtualHost.length > 0) {
       return true
     }
 
