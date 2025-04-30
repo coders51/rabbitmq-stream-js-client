@@ -50,3 +50,5 @@ export const ResponseCode = {
   StreamDoesNotExist: 2,
   SubscriptionIdDoesNotExist: 4,
 } as const
+
+export const isString = (value: unknown): boolean => typeof value === "string"
