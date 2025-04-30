@@ -41,6 +41,8 @@ export interface Consumer {
    */
   getConnectionInfo(): ConnectionInfo
 
+  updateConsumerOffset(offset: Offset): void
+
   consumerId: number
   consumerRef?: string
   readonly extendedId: string
@@ -136,6 +138,11 @@ export class StreamConsumer implements Consumer {
 
   public get isSingleActive() {
     return this.singleActive
+  }
+
+  public updateConsumerOffset(offset: Offset) {
+    this.offset = offset.clone()
+    this.clientLocalOffset = offset.clone()
   }
 
   private maybeUpdateLocalOffset(message: Message) {

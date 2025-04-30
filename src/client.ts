@@ -23,12 +23,7 @@ import { RouteQuery } from "./requests/route_query"
 import { StreamStatsRequest } from "./requests/stream_stats_request"
 import { Offset, SubscribeRequest } from "./requests/subscribe_request"
 import { UnsubscribeRequest } from "./requests/unsubscribe_request"
-import {
-  ConsumerUpdateQueryListener,
-  MetadataUpdateListener,
-  PublishConfirmListener,
-  PublishErrorListener,
-} from "./response_decoder"
+import { MetadataUpdateListener, PublishConfirmListener, PublishErrorListener } from "./response_decoder"
 import { ConsumerUpdateQuery } from "./responses/consumer_update_query"
 import { CreateStreamResponse } from "./responses/create_stream_response"
 import { CreateSuperStreamResponse } from "./responses/create_super_stream_response"
@@ -597,6 +592,7 @@ export class Client {
         return
       }
       const offset = await this.getConsumerOrServerSavedOffset(consumer)
+      consumer.updateConsumerOffset(offset)
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
       await connection.send(
         new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset })
@@ -605,11 +601,9 @@ export class Client {
   }
 
   private async getConsumerOrServerSavedOffset(consumer: StreamConsumer) {
-    console.log("HI", consumer.isSingleActive, consumer.consumerRef, consumer.consumerUpdateListener)
     if (consumer.isSingleActive && consumer.consumerRef && consumer.consumerUpdateListener) {
       try {
         const offset = await consumer.consumerUpdateListener(consumer.consumerRef, consumer.streamName)
-        console.log("HELLO from", offset)
         return offset
       } catch (error) {
         return consumer.offset
