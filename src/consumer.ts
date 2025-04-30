@@ -41,6 +41,11 @@ export interface Consumer {
    */
   getConnectionInfo(): ConnectionInfo
 
+  /**
+   * Updates the offset of the consumer instance
+   *
+   * @param {Offset} offset - The new offset to set
+   */
   updateConsumerOffset(offset: Offset): void
 
   consumerId: number
