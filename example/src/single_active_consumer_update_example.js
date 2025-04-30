@@ -34,10 +34,6 @@ async function main() {
       offset: rabbit.Offset.first(),
       singleActive: true,
       consumerRef: consumerRef,
-      consumerUpdateListener: async (consumerReference, streamName) => {
-        const offset = await client.queryOffset({ reference: consumerReference, stream: streamName })
-        return rabbit.Offset.offset(offset)
-      },
     },
     async (message) => {
       messagesFromFirstConsumer.push(`Message ${message.content.toString("utf-8")} from ${consumerRef}`)
@@ -73,10 +69,7 @@ async function main() {
   await wait(500)
 
   console.log(`Messages consumed by the first consumer: ${messagesFromFirstConsumer.length}`)
-  console.log(
-    `Messages consumed by the second consumer: ${messagesFromSecondConsumer.length}`,
-    messagesFromSecondConsumer
-  )
+  console.log(`Messages consumed by the second consumer: ${messagesFromSecondConsumer.length}`)
 }
 
 main()
