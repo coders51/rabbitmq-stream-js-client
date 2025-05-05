@@ -30,6 +30,7 @@ import {
   getTestNodesFromEnv,
   password,
   username,
+  wait,
   waitSleeping,
 } from "../support/util"
 import { Connection, Channel } from "amqplib"
@@ -215,6 +216,57 @@ describe("declare consumer", () => {
 
     await eventually(() => expect(messages).eql([Buffer.from("hello"), Buffer.from("hello")]))
   }).timeout(10000)
+
+  it("declaring two single active consumer on an existing stream - after closing one consumer the active one can resume the consuming from the last saved offset on the server", async () => {
+    const messagesFromFirstConsumer: string[] = []
+    const messagesFromSecondConsumer: string[] = []
+    const consumerRef = createConsumerRef()
+    for (let i = 1; i <= 100; i++) {
+      await publisher.send(Buffer.from(`${i}`))
+    }
+
+    const consumer1 = await client.declareConsumer(
+      {
+        stream: streamName,
+        offset: Offset.first(),
+        singleActive: true,
+        consumerRef: consumerRef,
+        consumerUpdateListener: async (cr: string, sn: string) => {
+          const offset = await client.queryOffset({ reference: cr, stream: sn })
+          return Offset.offset(offset)
+        },
+      },
+      async (message: Message) => {
+        messagesFromFirstConsumer.push(`Message ${message.content.toString("utf-8")} from ${consumerRef}`)
+        if (messagesFromFirstConsumer.length === 50) {
+          await consumer1.storeOffset(message.offset!)
+        }
+      }
+    )
+    await wait(500)
+    await client.declareConsumer(
+      {
+        stream: streamName,
+        offset: Offset.first(),
+        singleActive: true,
+        consumerRef: consumerRef,
+        consumerUpdateListener: async (cr: string, sn: string) => {
+          const offset = await client.queryOffset({ reference: cr, stream: sn })
+          return Offset.offset(offset)
+        },
+      },
+      (message: Message) => {
+        messagesFromSecondConsumer.push(`Message ${message.content.toString("utf-8")} from ${consumerRef}`)
+      }
+    )
+    await client.closeConsumer(consumer1.extendedId)
+    await wait(500)
+
+    await eventually(() => {
+      expect(messagesFromSecondConsumer.find((m) => m === `Message 50 from ${consumerRef}`)).to.not.be.undefined
+      expect(messagesFromSecondConsumer.find((m) => m === `Message 49 from ${consumerRef}`)).to.be.undefined
+    }, 8000)
+  }).timeout(20000)
 
   it("declaring a single active consumer without reference on an existing stream - should throw an error", async () => {
     const messages: Buffer[] = []

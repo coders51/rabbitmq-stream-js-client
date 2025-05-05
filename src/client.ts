@@ -4,7 +4,7 @@ import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
-import { Consumer, ConsumerFunc, StreamConsumer, computeExtendedConsumerId } from "./consumer"
+import { Consumer, ConsumerFunc, ConsumerUpdateListener, StreamConsumer, computeExtendedConsumerId } from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
 import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
@@ -212,6 +212,8 @@ export class Client {
         consumerTag: params.consumerTag,
         offset: params.offset,
         creditPolicy: params.creditPolicy,
+        singleActive: params.singleActive,
+        consumerUpdateListener: params.consumerUpdateListener,
       },
       params.filter
     )
@@ -589,11 +591,29 @@ export class Client {
         this.logger.error(`On consumer_update_query no consumer found`)
         return
       }
+      const offset = await this.getConsumerOrServerSavedOffset(consumer)
+      consumer.updateConsumerOffset(offset)
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
       await connection.send(
-        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset: consumer.offset })
+        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset })
       )
     }
+  }
+
+  private async getConsumerOrServerSavedOffset(consumer: StreamConsumer) {
+    if (consumer.isSingleActive && consumer.consumerRef && consumer.consumerUpdateListener) {
+      try {
+        const offset = await consumer.consumerUpdateListener(consumer.consumerRef, consumer.streamName)
+        return offset
+      } catch (error) {
+        this.logger.error(
+          `Error in consumerUpdateListener for consumerRef ${consumer.consumerRef}: ${(error as Error).message}`
+        )
+        return consumer.offset
+      }
+    }
+
+    return consumer.offset
   }
 
   private getLocatorConnection() {
@@ -790,6 +810,7 @@ export interface DeclareConsumerParams {
   consumerRef?: string
   offset: Offset
   connectionClosedListener?: ConnectionClosedListener
+  consumerUpdateListener?: ConsumerUpdateListener
   singleActive?: boolean
   filter?: ConsumerFilter
   creditPolicy?: ConsumerCreditPolicy
