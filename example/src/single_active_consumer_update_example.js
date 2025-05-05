@@ -17,7 +17,7 @@ async function main() {
   })
 
   console.log("Making sure the stream exists...")
-  const streamName = "stream-single-active-consumer-update-javascript"
+  const streamName = "active-consumer-switch-on-single-active-consumer"
   await client.createStream({ stream: streamName, arguments: {} })
   const consumerRef = `my-consumer-${crypto.randomUUID()}`
 
