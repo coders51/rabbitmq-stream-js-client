@@ -245,6 +245,25 @@ const consumer = await client.declareConsumer(consumerOptions, (message: Message
 // ...
 ```
 
+Optionally a single active consumer can have a callback which returns an offset that will be used once the consumer becomes active
+
+```typescript
+const consumerOptions = {
+  stream: "stream-name",
+  offset: Offset.next(),
+  singleActive: true,
+  consumerRef: "my-consumer-ref",
+  consumerUpdateListener: async (consumerReference, streamName) => {
+    const offset = await client.queryOffset({ reference: consumerReference, stream: streamName })
+    return rabbit.Offset.offset(offset)
+  },
+}
+
+// ...
+```
+
+Check `example/single_active_consumer_update_example.js` for a basic usage example.
+
 ### Custom Policy
 
 By default the client uses the `creditsOnChunkCompleted(1, 1)` policy. This policy grants that messages will be processed in order, as a new chunk will only be requested once the current chunk has been processed. It is possible to override this policy by passing `creditPolicy` to the consumer options. Be aware that modifying this policy can lead to out-of-order message processing.

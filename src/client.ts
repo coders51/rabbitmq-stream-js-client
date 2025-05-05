@@ -606,6 +606,9 @@ export class Client {
         const offset = await consumer.consumerUpdateListener(consumer.consumerRef, consumer.streamName)
         return offset
       } catch (error) {
+        this.logger.error(
+          `Error in consumerUpdateListener for consumerRef ${consumer.consumerRef}: ${(error as Error).message}`
+        )
         return consumer.offset
       }
     }
