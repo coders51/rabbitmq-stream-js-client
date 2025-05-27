@@ -14,9 +14,12 @@ async function createTlsClient(): Promise<Client> {
     port: 5551,
     mechanism: "EXTERNAL",
     ssl: {
-      ca: await readFile("./tls-gen/basic/result/ca_certificate.pem", "utf8"),
-      cert: await readFile(`./tls-gen/basic/result/client_${firstNode.host}_certificate.pem`, "utf8"),
-      key: await readFile(`./tls-gen/basic/result/client_${firstNode.host}_key.pem`, "utf8"),
+      enabled: true,
+      options: {
+        ca: await readFile("./tls-gen/basic/result/ca_certificate.pem", "utf8"),
+        cert: await readFile(`./tls-gen/basic/result/client_${firstNode.host}_certificate.pem`, "utf8"),
+        key: await readFile(`./tls-gen/basic/result/client_${firstNode.host}_key.pem`, "utf8"),
+      },
     },
     username: "",
     password: "",
