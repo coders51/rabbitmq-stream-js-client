@@ -750,17 +750,23 @@ export type ClientListenersParams = {
   connection_closed?: ConnectionClosedListener
 }
 
-export interface SSLConnectionParams {
-  key: string
-  cert: string
-  ca?: string
+export type SSLConnectionParams = {
+  enabled: true
+  options?: {
+    key: string
+    cert: string
+    ca?: string
+    rejectUnauthorized?: boolean
+  }
+} | {
+  enabled: false
 }
 
 export type AddressResolverParams =
   | {
-      enabled: true
-      endpoint?: { host: string; port: number }
-    }
+    enabled: true
+    endpoint?: { host: string; port: number }
+  }
   | { enabled: false }
 
 export interface ClientParams {
