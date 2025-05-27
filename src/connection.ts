@@ -133,11 +133,9 @@ export class Connection {
   }
 
   private createSocket() {
-    const socket = this.params.ssl
-      ? tls.connect(this.params.port, this.params.hostname, {
-          ...this.params.ssl,
-          rejectUnauthorized: false,
-        })
+    const sslEnabled = this.params.ssl !== undefined && this.params.ssl.enabled === true
+    const socket = sslEnabled
+      ? tls.connect(this.params.port, this.params.hostname, this.params.ssl)
       : new Socket().connect(this.params.port, this.params.hostname)
     if (this.params.socketTimeout) socket.setTimeout(this.params.socketTimeout)
     return socket
@@ -416,8 +414,7 @@ export class Connection {
       const bufferSizeParams = this.getBufferSizeParams()
       const body = cmd.toBuffer(bufferSizeParams)
       this.logger.debug(
-        `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${
-          body.byteLength
+        `Write cmd key: ${cmd.key.toString(16)} - no correlationId - data: ${inspect(body.toJSON())} length: ${body.byteLength
         }`
       )
       this.socket.write(body, (err) => {
