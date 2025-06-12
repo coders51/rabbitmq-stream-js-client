@@ -8,7 +8,7 @@ export class ConnectionPool {
   private consumerConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
   private publisherConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
 
-  public getUsableCachedConnection(purpose: ConnectionPurpose, streamName: string, vhost: string, host: string) {
+  public getCachedConnection(purpose: ConnectionPurpose, streamName: string, vhost: string, host: string) {
     const map = purpose === "publisher" ? this.publisherConnectionProxies : this.consumerConnectionProxies
     const key = this.getCacheKey(streamName, vhost, host)
     const proxies = map.get(key) || []
