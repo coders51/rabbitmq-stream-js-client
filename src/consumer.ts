@@ -68,6 +68,7 @@ export class StreamConsumer implements Consumer {
   private singleActive: boolean = false
 
   constructor(
+    private pool: ConnectionPool,
     handle: ConsumerFunc,
     params: {
       connection: Connection
@@ -99,7 +100,7 @@ export class StreamConsumer implements Consumer {
   async close(manuallyClose: boolean): Promise<void> {
     this.closed = true
     this.connection.decrRefCount()
-    if (ConnectionPool.removeIfUnused(this.connection)) {
+    if (this.pool.removeIfUnused(this.connection)) {
       await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
     }
   }

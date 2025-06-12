@@ -68,6 +68,7 @@ export class Client {
   private publishers = new Map<string, PublisherMappedValue>()
   private compressions = new Map<CompressionType, Compression>()
   private connection: Connection
+  private pool: ConnectionPool = new ConnectionPool()
 
   private constructor(
     private readonly logger: Logger,
@@ -115,7 +116,7 @@ export class Client {
 
   private async closeConnectionIfUnused(connection: Connection, params: ClosingParams) {
     if (connection.refCount <= 0) {
-      ConnectionPool.removeCachedConnection(this.connection)
+      this.pool.removeCachedConnection(this.connection)
       await this.connection.close({ ...params, manuallyClose: true })
     }
   }
@@ -162,7 +163,7 @@ export class Client {
         publisherRef: streamPublisherParams.publisherRef,
       })
     }
-    const publisher = new StreamPublisher(streamPublisherParams, lastPublishingId, filter)
+    const publisher = new StreamPublisher(this.pool, streamPublisherParams, lastPublishingId, filter)
     connection.registerForClosePublisher(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
@@ -203,6 +204,7 @@ export class Client {
     }
 
     const consumer = new StreamConsumer(
+      this.pool,
       handle,
       {
         connection,
@@ -631,7 +633,7 @@ export class Client {
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
-    const cachedConnection = ConnectionPool.getUsableCachedConnection(
+    const cachedConnection = this.pool.getUsableCachedConnection(
       purpose,
       streamName,
       this.connection.vhost,
@@ -647,7 +649,7 @@ export class Client {
       connectionClosedListener
     )
 
-    ConnectionPool.cacheConnection(purpose, streamName, this.connection.vhost, newConnection.hostname, newConnection)
+    this.pool.cacheConnection(purpose, streamName, this.connection.vhost, newConnection.hostname, newConnection)
     return newConnection
   }
 
