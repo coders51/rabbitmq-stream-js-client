@@ -173,6 +173,7 @@ export class StreamPublisher implements Publisher {
   private _closed = false
 
   constructor(
+    private pool: ConnectionPool,
     params: {
       connection: Connection
       stream: string
@@ -281,7 +282,7 @@ export class StreamPublisher implements Publisher {
     if (!this.closed) {
       await this.flush()
       this.connection.decrRefCount()
-      if (ConnectionPool.removeIfUnused(this.connection)) {
+      if (this.pool.removeIfUnused(this.connection)) {
         await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
       }
     }
