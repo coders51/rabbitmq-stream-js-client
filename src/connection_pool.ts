@@ -8,38 +8,45 @@ export class ConnectionPool {
   private consumerConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
   private publisherConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
 
-  public getCachedConnection(purpose: ConnectionPurpose, streamName: string, vhost: string, host: string) {
+  public async getConnection(
+    purpose: ConnectionPurpose,
+    streamName: string,
+    vhost: string,
+    host: string,
+    connectionCreator: () => Promise<Connection>
+  ) {
     const map = purpose === "publisher" ? this.publisherConnectionProxies : this.consumerConnectionProxies
     const key = this.getCacheKey(streamName, vhost, host)
     const proxies = map.get(key) || []
     const connection = proxies.at(-1)
     const refCount = connection?.refCount
-    return refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
+    const cachedConnection =
+      refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
+
+    if (cachedConnection) {
+      return cachedConnection
+    } else {
+      const newConnection = await connectionCreator()
+      this.cacheConnection(map, key, newConnection)
+      return newConnection
+    }
   }
 
-  public cacheConnection(
-    purpose: ConnectionPurpose,
-    streamName: string,
-    vhost: string,
-    host: string,
-    client: Connection
-  ) {
-    const map = purpose === "publisher" ? this.publisherConnectionProxies : this.consumerConnectionProxies
-    const key = this.getCacheKey(streamName, vhost, host)
+  public async releaseConnection(connection: Connection, manuallyClose = true): Promise<void> {
+    connection.decrRefCount()
+    if (connection.refCount <= 0) {
+      await connection.close({ closingCode: 0, closingReason: "", manuallyClose })
+      this.removeCachedConnection(connection)
+    }
+  }
+
+  private cacheConnection(map: Map<InstanceKey, Connection[]>, key: string, connection: Connection) {
     const currentlyCached = map.get(key) || []
-    currentlyCached.push(client)
+    currentlyCached.push(connection)
     map.set(key, currentlyCached)
   }
 
-  public removeIfUnused(connection: Connection) {
-    if (connection.refCount <= 0) {
-      this.removeCachedConnection(connection)
-      return true
-    }
-    return false
-  }
-
-  public removeCachedConnection(connection: Connection) {
+  private removeCachedConnection(connection: Connection) {
     const { leader, streamName, hostname: host, vhost } = connection
     if (streamName === undefined) return
     const m = leader ? this.publisherConnectionProxies : this.consumerConnectionProxies
