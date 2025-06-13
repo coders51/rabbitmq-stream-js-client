@@ -620,7 +620,8 @@ export class Client {
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
     const [metadata] = await this.queryMetadata({ streams: [streamName] })
-    const chosenNode = chooseNode(metadata, purpose === "publisher")
+    const isPublisher = purpose === "publisher"
+    const chosenNode = chooseNode(metadata, isPublisher)
     if (!chosenNode) {
       throw new Error(`Stream was not found on any node`)
     }
@@ -630,7 +631,13 @@ export class Client {
       this.locatorConnection.vhost,
       chosenNode.host,
       async () => {
-        return await this.getConnectionOnChosenNode(purpose, streamName, chosenNode, metadata, connectionClosedListener)
+        return await this.getConnectionOnChosenNode(
+          isPublisher,
+          streamName,
+          chosenNode,
+          metadata,
+          connectionClosedListener
+        )
       }
     )
     return connection
@@ -676,13 +683,13 @@ export class Client {
   }
 
   private async getConnectionOnChosenNode(
-    purpose: ConnectionPurpose,
+    isPublisher: boolean,
     streamName: string,
     chosenNode: { host: string; port: number },
     metadata: StreamMetadata,
     connectionClosedListener?: ConnectionClosedListener
   ): Promise<Connection> {
-    const connectionParams = this.buildConnectionParams(purpose === "publisher", streamName, connectionClosedListener)
+    const connectionParams = this.buildConnectionParams(isPublisher, streamName, connectionClosedListener)
     if (this.params.addressResolver && this.params.addressResolver.enabled) {
       const maxAttempts = computeMaxAttempts(metadata)
       const resolver = this.params.addressResolver

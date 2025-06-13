@@ -5,19 +5,17 @@ type InstanceKey = string
 export type ConnectionPurpose = "consumer" | "publisher"
 
 export class ConnectionPool {
-  private consumerConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
-  private publisherConnectionProxies: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
+  private connectionsMap: Map<InstanceKey, Connection[]> = new Map<InstanceKey, Connection[]>()
 
   public async getConnection(
-    purpose: ConnectionPurpose,
+    entityType: ConnectionPurpose,
     streamName: string,
     vhost: string,
     host: string,
     connectionCreator: () => Promise<Connection>
   ) {
-    const map = purpose === "publisher" ? this.publisherConnectionProxies : this.consumerConnectionProxies
-    const key = this.getCacheKey(streamName, vhost, host)
-    const proxies = map.get(key) || []
+    const key = this.getCacheKey(streamName, vhost, host, entityType)
+    const proxies = this.connectionsMap.get(key) || []
     const connection = proxies.at(-1)
     const refCount = connection?.refCount
     const cachedConnection =
@@ -27,7 +25,7 @@ export class ConnectionPool {
       return cachedConnection
     } else {
       const newConnection = await connectionCreator()
-      this.cacheConnection(map, key, newConnection)
+      this.cacheConnection(this.connectionsMap, key, newConnection)
       return newConnection
     }
   }
@@ -49,16 +47,16 @@ export class ConnectionPool {
   private removeCachedConnection(connection: Connection) {
     const { leader, streamName, hostname: host, vhost } = connection
     if (streamName === undefined) return
-    const m = leader ? this.publisherConnectionProxies : this.consumerConnectionProxies
-    const k = this.getCacheKey(streamName, vhost, host)
-    const mappedClientList = m.get(k)
+    const entityType = leader ? "publisher" : "consumer"
+    const k = this.getCacheKey(streamName, vhost, host, entityType)
+    const mappedClientList = this.connectionsMap.get(k)
     if (mappedClientList) {
       const filtered = mappedClientList.filter((c) => c !== connection)
-      m.set(k, filtered)
+      this.connectionsMap.set(k, filtered)
     }
   }
 
-  private getCacheKey(streamName: string, vhost: string, host: string) {
-    return `${streamName}@${vhost}@${host}`
+  private getCacheKey(streamName: string, vhost: string, host: string, entityType: ConnectionPurpose) {
+    return `${streamName}@${vhost}@${host}@${entityType}`
   }
 }
