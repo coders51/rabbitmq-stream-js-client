@@ -15,8 +15,8 @@ export class ConnectionPool {
     connectionCreator: () => Promise<Connection>
   ) {
     const key = this.getCacheKey(streamName, vhost, host, entityType)
-    const proxies = this.connectionsMap.get(key) || []
-    const connection = proxies.at(-1)
+    const connections = this.connectionsMap.get(key) || []
+    const connection = connections.at(-1)
     const refCount = connection?.refCount
     const cachedConnection =
       refCount !== undefined && refCount < getMaxSharedConnectionInstances() ? connection : undefined
