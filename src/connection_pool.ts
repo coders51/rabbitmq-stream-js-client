@@ -25,7 +25,7 @@ export class ConnectionPool {
       return cachedConnection
     } else {
       const newConnection = await connectionCreator()
-      this.cacheConnection(this.connectionsMap, key, newConnection)
+      this.cacheConnection(key, newConnection)
       return newConnection
     }
   }
@@ -38,10 +38,10 @@ export class ConnectionPool {
     }
   }
 
-  private cacheConnection(map: Map<InstanceKey, Connection[]>, key: string, connection: Connection) {
-    const currentlyCached = map.get(key) || []
+  private cacheConnection(key: string, connection: Connection) {
+    const currentlyCached = this.connectionsMap.get(key) || []
     currentlyCached.push(connection)
-    map.set(key, currentlyCached)
+    this.connectionsMap.set(key, currentlyCached)
   }
 
   private removeCachedConnection(connection: Connection) {
