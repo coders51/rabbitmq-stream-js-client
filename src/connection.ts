@@ -39,7 +39,14 @@ import {
 } from "./util"
 import { Version, checkServerDeclaredVersions, getClientSupportedVersions } from "./versions"
 import { WaitingResponse } from "./waiting_response"
-import { ClientListenersParams, ClientParams, ClosingParams, QueryOffsetParams, StoreOffsetParams } from "./client"
+import {
+  ClientListenersParams,
+  ClientParams,
+  ClosingParams,
+  QueryOffsetParams,
+  SSLConnectionParams,
+  StoreOffsetParams,
+} from "./client"
 import { QueryPublisherResponse } from "./responses/query_publisher_response"
 import { QueryPublisherRequest } from "./requests/query_publisher_request"
 import { StoreOffsetRequest } from "./requests/store_offset_request"
@@ -134,10 +141,7 @@ export class Connection {
 
   private createSocket() {
     const socket = this.params.ssl
-      ? tls.connect(this.params.port, this.params.hostname, {
-          ...this.params.ssl,
-          rejectUnauthorized: false,
-        })
+      ? tls.connect(this.params.port, this.params.hostname, buildSSLParams(this.params.ssl))
       : new Socket().connect(this.params.port, this.params.hostname)
     if (this.params.socketTimeout) socket.setTimeout(this.params.socketTimeout)
     return socket
@@ -633,4 +637,13 @@ export function partition<T>(arr: T[], predicate: (t: T) => boolean): [T[], T[]]
 
 function isSameStream({ metadataInfo }: { metadataInfo: MetadataInfo }): (e: ListenerEntry) => boolean {
   return (e) => e.stream === metadataInfo.stream
+}
+
+function buildSSLParams(ssl: SSLConnectionParams | boolean) {
+  if (ssl === true) return {}
+
+  return {
+    ...ssl,
+    // rejectUnauthorized: false,
+  }
 }
