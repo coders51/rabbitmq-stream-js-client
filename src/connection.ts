@@ -639,7 +639,7 @@ function isSameStream({ metadataInfo }: { metadataInfo: MetadataInfo }): (e: Lis
   return (e) => e.stream === metadataInfo.stream
 }
 
-function buildSSLParams(ssl: SSLConnectionParams | boolean) {
+function buildSSLParams(ssl: SSLConnectionParams | true) {
   if (ssl === true) return {}
 
   return {
