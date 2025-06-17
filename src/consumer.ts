@@ -97,12 +97,9 @@ export class StreamConsumer implements Consumer {
     this.singleActive = params.singleActive ?? false
   }
 
-  async close(manuallyClose: boolean): Promise<void> {
+  async close(): Promise<void> {
     this.closed = true
-    this.connection.decrRefCount()
-    if (this.pool.removeIfUnused(this.connection)) {
-      await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
-    }
+    await this.pool.releaseConnection(this.connection)
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {

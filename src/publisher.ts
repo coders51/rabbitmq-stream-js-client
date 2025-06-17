@@ -281,10 +281,7 @@ export class StreamPublisher implements Publisher {
   public async close(manuallyClose: boolean): Promise<void> {
     if (!this.closed) {
       await this.flush()
-      this.connection.decrRefCount()
-      if (this.pool.removeIfUnused(this.connection)) {
-        await this.connection.close({ closingCode: 0, closingReason: "", manuallyClose })
-      }
+      await this.pool.releaseConnection(this.connection, manuallyClose)
     }
     this._closed = true
   }
