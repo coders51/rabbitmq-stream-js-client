@@ -743,9 +743,10 @@ export type ClientListenersParams = {
 }
 
 export interface SSLConnectionParams {
-  key: string
-  cert: string
+  key?: string
+  cert?: string
   ca?: string
+  rejectUnauthorized?: boolean
 }
 
 export type AddressResolverParams =
@@ -765,7 +766,7 @@ export interface ClientParams {
   frameMax?: number
   heartbeat?: number
   listeners?: ClientListenersParams
-  ssl?: SSLConnectionParams
+  ssl?: SSLConnectionParams | boolean
   bufferSizeSettings?: BufferSizeSettings
   socketTimeout?: number
   addressResolver?: AddressResolverParams

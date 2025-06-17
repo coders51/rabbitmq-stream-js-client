@@ -13,6 +13,8 @@ export function range(count: number): number[] {
   return ret
 }
 
+export const DEFAULT_SSL_CONFIG = { rejectUnauthorized: false }
+
 export const DEFAULT_FRAME_MAX = 1048576
 export const DEFAULT_UNLIMITED_FRAME_MAX = 0
 export const REQUIRED_MANAGEMENT_VERSION = "3.13.0"
