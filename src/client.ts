@@ -4,10 +4,17 @@ import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
-import { Consumer, ConsumerFunc, ConsumerUpdateListener, StreamConsumer, computeExtendedConsumerId } from "./consumer"
+import {
+  Consumer,
+  ConsumerFunc,
+  ConsumerUpdateListener,
+  StreamConsumer,
+  PrivateConsumer,
+  computeExtendedConsumerId,
+} from "./consumer"
 import { STREAM_ALREADY_EXISTS_ERROR_CODE } from "./error_codes"
 import { Logger, NullLogger } from "./logger"
-import { FilterFunc, Message, Publisher, StreamPublisher } from "./publisher"
+import { FilterFunc, Message, Publisher, PrivatePublisher, StreamPublisher } from "./publisher"
 import { ConsumerUpdateResponse } from "./requests/consumer_update_response"
 import { CreateStreamArguments, CreateStreamRequest } from "./requests/create_stream_request"
 import { CreateSuperStreamRequest } from "./requests/create_super_stream_request"
@@ -48,10 +55,10 @@ export type ConnectionClosedListener = (hadError: boolean) => void
 
 export type ClosingParams = { closingCode: number; closingReason: string; manuallyClose?: boolean }
 
-type ConsumerMappedValue = { connection: Connection; consumer: StreamConsumer; params: DeclareConsumerParams }
+type ConsumerMappedValue = { connection: Connection; consumer: PrivateConsumer; params: DeclareConsumerParams }
 type PublisherMappedValue = {
   connection: Connection
-  publisher: StreamPublisher
+  publisher: PrivatePublisher
   params: DeclarePublisherParams
   filter: FilterFunc | undefined
 }
@@ -154,7 +161,7 @@ export class Client {
         publisherRef: streamPublisherParams.publisherRef,
       })
     }
-    const publisher = new StreamPublisher(this.pool, streamPublisherParams, lastPublishingId, filter)
+    const publisher = new PrivatePublisher(this.pool, streamPublisherParams, lastPublishingId, filter)
     connection.registerForClosePublisher(publisher.extendedId, params.stream, async () => {
       await publisher.close(false)
       this.publishers.delete(publisher.extendedId)
@@ -163,7 +170,7 @@ export class Client {
     this.logger.info(
       `New publisher created with stream name ${params.stream}, publisher id ${publisherId} and publisher reference ${params.publisherRef}`
     )
-    return publisher
+    return new StreamPublisher(publisher)
   }
 
   public async deletePublisher(extendedPublisherId: string) {
@@ -194,7 +201,7 @@ export class Client {
       throw new Error(`Broker does not support message filtering.`)
     }
 
-    const consumer = new StreamConsumer(
+    const consumer = new PrivateConsumer(
       this.pool,
       handle,
       {
@@ -211,20 +218,24 @@ export class Client {
       params.filter
     )
     connection.registerForCloseConsumer(consumer.extendedId, params.stream, async () => {
-      if (params.connectionClosedListener) {
-        params.connectionClosedListener(false)
-      }
-      await this.closeConsumer(consumer.extendedId)
+      const activeConsumer = await this.prepareCloseConsumer(consumer.extendedId)
+      await this.closing(activeConsumer.consumer, consumer.extendedId, false)
     })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection, superStreamConsumer?.superStream)
     this.logger.info(
       `New consumer created with stream name ${params.stream}, consumer id ${consumerId} and offset ${params.offset.type}`
     )
-    return consumer
+    return new StreamConsumer(consumer)
   }
 
   public async closeConsumer(extendedConsumerId: string) {
+    const activeConsumer = await this.prepareCloseConsumer(extendedConsumerId)
+    await this.closing(activeConsumer.consumer, extendedConsumerId, true)
+    return true
+  }
+
+  private async prepareCloseConsumer(extendedConsumerId: string) {
     const activeConsumer = this.consumers.get(extendedConsumerId)
     if (!activeConsumer) {
       this.logger.error("Consumer does not exist")
@@ -238,8 +249,7 @@ export class Client {
     if (streamInfos.length > 0 && streamExists(streamInfos[0])) {
       await this.unsubscribe(activeConsumer.connection, consumerId)
     }
-    await this.closing(activeConsumer.consumer, extendedConsumerId)
-    return true
+    return activeConsumer
   }
 
   public async declareSuperStreamConsumer(
@@ -275,7 +285,7 @@ export class Client {
   }
 
   private async closeAllConsumers() {
-    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close()))
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close(true)))
     this.consumers = new Map<string, ConsumerMappedValue>()
   }
 
@@ -593,7 +603,7 @@ export class Client {
     }
   }
 
-  private async getConsumerOrServerSavedOffset(consumer: StreamConsumer) {
+  private async getConsumerOrServerSavedOffset(consumer: PrivateConsumer) {
     if (consumer.isSingleActive && consumer.consumerRef && consumer.consumerUpdateListener) {
       try {
         const offset = await consumer.consumerUpdateListener(consumer.consumerRef, consumer.streamName)
@@ -721,8 +731,8 @@ export class Client {
     return res
   }
 
-  private async closing(consumer: StreamConsumer, extendedConsumerId: string) {
-    await consumer.close()
+  private async closing(consumer: PrivateConsumer, extendedConsumerId: string, manuallyClose: boolean) {
+    await consumer.close(manuallyClose)
     this.consumers.delete(extendedConsumerId)
     this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
   }

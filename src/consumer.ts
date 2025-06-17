@@ -14,11 +14,8 @@ export const computeExtendedConsumerId = (consumerId: number, connectionId: stri
 export interface Consumer {
   /**
    * Close the publisher
-   *
-   * @param {boolean} manuallyClose - Weather you want to close the publisher manually or not
    */
-  // TODO - clarify the parameter
-  close(manuallyClose: boolean): Promise<void>
+  close(): Promise<void>
 
   /**
    * Store the stream offset on the server
@@ -54,6 +51,34 @@ export interface Consumer {
 }
 
 export class StreamConsumer implements Consumer {
+  constructor(private readonly c: PrivateConsumer) {}
+  close(): Promise<void> {
+    return this.c.close(true)
+  }
+  storeOffset(offsetValue: bigint): Promise<void> {
+    return this.c.storeOffset(offsetValue)
+  }
+  queryOffset(): Promise<bigint> {
+    return this.c.queryOffset()
+  }
+  getConnectionInfo(): ConnectionInfo {
+    return this.c.getConnectionInfo()
+  }
+  updateConsumerOffset(offset: Offset): void {
+    this.c.updateConsumerOffset(offset)
+  }
+  public get consumerId(): number {
+    return this.c.consumerId
+  }
+  public get consumerRef(): string | undefined {
+    return this.c.consumerRef
+  }
+  public get extendedId(): string {
+    return this.c.extendedId
+  }
+}
+
+export class PrivateConsumer {
   private connection: Connection
   private stream: string
   public consumerId: number
@@ -97,9 +122,9 @@ export class StreamConsumer implements Consumer {
     this.singleActive = params.singleActive ?? false
   }
 
-  async close(): Promise<void> {
+  async close(manuallyClose: boolean): Promise<void> {
     this.closed = true
-    await this.pool.releaseConnection(this.connection)
+    await this.pool.releaseConnection(this.connection, manuallyClose)
   }
 
   public storeOffset(offsetValue: bigint): Promise<void> {

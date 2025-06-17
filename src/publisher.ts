@@ -144,11 +144,8 @@ export interface Publisher {
 
   /**
    * Close the publisher
-   *
-   * @param {boolean} manuallyClose - Weather you want to close the publisher manually or not
    */
-  // TODO - clarify the parameter
-  close(manuallyClose: boolean): Promise<void>
+  close(): Promise<void>
 
   closed: boolean
   ref: string
@@ -159,7 +156,60 @@ export interface Publisher {
 export type FilterFunc = (msg: Message) => string | undefined
 type PublishConfirmCallback = (err: number | null, publishingIds: bigint[]) => void
 export type SendResult = { sent: boolean; publishingId: bigint }
+
 export class StreamPublisher implements Publisher {
+  constructor(private readonly p: PrivatePublisher) {}
+
+  send(message: Buffer, opts?: MessageOptions): Promise<SendResult> {
+    return this.p.send(message, opts)
+  }
+  basicSend(publishingId: bigint, content: Buffer, opts?: MessageOptions): Promise<SendResult> {
+    return this.p.basicSend(publishingId, content, opts)
+  }
+  flush(): Promise<boolean> {
+    return this.p.flush()
+  }
+  sendSubEntries(messages: Message[], compressionType?: CompressionType): Promise<void> {
+    return this.p.sendSubEntries(messages, compressionType)
+  }
+  on(event: "metadata_update", listener: MetadataUpdateListener): void
+  on(event: "publish_confirm", listener: PublishConfirmCallback): void
+  on(event: "metadata_update" | "publish_confirm", listener: MetadataUpdateListener | PublishConfirmCallback): void {
+    switch (event) {
+      case "metadata_update":
+        this.p.on(event, listener as MetadataUpdateListener)
+        break
+      case "publish_confirm":
+        this.p.on(event, listener as PublishConfirmCallback)
+        break
+      default:
+        break
+    }
+  }
+  getLastPublishingId(): Promise<bigint> {
+    return this.p.getLastPublishingId()
+  }
+  getConnectionInfo(): ConnectionInfo {
+    return this.p.getConnectionInfo()
+  }
+  close(): Promise<void> {
+    return this.p.close(true)
+  }
+  public get closed(): boolean {
+    return this.p.closed
+  }
+  public get ref(): string {
+    return this.p.ref
+  }
+  public get publisherId(): number {
+    return this.p.publisherId
+  }
+  public get extendedId(): string {
+    return this.p.extendedId
+  }
+}
+
+export class PrivatePublisher {
   private connection: Connection
   private stream: string
   readonly publisherId: number
