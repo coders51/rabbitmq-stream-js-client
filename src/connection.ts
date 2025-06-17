@@ -32,6 +32,7 @@ import { SaslHandshakeResponse } from "./responses/sasl_handshake_response"
 import { TuneResponse } from "./responses/tune_response"
 import {
   DEFAULT_FRAME_MAX,
+  DEFAULT_SSL_CONFIG,
   DEFAULT_UNLIMITED_FRAME_MAX,
   REQUIRED_MANAGEMENT_VERSION,
   isString,
@@ -640,10 +641,7 @@ function isSameStream({ metadataInfo }: { metadataInfo: MetadataInfo }): (e: Lis
 }
 
 function buildSSLParams(ssl: SSLConnectionParams | true) {
-  if (ssl === true) return {}
+  if (ssl === true) return DEFAULT_SSL_CONFIG
 
-  return {
-    ...ssl,
-    // rejectUnauthorized: false,
-  }
+  return ssl
 }
