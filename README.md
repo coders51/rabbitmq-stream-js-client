@@ -79,6 +79,10 @@ const client = await connect({
 await client.close()
 ```
 
+When the user calls the connect function a connection to the server is created. In the case that the user creates a publisher and a consumer,
+two new connections are opened, one for publishers and one for consumers. In particular the connection for publishers is created on the leader node and not on the replicas.
+If the number of connections exceeds a predefined threshold the user won't be able to create new connections.
+
 ### Connect through TLS/SSL
 
 ```typescript
@@ -440,7 +444,7 @@ cd example
 npm i
 ```
 
-run the docker-compose to launch a rabbit instance already stream enabled
+run the make command to launch a rabbit instance already stream enabled
 
 ```shell
 make rabbitmq-test
