@@ -23,9 +23,9 @@ export interface Consumer {
   /**
    * Store the stream offset on the server
    *
-   * @param {bigint} offsetValue - The value of the offset to save
+   * @param {bigint} offsetValue - The value of the offset to save, if not specified the local offset is used
    */
-  storeOffset(offsetValue: bigint): Promise<void>
+  storeOffset(offsetValue?: bigint): Promise<void>
 
   /**
    * Get the saved offset on the server
@@ -33,6 +33,11 @@ export interface Consumer {
    * @returns {bigint} The value of the stream offset
    */
   queryOffset(): Promise<bigint>
+
+  /**
+   * Get the stream local offset
+   */
+  getOffset(): bigint
 
   /**
    * Gets the infos of the publisher's connection
@@ -102,9 +107,10 @@ export class StreamConsumer implements Consumer {
     await this.pool.releaseConnection(this.connection)
   }
 
-  public storeOffset(offsetValue: bigint): Promise<void> {
+  public storeOffset(offsetValue?: bigint): Promise<void> {
     if (!this.consumerRef) throw new Error("ConsumerReference must be defined in order to use this!")
-    return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue })
+    const offset = offsetValue ? offsetValue : this.clientLocalOffset.value ?? 0n
+    return this.connection.storeOffset({ stream: this.stream, reference: this.consumerRef, offsetValue: offset })
   }
 
   public queryOffset(): Promise<bigint> {
@@ -112,13 +118,13 @@ export class StreamConsumer implements Consumer {
     return this.connection.queryOffset({ stream: this.stream, reference: this.consumerRef })
   }
 
+  getOffset(): bigint {
+    return this.clientLocalOffset.value ?? 0n
+  }
+
   public getConnectionInfo(): ConnectionInfo {
     const { host, port, id, readable, localPort, ready, vhost } = this.connection.getConnectionInfo()
     return { host, port, id, readable, localPort, ready, vhost }
-  }
-
-  public get localOffset() {
-    return this.clientLocalOffset.clone()
   }
 
   public async handle(message: Message) {

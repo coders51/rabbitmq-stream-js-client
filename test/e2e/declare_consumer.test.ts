@@ -239,7 +239,7 @@ describe("declare consumer", () => {
       async (message: Message) => {
         messagesFromFirstConsumer.push(`Message ${message.content.toString("utf-8")} from ${consumerRef}`)
         if (messagesFromFirstConsumer.length === 50) {
-          await consumer1.storeOffset(message.offset!)
+          await consumer1.storeOffset(message.offset)
         }
       }
     )
