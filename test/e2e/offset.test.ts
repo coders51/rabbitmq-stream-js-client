@@ -179,7 +179,7 @@ describe("offset", () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, consumerRef: "my consumer", offset: Offset.next() },
         async (message: Message) => {
-          await consumer.storeOffset(message.offset!)
+          await consumer.storeOffset(message.offset)
           offset = message.offset!
         }
       )
@@ -189,6 +189,26 @@ describe("offset", () => {
       await publisher.send(Buffer.from("world"))
 
       await eventually(async () => {
+        const result = await consumer.queryOffset()
+        expect(result).eql(offset)
+      })
+    }).timeout(10000)
+
+    it("saving the offset of a stream correctly without specifying it ", async () => {
+      let offset: bigint = 0n
+      const consumer = await client.declareConsumer(
+        { stream: testStreamName, consumerRef: "my consumer", offset: Offset.next() },
+        async (message: Message) => {
+          offset = message.offset!
+        }
+      )
+      const publisher = await client.declarePublisher({ stream: testStreamName })
+
+      await publisher.send(Buffer.from("hello"))
+      await publisher.send(Buffer.from("world"))
+
+      await eventually(async () => {
+        await consumer.storeOffset()
         const result = await consumer.queryOffset()
         expect(result).eql(offset)
       })
@@ -224,7 +244,7 @@ describe("offset", () => {
         async (message: Message) => {
           consumerOneMessages.push(message)
           if (message.content.toString() === "marker") {
-            await consumer.storeOffset(message.offset!)
+            await consumer.storeOffset(message.offset)
           }
         }
       )

@@ -407,7 +407,7 @@ export class Client {
         await connection.restart()
       }
       uniqueConnectionIds.add(connection.connectionId)
-      const consumerParams = { ...params, offset: consumer.localOffset }
+      const consumerParams = { ...params, offset: Offset.offset(consumer.getOffset()) }
       await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
     }
 
