@@ -156,7 +156,7 @@ export class Client {
     }
     const publisher = new StreamPublisher(this.pool, streamPublisherParams, lastPublishingId, filter)
     connection.registerForClosePublisher(publisher.extendedId, params.stream, async () => {
-      await publisher.close(false)
+      await publisher.automaticClose()
       this.publishers.delete(publisher.extendedId)
     })
     this.publishers.set(publisher.extendedId, { publisher, connection, params, filter })
@@ -176,7 +176,7 @@ export class Client {
     if (!res.ok) {
       throw new Error(`Delete Publisher command returned error with code ${res.code} - ${errorMessageOf(res.code)}`)
     }
-    await publisher?.close(true)
+    await publisher?.close()
     this.publishers.delete(extendedPublisherId)
     this.logger.info(`deleted publisher with publishing id ${publisherId}`)
     return res.ok
@@ -280,7 +280,7 @@ export class Client {
   }
 
   private async closeAllPublishers() {
-    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close(true)))
+    await Promise.all([...this.publishers.values()].map((c) => c.publisher.close()))
     this.publishers = new Map<string, PublisherMappedValue>()
   }
 
