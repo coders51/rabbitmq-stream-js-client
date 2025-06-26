@@ -33,7 +33,9 @@ export class ConnectionPool {
   public async releaseConnection(connection: Connection, manuallyClose = true): Promise<void> {
     connection.decrRefCount()
     if (connection.refCount <= 0) {
-      await connection.close({ closingCode: 0, closingReason: "", manuallyClose })
+      try {
+        await connection.close({ closingCode: 0, closingReason: "", manuallyClose })
+      } catch (e) {}
       this.removeCachedConnection(connection)
     }
   }
