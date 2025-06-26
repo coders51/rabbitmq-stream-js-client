@@ -1,7 +1,7 @@
 import { Client, Offset } from "../../src"
 import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { username, password, wait } from "../support/util"
+import { username, password } from "../support/util"
 
 describe("close client", () => {
   const rabbit = new Rabbit(username, password)
@@ -30,7 +30,7 @@ describe("close client", () => {
   })
 
   it("can close client after closing consumer", async () => {
-    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (msg) => {
+    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, (_msg) => {
       /* nothing */
     })
 
