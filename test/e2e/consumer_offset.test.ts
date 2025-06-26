@@ -40,7 +40,7 @@ describe("Consumer Offset", () => {
 
     // Perhaps there may be an option to upload the offset to the server directly from the consumer's internal store? Instead of having to fetch for it and then retrieve it
     await consumer.storeOffset(localOffset)
-    await consumer.close(false)
+    await consumer.close()
 
     await publisher.send(Buffer.from("Hello2"))
     await publisher.send(Buffer.from("Hello3"))
@@ -73,6 +73,6 @@ describe("Consumer Offset", () => {
     })
     expect(resumedConsumer.getOffset()).to.eql(offset)
 
-    await publisher.close(false)
+    await publisher.close()
   })
 })
