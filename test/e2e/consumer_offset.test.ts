@@ -12,9 +12,7 @@ describe("Consumer Offset", () => {
     await client.createStream({ stream: streamName, arguments: {} })
 
     let onIncomingMessageCalls = 0
-    const onIncomingMessage = async (msg: Message) => {
-      console.log(msg.content.toString("utf-8"))
-      console.log(msg.offset)
+    const onIncomingMessage = async (_msg: Message) => {
       onIncomingMessageCalls++
       return
     }
@@ -54,7 +52,6 @@ describe("Consumer Offset", () => {
     let resumedOnIncomingMessageCalls = 0
     let offset: bigint | undefined = 0n
     const resumedOnIncomingMessage = async (msg: Message) => {
-      console.log("Resumed ", msg.content.toString("utf-8"))
       offset = msg.offset
       resumedOnIncomingMessageCalls++
       return
