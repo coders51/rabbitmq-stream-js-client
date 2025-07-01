@@ -144,11 +144,8 @@ export interface Publisher {
 
   /**
    * Close the publisher
-   *
-   * @param {boolean} manuallyClose - Weather you want to close the publisher manually or not
    */
-  // TODO - clarify the parameter
-  close(manuallyClose: boolean): Promise<void>
+  close(): Promise<void>
 
   closed: boolean
   ref: string
@@ -278,10 +275,18 @@ export class StreamPublisher implements Publisher {
     return this.publisherRef
   }
 
-  public async close(manuallyClose: boolean): Promise<void> {
+  public async close(): Promise<void> {
     if (!this.closed) {
       await this.flush()
-      await this.pool.releaseConnection(this.connection, manuallyClose)
+      await this.pool.releaseConnection(this.connection, true)
+    }
+    this._closed = true
+  }
+
+  public async automaticClose(): Promise<void> {
+    if (!this.closed) {
+      await this.flush()
+      await this.pool.releaseConnection(this.connection, false)
     }
     this._closed = true
   }
