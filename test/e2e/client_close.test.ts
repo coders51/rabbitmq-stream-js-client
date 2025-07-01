@@ -25,7 +25,7 @@ describe("close client", () => {
   it("can close client after closing publisher", async () => {
     const publisher = await client.declarePublisher({ stream: streamName })
 
-    await publisher.close(true)
+    await publisher.close()
     await client.close()
   })
 
@@ -34,7 +34,7 @@ describe("close client", () => {
       /* nothing */
     })
 
-    await consumer.close(true)
+    await consumer.close()
     await client.close()
   })
 })
