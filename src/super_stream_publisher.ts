@@ -1,13 +1,14 @@
 import { Client, RoutingStrategy } from "./client"
 import { CompressionType } from "./compression"
 import { murmur32 } from "./hash/murmur32"
+import { Locator } from "./locator"
 import { Message, MessageOptions, Publisher, SendResult } from "./publisher"
 import { bigIntMax } from "./util"
 
 export type MessageKeyExtractorFunction = (content: string, opts: MessageOptions) => string | undefined
 
 type SuperStreamPublisherParams = {
-  locator: Client
+  locator: Locator
   superStream: string
   publisherRef?: string
   routingStrategy?: RoutingStrategy
@@ -15,7 +16,7 @@ type SuperStreamPublisherParams = {
 }
 
 export class SuperStreamPublisher {
-  private locator: Client
+  private locator: Locator
   private partitions: string[] = []
   private publishers: Map<string, Publisher> = new Map()
   private superStream: string
