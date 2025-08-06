@@ -1,13 +1,14 @@
 import { Client } from "./client"
 import { Consumer, ConsumerFunc } from "./consumer"
 import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_policy"
+import { Locator } from "./locator"
 import { Offset } from "./requests/subscribe_request"
 
 export class SuperStreamConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
   public consumerRef: string
   readonly superStream: string
-  private locator: Client
+  private locator: Locator
   private partitions: string[]
   private offset: Offset
   private creditPolicy: ConsumerCreditPolicy
@@ -16,7 +17,7 @@ export class SuperStreamConsumer {
     readonly handle: ConsumerFunc,
     params: {
       superStream: string
-      locator: Client
+      locator: Locator
       partitions: string[]
       consumerRef: string
       offset: Offset
