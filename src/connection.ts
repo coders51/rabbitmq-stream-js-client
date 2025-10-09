@@ -304,8 +304,14 @@ export class Connection {
     })
 
     if (listeners?.metadata_update) this.decoder.on("metadata_update", listeners.metadata_update)
-    if (listeners?.publish_confirm) this.decoder.on("publish_confirm", listeners.publish_confirm)
-    if (listeners?.publish_error) this.decoder.on("publish_error", listeners.publish_error)
+    if (listeners?.publish_confirm) {
+      const publishConfirmListener = listeners.publish_confirm
+      this.decoder.on("publish_confirm", (confirm) => publishConfirmListener(confirm, this.connectionId))
+    }
+    if (listeners?.publish_error) {
+      const publishErrorListener = listeners.publish_error
+      this.decoder.on("publish_error", (confirm) => publishErrorListener(confirm, this.connectionId))
+    }
     if (listeners?.deliverV1) this.decoder.on("deliverV1", listeners.deliverV1)
     if (listeners?.deliverV2) this.decoder.on("deliverV2", listeners.deliverV2)
     if (listeners?.consumer_update_query) this.decoder.on("consumer_update_query", listeners.consumer_update_query)

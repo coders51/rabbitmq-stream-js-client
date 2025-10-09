@@ -7,7 +7,7 @@ export class PublishConfirmResponse implements Response {
   static readonly Version = 1
 
   public publishingIds: bigint[]
-  private publisherId: number
+  readonly publisherId: number
   constructor(private response: RawPublishConfirmResponse) {
     if (this.response.key !== PublishConfirmResponse.key) {
       throw new Error(`Unable to create ${PublishConfirmResponse.name} from data of type ${this.response.key}`)
