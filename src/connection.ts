@@ -404,7 +404,7 @@ export class Connection {
   }
 
   private received(data: Buffer) {
-    this.logger.debug(`Receiving ${data.length} (${data.readUInt32BE()}) bytes ... ${inspect(data)}`)
+    this.logger.debug(`Receiving ${data.length} bytes ... ${inspect(data)}`)
     this.decoder.add(data, (ct) => this.getCompression(ct))
   }
 
