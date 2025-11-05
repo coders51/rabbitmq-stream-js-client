@@ -4,7 +4,7 @@ import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_pol
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
-export type SuperStreamConsumerFunc = (msg: Message, consumer?: Consumer) => Promise<void> | void
+export type SuperStreamConsumerFunc = (msg: Message, consumer: Consumer) => Promise<void> | void
 
 export class SuperStreamConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
@@ -45,7 +45,12 @@ export class SuperStreamConsumer {
             singleActive: true,
             creditPolicy: this.creditPolicy,
           },
-          (msg) => this.handle(msg, this.consumers.get(p)),
+          (msg) => {
+            const consumer = this.consumers.get(p)
+            if (consumer) {
+              return this.handle(msg, consumer)
+            }
+          },
           this
         )
         this.consumers.set(p, partitionConsumer)
