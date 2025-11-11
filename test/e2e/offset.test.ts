@@ -267,7 +267,7 @@ describe("offset", () => {
       })
     }).timeout(10000)
 
-    it("declaring a consumer without consumerRef and querying for the offset should rise an error", async () => {
+    it("declaring a consumer without consumerRef and querying for the offset should raise an error", async () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
         (_message: Message) => {
