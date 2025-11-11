@@ -835,6 +835,15 @@ export interface StoreOffsetParams {
   offsetValue: bigint
 }
 
+/**
+ * Query offset parameters.
+ *
+ * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream#server-side-offset-tracking
+ *
+ * @member reference The named consumer's name. Identifies the concrete stable consumer to
+ * persistently track the dedicated offset. Also named as `condumerRef` elsewhere.
+ * @member stream A stream name.
+ */
 export interface QueryOffsetParams {
   reference: string
   stream: string
