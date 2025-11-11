@@ -565,6 +565,37 @@ export class Connection {
     return this.send(new StoreOffsetRequest(params))
   }
 
+  /**
+   * Return the server-side saved offset.
+   *
+   * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream
+   * @see https://www.rabbitmq.com/blog/2021/09/13/rabbitmq-streams-offset-tracking
+   *
+   * @params QueryOffsetParams Stream name and the named consumer identifier.
+   *
+   * @see {@link storeOffset}
+   * @see {@link Client.connect}
+   *
+   * @example
+   *
+   * Consumer reads previously saved offset to start consumning from the desired offset.
+   * Note, to be server-tracked the offset shuould be explicitly saved with `client.storeOffset()`
+   * On consumer side create the client, detect the server-side saved offset
+   * to detect the deisred offset to consume from. Then declare a consumer with the desired offset.
+   * When consuming, the consumer message handler above saved the offset server-side to be
+   * able to further track it
+   *
+   * ```typescript
+   * // ... create client
+   * // Detect the desider starting offset for the next stream operation.
+   * const offset = await client.queryOffset({ reference: 'consumer-x', stream: 'stream-a' })
+   * const startWithOffset = offset ? rmqLibrary.Offset.offset(offset + 1n) :
+   *   rmqLibrary.Offset.<whatever-enum-offset-is-desired>();
+   * const consumer = await client.declareConsumer({stream: 'stream-b', offset: startWithOffset},
+   *   async (this: StreamConsumer, message: Message) => { await this.storeOffset(message.offset); });
+   * // Note the offset is saved by the message handler.
+   * ```
+   */
   public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
