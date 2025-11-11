@@ -10,6 +10,8 @@ export default class Code51Exception extends Error {
   constructor(message: string, rmqStreamResponseCode?: TResponseCode) {
     super(message)
 
+    Object.setPrototypeOf(this, new.target.prototype)
+
     this.name = this.constructor.name
     this.#code = rmqStreamResponseCode ?? undefined
 

@@ -26,11 +26,11 @@ describe("[unit] Code51Exception Test", () => {
     try {
       throw new Code51Exception(expected.message, expected.code)
     } catch (error_) {
-      const error = error_ as Code51Exception
+      const actual = error_ as Code51Exception
 
-      expect(error).instanceOf(Code51Exception)
-      expect(error.message).eql(expected.message)
-      expect(error.code).eql(expected.code)
+      expect(actual).instanceOf(Code51Exception)
+      expect(actual.message).eql(expected.message)
+      expect(actual.code).eql(expected.code)
     }
   })
 })
