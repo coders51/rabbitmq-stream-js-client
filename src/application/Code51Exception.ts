@@ -2,7 +2,7 @@
 
 import { ResponseCode } from "../util"
 
-type TResponseCode = (typeof ResponseCode)[keyof typeof ResponseCode]
+export type TResponseCode = (typeof ResponseCode)[keyof typeof ResponseCode]
 
 export default class Code51Exception extends Error {
   readonly #code?: TResponseCode
