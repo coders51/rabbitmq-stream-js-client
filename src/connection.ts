@@ -582,7 +582,8 @@ export class Connection {
   }
 
   /**
-   * Return the server-side saved offset.
+   * Return the server-side saved offset or throws {@link Code51Exception} with the
+   * RabbitMQ response code.
    *
    * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream
    * @see https://www.rabbitmq.com/blog/2021/09/13/rabbitmq-streams-offset-tracking
@@ -612,6 +613,11 @@ export class Connection {
    *   async (this: StreamConsumer, message: Message) => { await this.storeOffset(message.offset); });
    *   // Note the offset is saved by the message handler on the server.
    * ```
+   *
+   * @throws {@link Code51Exception} if the server-side offset cannot be retrieved. The exception
+   * contains the `code` field that equals the RabbitMQ stream protocol response code value.
+   *
+   * @see https://github.com/rabbitmq/rabbitmq-server/blob/main/deps/rabbitmq_stream/docs/PROTOCOL.adoc#response-codes
    */
   public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
