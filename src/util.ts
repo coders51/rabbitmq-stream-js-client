@@ -48,9 +48,23 @@ export const wait = async (ms: number) => {
   })
 }
 
+/**
+ * The RabbitMQ Stream protocol response codes.
+ *
+ * Only codes actually used by this package are defined here however any official code
+ * can be returned by the actually connected RabbitMQ instance.
+ *
+ * @see https://github.com/rabbitmq/rabbitmq-server/blob/v3.9.x/deps/rabbitmq_stream/docs/PROTOCOL.adoc#response-codes
+ *
+ * @see {@link connection.ts/Connection.queryOffset}
+ * @see {@link application/Code51Exception}
+ */
 export const ResponseCode = {
   StreamDoesNotExist: 2,
   SubscriptionIdDoesNotExist: 4,
+
+  // Used in src/connection.ts/Connection.queryOffset method
+  NoOffset: 19,
 } as const
 
 export const isString = (value: unknown): boolean => typeof value === "string"
