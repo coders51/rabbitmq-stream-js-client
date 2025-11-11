@@ -829,6 +829,15 @@ export interface SubscribeParams {
   offset: Offset
 }
 
+/**
+ * The parameters to store the concrete named consumer offset at the given stream.
+ *
+ * @member reference See {@link QueryOffsetParams.reference}
+ * @member stream See {@link QueryOffsetParams.stream}
+ * @member offsetValue The BigInt offset value.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
+ */
 export interface StoreOffsetParams {
   reference: string
   stream: string
