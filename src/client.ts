@@ -809,7 +809,7 @@ export interface ConsumerFilter {
  * @param stream A stream name from which the consumer will be consuming messages.
  *
  * @param consumerRef A named consumer's name (identifier) for server-side offset tracking and single
- * active consumer behvior.
+ * active consumer behavior.
  *
  * @see https://github.com/coders51/rabbitmq-stream-js-client/blob/main/example/src/offset_tracking_example.js
  * @see https://github.com/coders51/rabbitmq-stream-js-client/blob/main/example/src/single_active_consumer_update_example.js
@@ -895,7 +895,7 @@ export interface StoreOffsetParams {
  * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream#server-side-offset-tracking
  *
  * @member reference The named consumer's name. Identifies the concrete stable consumer to
- * persistently track the dedicated offset. Also named as `condumerRef` elsewhere.
+ * persistently track the dedicated offset. Also named as `consumerRef` elsewhere.
  * @member stream A stream name.
  */
 export interface QueryOffsetParams {

@@ -593,11 +593,11 @@ export class Connection {
    * @see {@link Connection.connect}
    * @see {@link Connection.storeOffset}
    *
-   * @example Consumer reads previously saved server-tracked offset to start consumning
+   * @example Consumer reads previously saved server-tracked offset to start consuming
    * from the desired offset.
    *
    * On consumer side create the client, detect the server-side saved offset to detect
-   * the deisred offset to consume from. Then declare a consumer with the desired offset
+   * the desired offset to consume from. Then declare a consumer with the desired offset
    * and the consumed message handler.
    *
    * When consuming, the consumer message handler may save the offset server-side
@@ -605,7 +605,7 @@ export class Connection {
    *
    * ```typescript
    * // ... create the RabbitMQ client here
-   * // Detect the desider starting offset for the next stream operation.
+   * // Detect the decider starting offset for the next stream operation.
    * const offset = await client.queryOffset({ reference: 'consumer-x', stream: 'stream-a' })
    * const startWithOffset = offset ? rmqLibrary.Offset.offset(offset + 1n) :
    *   rmqLibrary.Offset.<whatever-enum-offset-is-desired>();
