@@ -57,6 +57,7 @@ import { coerce, lt } from "semver"
 import EventEmitter from "events"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { MetadataInfo } from "./responses/raw_response"
+import Code51Exception, { TResponseCode } from "./application/Code51Exception"
 
 export type ConnectionClosedListener = (hadError: boolean) => void
 
@@ -561,15 +562,70 @@ export class Connection {
     return res.sequence
   }
 
+  /**
+   * Store the provided offset at the RabbitMQ server in the given stream for the given consumer.
+   *
+   * @param StoreOffsetParams The stream name, consumer name and the offset value.
+   *
+   * The offset is stored on the given stream as the additional service message not visible to
+   * a stream consumers but counted for in the RabbitMQ UI.
+   *
+   * For streams with millions of messages per second it is recommended to store the offset
+   * once per a number of messages to not litter the stream and potentially worsen the performance
+   * when very high throughput is required.
+   *
+   * @see https://www.rabbitmq.com/blog/2021/09/13/rabbitmq-streams-offset-tracking#the-dark-side-of-server-side-offset-tracking
+   * @see https://www.rabbitmq.com/docs/streams#offset-tracking
+   */
   public storeOffset(params: StoreOffsetParams): Promise<void> {
     return this.send(new StoreOffsetRequest(params))
   }
 
+  /**
+   * Return the server-side saved offset or throws {@link Code51Exception} with the
+   * RabbitMQ response code.
+   *
+   * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream
+   * @see https://www.rabbitmq.com/blog/2021/09/13/rabbitmq-streams-offset-tracking
+   *
+   * @param QueryOffsetParams The stream name and the named consumer identifier object.
+   *
+   * @see {@link Connection.connect}
+   * @see {@link Connection.storeOffset}
+   *
+   * @example Consumer reads previously saved server-tracked offset to start consuming
+   * from the desired offset.
+   *
+   * On consumer side create the client, detect the server-side saved offset to detect
+   * the desired offset to consume from. Then declare a consumer with the desired offset
+   * and the consumed message handler.
+   *
+   * When consuming, the consumer message handler may save the offset server-side
+   * for the `client.queryOffset()` to be able to further read it.
+   *
+   * ```typescript
+   * // ... create the RabbitMQ client here
+   * // Detect the decider starting offset for the next stream operation.
+   * const offset = await client.queryOffset({ reference: 'consumer-x', stream: 'stream-a' })
+   * const startWithOffset = offset ? rmqLibrary.Offset.offset(offset + 1n) :
+   *   rmqLibrary.Offset.<whatever-enum-offset-is-desired>();
+   * const consumer = await client.declareConsumer({stream: 'stream-b', offset: startWithOffset},
+   *   async (this: StreamConsumer, message: Message) => { await this.storeOffset(message.offset); });
+   *   // Note the offset is saved by the message handler on the server.
+   * ```
+   *
+   * @throws {@link Code51Exception} if the server-side offset cannot be retrieved. The exception
+   * contains the `code` field that equals the RabbitMQ stream protocol response code value.
+   *
+   * @see https://github.com/rabbitmq/rabbitmq-server/blob/main/deps/rabbitmq_stream/docs/PROTOCOL.adoc#response-codes
+   */
   public async queryOffset(params: QueryOffsetParams): Promise<bigint> {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
     if (!res.ok) {
-      throw new Error(`Query offset command returned error with code ${res.code}`)
+      const code = res.code as TResponseCode
+
+      throw new Code51Exception(`Query offset command returned error with code ${res.code}`, code)
     }
     this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
     return res.offsetValue
