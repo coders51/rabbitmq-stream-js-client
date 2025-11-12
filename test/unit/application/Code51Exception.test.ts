@@ -13,7 +13,7 @@ describe("[unit] Code51Exception Test", () => {
     expect(actual.code).eql(undefined)
   })
 
-  it("+constructor() #2: Should create Code51Exception expected object with expectd response code", () => {
+  it("+constructor() #2: Should create Code51Exception expected object with expected response code", () => {
     const expected = ResponseCode.NoOffset
     const actual = new Code51Exception("a message", expected)
 
