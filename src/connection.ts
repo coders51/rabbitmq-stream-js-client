@@ -431,13 +431,16 @@ export class Connection {
           body.byteLength
         }`
       )
-      this.socket.write(body, (err) => {
-        this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
-        if (err) {
-          return rej(err)
-        }
-        return res()
-      })
+      if (this.socket.readyState === "open") {
+        /* Check because there is still a delivery after the consumer is closed */
+        this.socket.write(body, (err) => {
+          this.logger.debug(`Write COMPLETED for cmd key: ${cmd.key.toString(16)} - no correlationId - err: ${err}`)
+          if (err) {
+            return rej(err)
+          }
+          return res()
+        })
+      }
     })
   }
 

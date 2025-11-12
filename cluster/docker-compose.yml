@@ -1,4 +1,3 @@
-version: "2"
 services:
   rabbit_node0:
     environment:
@@ -16,8 +15,8 @@ services:
       - "5562:5552"
     tty: true
     volumes:
-     - ./conf/:/etc/rabbitmq/
-     - "./tls-gen/basic/result/:/certs"
+      - ./conf/:/etc/rabbitmq/
+      - "./tls-gen/basic/result/:/certs"
   rabbit_node1:
     environment:
       - RABBITMQ_ERLANG_COOKIE='secret_cookie'
