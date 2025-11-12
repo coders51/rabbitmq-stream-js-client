@@ -1,5 +1,3 @@
-version: "2"
-
 services:
   rabbitmq-stream:
     image: rabbitmq:4.0.5-management

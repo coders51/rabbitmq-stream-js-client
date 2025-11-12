@@ -1,7 +1,10 @@
 import { Client } from "./client"
-import { Consumer, ConsumerFunc } from "./consumer"
+import { Consumer } from "./consumer"
 import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_policy"
+import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
+
+export type SuperStreamConsumerFunc = (msg: Message, consumer: Consumer) => Promise<void> | void
 
 export class SuperStreamConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
@@ -13,7 +16,7 @@ export class SuperStreamConsumer {
   private creditPolicy: ConsumerCreditPolicy
 
   private constructor(
-    readonly handle: ConsumerFunc,
+    readonly handle: SuperStreamConsumerFunc,
     params: {
       superStream: string
       locator: Client
@@ -42,7 +45,12 @@ export class SuperStreamConsumer {
             singleActive: true,
             creditPolicy: this.creditPolicy,
           },
-          this.handle,
+          (msg) => {
+            const consumer = this.consumers.get(p)
+            if (consumer) {
+              return this.handle(msg, consumer)
+            }
+          },
           this
         )
         this.consumers.set(p, partitionConsumer)
@@ -52,7 +60,7 @@ export class SuperStreamConsumer {
   }
 
   static async create(
-    handle: ConsumerFunc,
+    handle: SuperStreamConsumerFunc,
     params: {
       superStream: string
       locator: Client

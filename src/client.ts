@@ -39,7 +39,7 @@ import { RouteResponse } from "./responses/route_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { SuperStreamConsumer } from "./super_stream_consumer"
+import { SuperStreamConsumer, SuperStreamConsumerFunc } from "./super_stream_consumer"
 import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
 import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, ResponseCode, sample, wait } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
@@ -249,7 +249,7 @@ export class Client {
 
   public async declareSuperStreamConsumer(
     { superStream, offset, consumerRef, creditPolicy }: DeclareSuperStreamConsumerParams,
-    handle: ConsumerFunc
+    handle: SuperStreamConsumerFunc
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, {
