@@ -13,6 +13,8 @@ import {
   username,
   wait,
 } from "../support/util"
+import Code51Exception from "../../src/application/Code51Exception"
+import { ResponseCode } from "../../src/util"
 
 describe("offset", () => {
   const rabbit = new Rabbit(username, password)
@@ -267,7 +269,7 @@ describe("offset", () => {
       })
     }).timeout(10000)
 
-    it("declaring a consumer without consumerRef and querying for the offset should rise an error", async () => {
+    it("declaring a consumer without consumerRef and querying for the offset should raise an error", async () => {
       const consumer = await client.declareConsumer(
         { stream: testStreamName, offset: Offset.first() },
         (_message: Message) => {
@@ -291,6 +293,25 @@ describe("offset", () => {
       await rabbit.deleteStream(testStreamName)
       await wait(200)
       await expectToThrowAsync(() => consumer.queryOffset(), Error, `This socket has been ended by the other party`)
+    })
+
+    it("query offset is able to raise Code51Exception with ResponseCode.NoOffset code value set if there is no offset", async () => {
+      const params = { stream: testStreamName, consumerRef: "my_consumer", offset: Offset.first() }
+      const handler = (_message: Message) => { return } // prettier-ignore
+      const consumer = await client.declareConsumer(params, handler)
+
+      try {
+        await consumer.queryOffset()
+
+        throw new Error("Expected Code51Exception to be thrown")
+      } catch (error) {
+        const actual = error as Code51Exception
+
+        expect(actual).instanceOf(Error)
+        expect(actual).instanceOf(Code51Exception)
+        expect(actual.code).equals(ResponseCode.NoOffset)
+        expect(actual.message).contain("error with code 19")
+      }
     })
   })
 })

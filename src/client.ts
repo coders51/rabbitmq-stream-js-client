@@ -803,6 +803,51 @@ export interface ConsumerFilter {
   matchUnfiltered: boolean
 }
 
+/**
+ * The parameters to declare a stream consumer.
+ *
+ * @param stream A stream name from which the consumer will be consuming messages.
+ *
+ * @param consumerRef A named consumer's name (identifier) for server-side offset tracking and single
+ * active consumer behavior.
+ *
+ * @see https://github.com/coders51/rabbitmq-stream-js-client/blob/main/example/src/offset_tracking_example.js
+ * @see https://github.com/coders51/rabbitmq-stream-js-client/blob/main/example/src/single_active_consumer_update_example.js
+ *
+ * @see {@link QueryOffsetParams.reference}
+ * @see {@link StoreOffsetParams.reference}
+ *
+ * @param offset The value object {@link Offset} representing the possible values for the
+ * RabbitMQ stream offset. Tells the client from where in the stream you want to start consuming.
+ * Could be "first", "last", "next", a specific numeric offset, or timestamp depending on the Offset type.
+ *
+ * @see https://github.com/WhereJuly/rabbitmq-stream-js-client?tab=readme-ov-file#basic-consuming
+ * @see https://www.rabbitmq.com/blog/2021/09/13/rabbitmq-streams-offset-tracking#the-different-offset-specifications-in-a-stream
+ *
+ * @param connectionClosedListener A callback {@link ConnectionClosedListener} invoked if the connection
+ * is closed (with parameter indicating error or not) to let you react to the consumer’s connection
+ * being closed.
+ *
+ * @param consumerUpdateListener {@link ConsumerUpdateListener}
+ *
+ * @param singleActive A flag to indicate "single active consumer" mode.
+ * Single active consumer provides exclusive consumption and consumption continuity on a stream.
+ * @see https://www.rabbitmq.com/blog/2022/07/05/rabbitmq-3-11-feature-preview-single-active-consumer-for-streams
+ * @see https://github.com/coders51/rabbitmq-stream-js-client?tab=readme-ov-file#single-active-consumer
+ *
+ * @param filter A filter object {@link ConsumerFilter} specifying consumer filtering criteria.
+ * @see https://www.rabbitmq.com/docs/stream-filtering#filter-stages-overview
+ * @see https://github.com/coders51/rabbitmq-stream-js-client?tab=readme-ov-file#filtering
+ *
+ * @param creditPolicy {@link ConsumerCreditPolicy} determines if the consumer requests more message chunks from the broker
+ * while still processing the current chunk. By default only one chunk is processed ensuring
+ * the messages will be processed in order.
+ *
+ * @see https://github.com/coders51/rabbitmq-stream-js-client?tab=readme-ov-file#custom-policy
+ *
+ * @param consumerTag A simpler alias/identifier if you need to tag the consumer on the broker side
+ * for monitoring or naming.
+ */
 export interface DeclareConsumerParams {
   stream: string
   consumerRef?: string
@@ -829,12 +874,30 @@ export interface SubscribeParams {
   offset: Offset
 }
 
+/**
+ * The parameters to store the concrete named consumer offset at the given stream.
+ *
+ * @member reference See {@link QueryOffsetParams.reference}
+ * @member stream See {@link QueryOffsetParams.stream}
+ * @member offsetValue The BigInt offset value.
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
+ */
 export interface StoreOffsetParams {
   reference: string
   stream: string
   offsetValue: bigint
 }
 
+/**
+ * Query offset parameters.
+ *
+ * @see https://www.rabbitmq.com/tutorials/tutorial-two-javascript-stream#server-side-offset-tracking
+ *
+ * @member reference The named consumer's name. Identifies the concrete stable consumer to
+ * persistently track the dedicated offset. Also named as `consumerRef` elsewhere.
+ * @member stream A stream name.
+ */
 export interface QueryOffsetParams {
   reference: string
   stream: string
