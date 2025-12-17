@@ -46,10 +46,29 @@ import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from 
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
 import { PublishErrorResponse } from "./responses/publish_error_response"
 
+/**
+ * Callback invoked when a connection is closed
+ * @param hadError - True if the connection closed due to an error
+ */
 export type ConnectionClosedListener = (hadError: boolean) => void
+
+/**
+ * Callback invoked when a publish is confirmed by the server
+ * @param confirm - The publish confirmation response
+ * @param connectionId - The ID of the connection that sent the confirmation
+ */
 export type ConnectionPublishConfirmListener = (confirm: PublishConfirmResponse, connectionId: string) => void
+
+/**
+ * Callback invoked when a publish error occurs
+ * @param confirm - The publish error response
+ * @param connectionId - The ID of the connection that reported the error
+ */
 export type ConnectionPublishErrorListener = (confirm: PublishErrorResponse, connectionId: string) => void
 
+/**
+ * Parameters for closing connections
+ */
 export type ClosingParams = { closingCode: number; closingReason: string; manuallyClose?: boolean }
 
 type ConsumerMappedValue = { connection: Connection; consumer: StreamConsumer; params: DeclareConsumerParams }
@@ -66,6 +85,33 @@ type DeliverData = {
   subscriptionId: number
   consumerId: string
 }
+
+/**
+ * Main RabbitMQ Stream client for managing connections, publishers, and consumers.
+ *
+ * The Client class serves as the primary entry point for interacting with RabbitMQ streams.
+ * It manages:
+ * - A locator connection for metadata queries and topology management
+ * - A connection pool for sharing TCP connections among publishers and consumers
+ * - Publisher and consumer lifecycle
+ * - Stream creation and deletion
+ *
+ * @example
+ * ```typescript
+ * const client = await connect({
+ *   hostname: 'localhost',
+ *   port: 5552,
+ *   username: 'guest',
+ *   password: 'guest',
+ *   vhost: '/'
+ * });
+ *
+ * await client.createStream({ stream: 'my-stream' });
+ * const publisher = await client.declarePublisher({ stream: 'my-stream' });
+ * await publisher.send(Buffer.from('Hello World'));
+ * await client.close();
+ * ```
+ */
 export class Client {
   public readonly id: string = randomUUID()
   private consumers = new Map<string, ConsumerMappedValue>()
@@ -92,6 +138,10 @@ export class Client {
     this.locatorConnection.registerCompression(compression)
   }
 
+  /**
+   * Start the client by establishing the locator connection
+   * @returns A promise that resolves to the client instance
+   */
   public start(): Promise<Client> {
     return this.locatorConnection.start().then(
       (_res) => {
@@ -104,6 +154,17 @@ export class Client {
     )
   }
 
+  /**
+   * Close the client and all associated publishers, consumers, and connections
+   * @param params - Optional closing parameters with code and reason
+   * @returns A promise that resolves when the client is fully closed
+   * @example
+   * ```typescript
+   * await client.close();
+   * // or with custom parameters
+   * await client.close({ closingCode: 1, closingReason: 'Shutting down' });
+   * ```
+   */
   public async close(params: ClosingParams = { closingCode: 0, closingReason: "" }) {
     this.logger.info(`${this.id} Closing client...`)
     if (this.publisherCounts()) {
@@ -117,6 +178,12 @@ export class Client {
     await this.locatorConnection.close({ ...params, manuallyClose: true })
   }
 
+  /**
+   * Query metadata for one or more streams
+   * @param params - Parameters containing the list of stream names to query
+   * @returns A promise that resolves to an array of stream metadata
+   * @throws {Error} If the query returns an error code
+   */
   public async queryMetadata(params: QueryMetadataParams): Promise<StreamMetadata[]> {
     const { streams } = params
     const res = await this.locatorConnection.sendAndWait<MetadataResponse>(new MetadataRequest({ streams }))
@@ -129,6 +196,12 @@ export class Client {
     return streamInfos
   }
 
+  /**
+   * Query the partitions of a super stream
+   * @param params - Parameters containing the super stream name
+   * @returns A promise that resolves to an array of partition stream names
+   * @throws {Error} If the query returns an error code
+   */
   public async queryPartitions(params: QueryPartitionsParams): Promise<string[]> {
     const { superStream } = params
     const res = await this.locatorConnection.sendAndWait<PartitionsResponse>(new PartitionsQuery({ superStream }))
@@ -139,6 +212,29 @@ export class Client {
     return res.streams
   }
 
+  /**
+   * Declare a publisher for a stream
+   *
+   * Publishers are used to send messages to a stream. If a publisherRef is provided,
+   * deduplication is enabled and the publisher will use monotonically increasing publishing IDs.
+   *
+   * @param params - Publisher configuration including stream name and optional publisherRef
+   * @param filter - Optional filter function for server-side message filtering
+   * @returns A promise that resolves to a Publisher instance
+   * @throws {Error} If the declare command fails or filtering is not supported by the broker
+   * @example
+   * ```typescript
+   * // Simple publisher
+   * const publisher = await client.declarePublisher({ stream: 'my-stream' });
+   * await publisher.send(Buffer.from('Hello'));
+   *
+   * // Publisher with deduplication
+   * const dedupPublisher = await client.declarePublisher({
+   *   stream: 'my-stream',
+   *   publisherRef: 'unique-publisher-ref'
+   * });
+   * ```
+   */
   public async declarePublisher(params: DeclarePublisherParams, filter?: FilterFunc): Promise<Publisher> {
     const connection = await this.getConnection(params.stream, "publisher", params.connectionClosedListener)
     const publisherId = connection.getNextPublisherId()
@@ -187,6 +283,42 @@ export class Client {
     return res.ok
   }
 
+  /**
+   * Declare a consumer for a stream
+   *
+   * Consumers receive messages from a stream starting at a specified offset.
+   * They can be configured with various options including single active consumer mode,
+   * filtering, and custom credit policies.
+   *
+   * @param params - Consumer configuration including stream, offset, and optional settings
+   * @param handle - Message handler function that processes received messages
+   * @param superStreamConsumer - Optional super stream consumer for internal use
+   * @returns A promise that resolves to a Consumer instance
+   * @throws {Error} If the consumer cannot be declared or filtering is not supported
+   * @example
+   * ```typescript
+   * // Basic consumer
+   * const consumer = await client.declareConsumer(
+   *   { stream: 'my-stream', offset: Offset.first() },
+   *   (message) => console.log(message.content.toString())
+   * );
+   *
+   * // Single active consumer with offset tracking
+   * const sacConsumer = await client.declareConsumer(
+   *   {
+   *     stream: 'my-stream',
+   *     offset: Offset.first(),
+   *     singleActive: true,
+   *     consumerRef: 'my-consumer-group',
+   *     consumerUpdateListener: async (ref, stream) => {
+   *       const offset = await client.queryOffset({ reference: ref, stream });
+   *       return Offset.offset(offset);
+   *     }
+   *   },
+   *   (message) => console.log(message.content.toString())
+   * );
+   * ```
+   */
   public async declareConsumer(
     params: DeclareConsumerParams,
     handle: ConsumerFunc,
@@ -301,6 +433,27 @@ export class Client {
     return Array.from(this.consumers.values())
   }
 
+  /**
+   * Create a new stream on the RabbitMQ server
+   *
+   * @param params - Stream configuration including name and optional arguments (max-length-bytes, max-age, etc.)
+   * @returns A promise that resolves to true when the stream is created or already exists
+   * @throws {Error} If the create command fails with an error other than "already exists"
+   * @example
+   * ```typescript
+   * // Simple stream
+   * await client.createStream({ stream: 'my-stream' });
+   *
+   * // Stream with retention policy
+   * await client.createStream({
+   *   stream: 'my-stream',
+   *   arguments: {
+   *     'max-length-bytes': 10_000_000_000, // 10GB
+   *     'max-age': '7D' // 7 days
+   *   }
+   * });
+   * ```
+   */
   public async createStream(params: { stream: string; arguments?: CreateStreamArguments }): Promise<true> {
     this.logger.debug(`Create Stream...`)
     const res = await this.locatorConnection.sendAndWait<CreateStreamResponse>(new CreateStreamRequest(params))
@@ -315,6 +468,13 @@ export class Client {
     return res.ok
   }
 
+  /**
+   * Delete a stream from the RabbitMQ server
+   *
+   * @param params - Parameters containing the stream name to delete
+   * @returns A promise that resolves to true when the stream is deleted
+   * @throws {Error} If the delete command fails
+   */
   public async deleteStream(params: { stream: string }): Promise<true> {
     this.logger.debug(`Delete Stream...`)
     const res = await this.locatorConnection.sendAndWait<DeleteStreamResponse>(new DeleteStreamRequest(params.stream))
@@ -398,6 +558,28 @@ export class Client {
     return res
   }
 
+  /**
+   * Restart the client after a connection failure
+   *
+   * This method re-establishes all connections (locator, publishers, and consumers)
+   * and re-declares all publishers and consumers. Useful for automatic reconnection
+   * after network failures.
+   *
+   * @returns A promise that resolves when all connections are restarted
+   * @example
+   * ```typescript
+   * const client = await connect({
+   *   // ...connection params
+   *   listeners: {
+   *     connection_closed: (hadError) => {
+   *       client.restart()
+   *         .then(() => console.log('Reconnected'))
+   *         .catch(err => console.error('Reconnection failed', err));
+   *     }
+   *   }
+   * });
+   * ```
+   */
   public async restart() {
     this.logger.info(`Restarting client connection ${this.locatorConnection.connectionId}`)
     const uniqueConnectionIds = new Set<string>()
@@ -732,6 +914,23 @@ export class Client {
     this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
   }
 
+  /**
+   * Create and connect a new Client instance
+   *
+   * @param params - Connection parameters including hostname, port, credentials, and optional settings
+   * @param logger - Optional logger instance for debugging
+   * @returns A promise that resolves to a connected Client instance
+   * @example
+   * ```typescript
+   * const client = await Client.connect({
+   *   hostname: 'localhost',
+   *   port: 5552,
+   *   username: 'guest',
+   *   password: 'guest',
+   *   vhost: '/'
+   * });
+   * ```
+   */
   static async connect(params: ClientParams, logger?: Logger): Promise<Client> {
     return new Client(logger ?? new NullLogger(), {
       ...params,
@@ -740,6 +939,9 @@ export class Client {
   }
 }
 
+/**
+ * Listener callbacks for client events
+ */
 export type ClientListenersParams = {
   metadata_update?: MetadataUpdateListener
   publish_confirm?: ConnectionPublishConfirmListener
@@ -747,6 +949,9 @@ export type ClientListenersParams = {
   connection_closed?: ConnectionClosedListener
 }
 
+/**
+ * TLS/SSL connection parameters for secure connections
+ */
 export interface SSLConnectionParams {
   key?: string
   cert?: string
@@ -754,6 +959,9 @@ export interface SSLConnectionParams {
   rejectUnauthorized?: boolean
 }
 
+/**
+ * Configuration for load balancer/address resolver mode
+ */
 export type AddressResolverParams =
   | {
       enabled: true
@@ -761,6 +969,9 @@ export type AddressResolverParams =
     }
   | { enabled: false }
 
+/**
+ * Configuration parameters for connecting to RabbitMQ
+ */
 export interface ClientParams {
   hostname: string
   port: number
@@ -780,29 +991,54 @@ export interface ClientParams {
   connectionName?: string
 }
 
+/**
+ * Parameters for declaring a publisher
+ */
 export interface DeclarePublisherParams {
+  /** Name of the stream to publish to */
   stream: string
+  /** Optional reference for deduplication - if provided, enables publishing ID tracking */
   publisherRef?: string
+  /** Optional maximum chunk length for batching */
   maxChunkLength?: number
+  /** Optional callback when the publisher's connection closes */
   connectionClosedListener?: ConnectionClosedListener
 }
 
+/**
+ * Routing strategy for super stream publishers
+ */
 export type RoutingStrategy = "key" | "hash"
 
+/**
+ * Parameters for declaring a super stream publisher
+ */
 export interface DeclareSuperStreamPublisherParams {
   superStream: string
   publisherRef?: string
   routingStrategy?: RoutingStrategy
 }
 
+/**
+ * Function to filter messages on the client side
+ */
 export type MessageFilter = (msg: Message) => boolean
 
+/**
+ * Configuration for message filtering (both server-side and client-side)
+ */
 export interface ConsumerFilter {
+  /** Filter values for server-side bloom filter */
   values: string[]
+  /** Optional client-side post-filter function */
   postFilterFunc: MessageFilter
+  /** Whether to match messages without filter tags */
   matchUnfiltered: boolean
 }
 
+/**
+ * Parameters for declaring a consumer
+ */
 export interface DeclareConsumerParams {
   stream: string
   consumerRef?: string
@@ -848,6 +1084,59 @@ export interface QueryPartitionsParams {
   superStream: string
 }
 
+/**
+ * Connect to RabbitMQ and create a new Client instance
+ *
+ * This is the main entry point for creating a connection to RabbitMQ streams.
+ * It establishes a locator connection for metadata queries and sets up connection pooling.
+ *
+ * @param params - Connection parameters including hostname, port, credentials, and optional settings
+ * @param logger - Optional logger instance for debugging and monitoring
+ * @returns A promise that resolves to a connected Client instance
+ * @throws {Error} If connection fails (invalid credentials, network issues, etc.)
+ * @example
+ * ```typescript
+ * // Basic connection
+ * const client = await connect({
+ *   hostname: 'localhost',
+ *   port: 5552,
+ *   username: 'guest',
+ *   password: 'guest',
+ *   vhost: '/'
+ * });
+ *
+ * // Connection with TLS
+ * const secureClient = await connect({
+ *   hostname: 'rabbitmq.example.com',
+ *   port: 5551,
+ *   username: 'user',
+ *   password: 'pass',
+ *   vhost: '/',
+ *   ssl: {
+ *     cert: fs.readFileSync('client-cert.pem'),
+ *     key: fs.readFileSync('client-key.pem'),
+ *     ca: fs.readFileSync('ca-cert.pem')
+ *   }
+ * });
+ *
+ * // Connection with listeners
+ * const client = await connect({
+ *   hostname: 'localhost',
+ *   port: 5552,
+ *   username: 'guest',
+ *   password: 'guest',
+ *   vhost: '/',
+ *   listeners: {
+ *     connection_closed: (hadError) => {
+ *       console.log('Connection closed', hadError);
+ *     },
+ *     publish_confirm: (confirm, connId) => {
+ *       console.log('Message confirmed', confirm.publishingId);
+ *     }
+ *   }
+ * });
+ * ```
+ */
 export function connect(params: ClientParams, logger?: Logger): Promise<Client> {
   return Client.connect(params, logger)
 }

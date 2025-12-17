@@ -1,4 +1,15 @@
 {
   "language": "en",
-  "words": ["ackmode", "ampq", "prefetch", "amqpvalue", "RABBITMQ", "Sasl", "Vbin", "akey", "superstream"]
+  "words": [
+    "ackmode",
+    "akey",
+    "ampq",
+    "amqpvalue",
+    "dedup",
+    "prefetch",
+    "RABBITMQ",
+    "Sasl",
+    "superstream",
+    "Vbin"
+  ]
 }
