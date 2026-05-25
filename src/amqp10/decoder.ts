@@ -31,6 +31,8 @@ export const FormatCode = {
   Int: 0x71,
   SmallUint: 0x52,
   SmallInt: 0x54,
+  SmallLong: 0x55,
+  Long: 0x81,
   Timestamp: 0x83,
   Bool: 0x56,
   BoolTrue: 0x41,

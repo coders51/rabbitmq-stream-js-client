@@ -438,8 +438,12 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return dataResponse.readUInt32()
     case FormatCode.SmallInt:
       return dataResponse.readInt8()
+    case FormatCode.SmallLong:
+      return dataResponse.readInt8()
     case FormatCode.Int:
       return dataResponse.readInt32()
+    case FormatCode.Long:
+      return dataResponse.readInt64()
     case FormatCode.Bool:
     case FormatCode.BoolTrue:
     case FormatCode.BoolFalse:
