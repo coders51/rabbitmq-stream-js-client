@@ -51,6 +51,7 @@ export const wait = async (ms: number) => {
 export const ResponseCode = {
   StreamDoesNotExist: 2,
   SubscriptionIdDoesNotExist: 4,
+  NoOffset: 19,
 } as const
 
 export const isString = (value: unknown): boolean => typeof value === "string"

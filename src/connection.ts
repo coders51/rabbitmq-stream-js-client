@@ -57,6 +57,7 @@ import { coerce, lt } from "semver"
 import EventEmitter from "events"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { MetadataInfo } from "./responses/raw_response"
+import { StreamResponseError } from "./stream_response_error"
 
 /**
  * Callback invoked when a connection closes
@@ -683,7 +684,7 @@ export class Connection {
     this.logger.debug(`Query Offset...`)
     const res = await this.sendAndWait<QueryOffsetResponse>(new QueryOffsetRequest(params))
     if (!res.ok) {
-      throw new Error(`Query offset command returned error with code ${res.code}`)
+      throw new StreamResponseError(`Query offset command returned error with code ${res.code}`, res.code)
     }
     this.logger.debug(`Query Offset response: ${res.ok} with params: '${inspect(params)}'`)
     return res.offsetValue
