@@ -516,6 +516,63 @@ describe("declare consumer", () => {
         expect(receivedMessage?.messageHeader!.priority).deep.equal(headers.priority)
       })
     }).timeout(10000)
+
+    it.only("the complex message should be handled", async () => {
+      const headers = {
+        attemptID: 1,
+        chainIndex: 1,
+        A: "hell.world",
+        ID: 55,
+        placedInDLQ: 1764156981485,
+        recursiveDepth: 1,
+        taskIdentifier: "107",
+        timestamp: 1764156978730,
+        "x-death": [
+          {
+            count: 1,
+            reason: "expired",
+            queue: "delay-level-02-queue",
+            time: { "!": "timestamp", value: 1764180998 },
+            exchange: "delay-level-02-exchange",
+            "routing-keys": ["0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.0.0"],
+          },
+        ],
+        "x-first-death-exchange": "delay-level-02-exchange",
+        "x-first-death-queue": "delay-level-02-queue",
+        "x-first-death-reason": "expired",
+        "x-last-death-exchange": "delay-level-02-exchange",
+        "x-last-death-queue": "delay-level-02-queue",
+        "x-last-death-reason": "expired",
+        "x-stream-filter-value": "55_1764156978",
+        "x-stream-offset": 30000,
+      }
+      const streamQueue = "debug_work_queue.dlq"
+      await client.createStream({ stream: streamQueue, arguments: { "max-age": "14D" } })
+
+      amqpChannel.sendToQueue("debug_work_queue.dlq", Buffer.from("gap0YXNrTnVtYmVyoTA="), {
+        headers,
+        deliveryMode: 2,
+        priority: 8,
+        messageId: "7ebdbb2c-5726-49ae-b24f-335158f04f1c",
+        type: "message_type",
+        "x-stream-filter-value": "55_1764156978",
+        "x-stream-offset": 30771,
+      })
+      let receivedMessage: Message
+      await client.declareConsumer(
+        { stream: streamQueue, consumerRef: "debug_consumer", offset: Offset.first() },
+        (msg) => {
+          receivedMessage = msg
+          // console.log("RECEIVED", msg)
+        }
+      )
+
+      await eventually(async () => {
+        expect(receivedMessage?.content.toString()).eql("gap0YXNrTnVtYmVyoTA=")
+        expect(receivedMessage?.messageHeader).deep.equal(headers)
+      })
+      await client.deleteStream({ stream: streamQueue })
+    }).timeout(10000)
   })
 })
 
