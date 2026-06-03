@@ -1,15 +1,15 @@
-export class StreamResponseError extends Error {
-  readonly #code?: number
+import { ResponseCodeValue } from "./util"
 
-  constructor(message: string, rmqStreamResponseCode?: number) {
+export class StreamResponseError extends Error {
+
+  constructor(message: string, private readonly streamResponseCode: ResponseCodeValue) {
     super(message)
 
     this.name = this.constructor.name
-    this.#code = rmqStreamResponseCode ?? undefined
   }
 
-  public get code(): number | undefined {
-    return this.#code
+  public get code(): ResponseCodeValue {
+    return this.streamResponseCode
   }
 }
 

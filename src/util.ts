@@ -54,4 +54,6 @@ export const ResponseCode = {
   NoOffset: 19,
 } as const
 
+export type ResponseCodeValue = typeof ResponseCode[keyof typeof ResponseCode];
+
 export const isString = (value: unknown): boolean => typeof value === "string"
