@@ -383,6 +383,7 @@ export class StreamPublisher implements Publisher {
     if (!this.closed) {
       await this.flush()
       await this.pool.releaseConnection(this.connection, true)
+      this.connection.freePublisherId(this.publisherId)
     }
     this._closed = true
   }
@@ -391,6 +392,7 @@ export class StreamPublisher implements Publisher {
     if (!this.closed) {
       await this.flush()
       await this.pool.releaseConnection(this.connection, false)
+      this.connection.freePublisherId(this.publisherId)
     }
     this._closed = true
   }

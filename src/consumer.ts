@@ -162,11 +162,13 @@ export class StreamConsumer implements Consumer {
   async close(): Promise<void> {
     this.closed = true
     await this.pool.releaseConnection(this.connection, true)
+    this.connection.freeConsumerId(this.consumerId)
   }
 
   async automaticClose(): Promise<void> {
     this.closed = true
     await this.pool.releaseConnection(this.connection, false)
+    this.connection.freeConsumerId(this.consumerId)
   }
 
   public storeOffset(offsetValue?: bigint): Promise<void> {
