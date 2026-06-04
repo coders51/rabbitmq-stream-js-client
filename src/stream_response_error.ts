@@ -1,14 +1,14 @@
-import { ResponseCodeValue } from "./util"
-
 export class StreamResponseError extends Error {
-
-  constructor(message: string, private readonly streamResponseCode: ResponseCodeValue) {
+  constructor(
+    message: string,
+    private readonly streamResponseCode: number
+  ) {
     super(message)
 
     this.name = this.constructor.name
   }
 
-  public get code(): ResponseCodeValue {
+  public get code(): number {
     return this.streamResponseCode
   }
 }
