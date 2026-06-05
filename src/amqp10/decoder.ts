@@ -24,6 +24,7 @@ export const FormatCode = {
   Null: 0x40,
   ULong0: 0x44,
   Ubyte: 0x50,
+  Byte: 0x51,
   SmallUlong: 0x53,
   ULong: 0x80,
   Uint: 0x70,
