@@ -407,7 +407,7 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       dataResponse.readUInt32()
       return dataResponse.readUInt32()
     case FormatCode.SmallUlong:
-      return dataResponse.readInt8() // Read a SmallUlong
+      return dataResponse.readUInt8() // Read a SmallUlong
     case FormatCode.Ubyte:
       return dataResponse.readUInt8()
     case FormatCode.ULong:
