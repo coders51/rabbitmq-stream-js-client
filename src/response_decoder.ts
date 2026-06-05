@@ -454,6 +454,8 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return 0
     case FormatCode.ULong0:
       return 0
+    case FormatCode.Timestamp:
+      return dataResponse.readUInt64();
     default:
       throw new Error(`FormatCode Invalid type ${formatCode}`)
   }
