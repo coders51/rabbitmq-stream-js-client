@@ -335,7 +335,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
   decodeFormatCode(dataResponse, nextType)
 
   const formatCode = dataResponse.readUInt8()
-  const propertiesLength = decodeFormatCode(dataResponse, formatCode)
+  const propertiesLength = decodeListHeader(dataResponse, formatCode)
 
   return Properties.parse(dataResponse, propertiesLength as number)
 }
@@ -350,9 +350,37 @@ function decodeMessageHeader(dataResponse: DataReader) {
   decodeAmqpValue(dataResponse)
 
   const formatCode = dataResponse.readUInt8()
-  const headerLength = decodeFormatCode(dataResponse, formatCode)
+  const headerLength = decodeListHeader(dataResponse, formatCode)
 
-  return Header.parse(dataResponse, headerLength as number)
+  return Header.parse(dataResponse, headerLength)
+}
+
+function decodeListHeader(dataResponse: DataReader, formatCode: number) {
+  switch (formatCode) {
+    case FormatCode.List0:
+      return 0;
+    case FormatCode.List8:
+      dataResponse.forward(1)
+      return dataResponse.readUInt8()
+    case FormatCode.List32:
+      dataResponse.forward(4)
+      return dataResponse.readUInt32()
+    default:
+      throw new Error("Invalid list header")
+  }
+}
+
+function decodeList(dataResponse: DataReader, formatCode: number) {
+  const length = decodeListHeader(dataResponse, formatCode);
+  
+  const list = [];
+  for (let i = 0; i < length; i++) {
+    const elemFormatCode = dataResponse.readUInt8()
+    const elemValue = decodeFormatCode(dataResponse, elemFormatCode) as any
+    list.push(elemValue);
+  }
+
+  return list;
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -415,13 +443,9 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
     case FormatCode.ULong:
       return dataResponse.readUInt64() // Read an ULong
     case FormatCode.List0:
-      return 0
     case FormatCode.List8:
-      dataResponse.forward(1)
-      return dataResponse.readInt8() // Read length of List8
     case FormatCode.List32:
-      dataResponse.forward(4)
-      return dataResponse.readInt32()
+      return decodeList(dataResponse, formatCode)
     case FormatCode.Vbin8:
       return dataResponse.readUInt8()
     case FormatCode.Vbin32:
