@@ -456,6 +456,8 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return 0
     case FormatCode.Timestamp:
       return dataResponse.readUInt64();
+    case FormatCode.Short:
+      return dataResponse.readInt16();
     default:
       throw new Error(`FormatCode Invalid type ${formatCode}`)
   }
@@ -499,6 +501,12 @@ export class BufferDataReader implements DataReader {
   readUInt8(): number {
     const ret = this.data.readUInt8(this.offset)
     this.offset += 1
+    return ret
+  }
+
+  readInt16(): number {
+    const ret = this.data.readInt16BE(this.offset)
+    this.offset += 2
     return ret
   }
 
