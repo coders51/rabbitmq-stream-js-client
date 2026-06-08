@@ -312,14 +312,14 @@ function decodeSubEntries(dataResponse: DataReader, compression: Compression, lo
 
 function decodeApplicationProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
-  const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
+  const applicationPropertiesLength = decodeMapHeader(dataResponse, formatCode)
 
   return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
 }
 
 function decodeMessageAnnotations(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
-  const messageAnnotationsLength = decodeFormatCode(dataResponse, formatCode)
+  const messageAnnotationsLength = decodeMapHeader(dataResponse, formatCode)
 
   return Annotations.parse(dataResponse, messageAnnotationsLength as number)
 }
@@ -383,6 +383,34 @@ function decodeList(dataResponse: DataReader, formatCode: number) {
   return list;
 }
 
+function decodeMapHeader(dataResponse: DataReader, formatCode: number) {
+  switch (formatCode) {
+    case FormatCode.Map8:
+      dataResponse.forward(1)
+      return dataResponse.readUInt8()
+    case FormatCode.Map32:
+      dataResponse.forward(4)
+      return dataResponse.readUInt32()
+    default:
+      throw new Error("Invalid map header")
+  }
+}
+
+function decodeMap(dataResponse: DataReader, formatCode: number) {
+  const size = decodeMapHeader(dataResponse, formatCode);
+
+  const map: Record<string, unknown> = {};
+  for (let i = 0; i < size / 2; i++) {
+    const keyFormatCode = dataResponse.readUInt8();
+    const key = decodeFormatCode(dataResponse, keyFormatCode) as string
+    const valueFormatCode = dataResponse.readUInt8()
+    const value = decodeFormatCode(dataResponse, valueFormatCode)
+    map[key] = value;
+  }
+
+  return map;
+}
+
 function decodeApplicationData(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const length = decodeFormatCode(dataResponse, formatCode)
@@ -427,13 +455,8 @@ export function decodeBooleanType(dataResponse: DataReader, boolType: number) {
 export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
   switch (formatCode) {
     case FormatCode.Map8:
-      // Read first empty byte
-      dataResponse.readUInt8()
-      return dataResponse.readUInt8()
     case FormatCode.Map32:
-      // Read first empty four bytes
-      dataResponse.readUInt32()
-      return dataResponse.readUInt32()
+      return decodeMap(dataResponse, formatCode)
     case FormatCode.SmallUlong:
       return dataResponse.readUInt8() // Read a SmallUlong
     case FormatCode.Byte:
