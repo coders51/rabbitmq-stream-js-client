@@ -1,4 +1,5 @@
 import { expect } from "chai"
+import { coerce, lt } from "semver"
 import { Client, Offset } from "../../src"
 import { Message, MessageOptions } from "../../src/publisher"
 import { range } from "../../src/util"
@@ -167,6 +168,45 @@ describe("super stream consumer", () => {
         expect(connections).to.have.length(0)
       }, 5000)
     }).timeout(5000)
+
+    it("published messages are filtered on the consumer side", async function () {
+      // eslint-disable-next-line no-invalid-this
+      if (lt(coerce(client.rabbitManagementVersion)!, "3.13.0")) this.skip()
+
+      const routingKey = "key"
+      const filteredMsg: string[] = []
+      const publisher = await client.declareSuperStreamPublisher(
+        { superStream: superStreamName, publisherRef: `my-publisher-${randomUUID()}` },
+        () => routingKey,
+        (msg) => msg.applicationProperties!["test"].toString()
+      )
+      const applicationProperties1 = { test: "A" }
+      const applicationProperties2 = { test: "B" }
+      const applicationProperties3 = { test: "C" }
+      await publisher.send(Buffer.from("test1"), { applicationProperties: applicationProperties1 })
+      await publisher.send(Buffer.from("test2"), { applicationProperties: applicationProperties2 })
+      await publisher.send(Buffer.from("test3"), { applicationProperties: applicationProperties3 })
+
+      await client.declareSuperStreamConsumer(
+        {
+          superStream: superStreamName,
+          offset: Offset.first(),
+          filter: {
+            values: ["A", "B"],
+            postFilterFunc: (msg) => msg.applicationProperties!["test"] === "A",
+            matchUnfiltered: true,
+          },
+        },
+        (msg) => {
+          filteredMsg.push(msg.content.toString("utf-8"))
+        }
+      )
+
+      await eventually(async () => {
+        expect(filteredMsg[0]).eql("test1")
+        expect(filteredMsg.length).eql(1)
+      }, 10000)
+    }).timeout(10000)
   })
 
   describe("deterministic partitioning", () => {
