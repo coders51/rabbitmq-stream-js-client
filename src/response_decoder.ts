@@ -314,14 +314,14 @@ function decodeApplicationProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const applicationPropertiesLength = decodeMapHeader(dataResponse, formatCode)
 
-  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
+  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength)
 }
 
 function decodeMessageAnnotations(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const messageAnnotationsLength = decodeMapHeader(dataResponse, formatCode)
 
-  return Annotations.parse(dataResponse, messageAnnotationsLength as number)
+  return Annotations.parse(dataResponse, messageAnnotationsLength)
 }
 
 function decodeMessageProperties(dataResponse: DataReader) {
@@ -337,7 +337,7 @@ function decodeMessageProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
   const propertiesLength = decodeListHeader(dataResponse, formatCode)
 
-  return Properties.parse(dataResponse, propertiesLength as number)
+  return Properties.parse(dataResponse, propertiesLength)
 }
 
 function decodeMessageHeader(dataResponse: DataReader) {
@@ -376,7 +376,7 @@ function decodeList(dataResponse: DataReader, formatCode: number) {
   const list = []
   for (let i = 0; i < length; i++) {
     const elemFormatCode = dataResponse.readUInt8()
-    const elemValue = decodeFormatCode(dataResponse, elemFormatCode) as any
+    const elemValue = decodeFormatCode(dataResponse, elemFormatCode) as unknown
     list.push(elemValue)
   }
 

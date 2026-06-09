@@ -197,7 +197,7 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
         const formatCodeHeader = dataResponse.readUInt8()
         const headerLength = decodeListHeader(dataResponse, formatCodeHeader)
         if (!headerLength) throw new Error(`invalid formatCode %#02x: ${formatCodeHeader}`)
-        messageHeader = Header.parse(dataResponse, headerLength as number)
+        messageHeader = Header.parse(dataResponse, headerLength)
         break
       case FormatCodeType.AmqpValue:
         const amqpFormatCode = dataResponse.readUInt8()
