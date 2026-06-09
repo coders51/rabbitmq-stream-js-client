@@ -394,9 +394,17 @@ export class Client {
     })
   }
 
+  /**
+   * Declare a publisher for a super stream
+   *
+   * @param params - Super stream publisher configuration
+   * @param keyExtractor - Function to extract the routing key from a message
+   * @param filter - Optional filter function for server-side message filtering on each partition publisher
+   */
   public async declareSuperStreamPublisher(
     { superStream, publisherRef, routingStrategy }: DeclareSuperStreamPublisherParams,
-    keyExtractor: MessageKeyExtractorFunction
+    keyExtractor: MessageKeyExtractorFunction,
+    filter?: FilterFunc
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
       locator: this,
@@ -404,6 +412,7 @@ export class Client {
       keyExtractor,
       publisherRef,
       routingStrategy,
+      filter,
     })
   }
 
