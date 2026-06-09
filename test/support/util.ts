@@ -7,7 +7,7 @@ import { FormatCodeType } from "../../src/amqp10/decoder"
 import { Header } from "../../src/amqp10/messageHeader"
 import { Properties } from "../../src/amqp10/properties"
 import { Message, MessageApplicationProperties, MessageHeader, MessageProperties, Publisher } from "../../src/publisher"
-import { decodeFormatCode } from "../../src/response_decoder"
+import { decodeFormatCode, decodeListHeader } from "../../src/response_decoder"
 import { DataReader } from "../../src/responses/raw_response"
 
 export function createConsoleLog({ silent, level } = { silent: false, level: "debug" }) {
@@ -195,7 +195,7 @@ export function decodeMessageTesting(dataResponse: DataReader, length: number): 
         const nextMessageHeaderType = dataResponse.readInt8()
         decodeFormatCode(dataResponse, nextMessageHeaderType)
         const formatCodeHeader = dataResponse.readUInt8()
-        const headerLength = decodeFormatCode(dataResponse, formatCodeHeader)
+        const headerLength = decodeListHeader(dataResponse, formatCodeHeader)
         if (!headerLength) throw new Error(`invalid formatCode %#02x: ${formatCodeHeader}`)
         messageHeader = Header.parse(dataResponse, headerLength as number)
         break

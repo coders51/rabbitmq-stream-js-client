@@ -355,10 +355,10 @@ function decodeMessageHeader(dataResponse: DataReader) {
   return Header.parse(dataResponse, headerLength)
 }
 
-function decodeListHeader(dataResponse: DataReader, formatCode: number) {
+export function decodeListHeader(dataResponse: DataReader, formatCode: number) {
   switch (formatCode) {
     case FormatCode.List0:
-      return 0;
+      return 0
     case FormatCode.List8:
       dataResponse.forward(1)
       return dataResponse.readUInt8()
@@ -371,16 +371,16 @@ function decodeListHeader(dataResponse: DataReader, formatCode: number) {
 }
 
 function decodeList(dataResponse: DataReader, formatCode: number) {
-  const length = decodeListHeader(dataResponse, formatCode);
-  
-  const list = [];
+  const length = decodeListHeader(dataResponse, formatCode)
+
+  const list = []
   for (let i = 0; i < length; i++) {
     const elemFormatCode = dataResponse.readUInt8()
     const elemValue = decodeFormatCode(dataResponse, elemFormatCode) as any
-    list.push(elemValue);
+    list.push(elemValue)
   }
 
-  return list;
+  return list
 }
 
 function decodeMapHeader(dataResponse: DataReader, formatCode: number) {
@@ -397,18 +397,18 @@ function decodeMapHeader(dataResponse: DataReader, formatCode: number) {
 }
 
 function decodeMap(dataResponse: DataReader, formatCode: number) {
-  const size = decodeMapHeader(dataResponse, formatCode);
+  const size = decodeMapHeader(dataResponse, formatCode)
 
-  const map: Record<string, unknown> = {};
+  const map: Record<string, unknown> = {}
   for (let i = 0; i < size / 2; i++) {
-    const keyFormatCode = dataResponse.readUInt8();
+    const keyFormatCode = dataResponse.readUInt8()
     const key = decodeFormatCode(dataResponse, keyFormatCode) as string
     const valueFormatCode = dataResponse.readUInt8()
     const value = decodeFormatCode(dataResponse, valueFormatCode)
-    map[key] = value;
+    map[key] = value
   }
 
-  return map;
+  return map
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -493,6 +493,8 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return dataResponse.readInt32()
     case FormatCode.Long:
       return dataResponse.readInt64()
+    case FormatCode.Double:
+      return dataResponse.readDouble()
     case FormatCode.Bool:
     case FormatCode.BoolTrue:
     case FormatCode.BoolFalse:
@@ -502,9 +504,9 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
     case FormatCode.ULong0:
       return 0
     case FormatCode.Timestamp:
-      return dataResponse.readUInt64();
+      return dataResponse.readUInt64()
     case FormatCode.Short:
-      return dataResponse.readInt16();
+      return dataResponse.readInt16()
     default:
       throw new Error(`FormatCode Invalid type ${formatCode}`)
   }
