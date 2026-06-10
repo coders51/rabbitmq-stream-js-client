@@ -4,8 +4,22 @@ import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_pol
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
 
+/**
+ * Handler invoked for every message received from a super stream
+ *
+ * @param msg - The received message
+ * @param consumer - The partition consumer that delivered the message
+ */
 export type SuperStreamConsumerFunc = (msg: Message, consumer: Consumer) => Promise<void> | void
 
+/**
+ * Consumes messages from a super stream
+ *
+ * A super stream is a logical stream made of several partitions, each one a
+ * regular stream. This consumer declares one single-active {@link Consumer} per
+ * partition, all sharing the same consumer reference, so that messages from
+ * every partition are delivered to a single handler.
+ */
 export class SuperStreamConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
   public consumerRef: string
@@ -34,6 +48,7 @@ export class SuperStreamConsumer {
     this.creditPolicy = params.creditPolicy || defaultCreditPolicy
   }
 
+  /** Declare a single-active consumer on every partition of the super stream */
   async start(): Promise<void> {
     await Promise.all(
       this.partitions.map(async (p) => {
@@ -59,6 +74,13 @@ export class SuperStreamConsumer {
     )
   }
 
+  /**
+   * Create and start a super stream consumer
+   *
+   * Declares the per-partition consumers so the handler starts receiving messages.
+   *
+   * @param handle - The handler invoked for every received message
+   */
   static async create(
     handle: SuperStreamConsumerFunc,
     params: {
@@ -75,6 +97,7 @@ export class SuperStreamConsumer {
     return superStreamConsumer
   }
 
+  /** Close every per-partition consumer */
   async close(): Promise<void> {
     await Promise.all([...this.consumers.values()].map((c) => c.close()))
   }

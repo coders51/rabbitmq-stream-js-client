@@ -62,9 +62,9 @@ export interface Consumer {
   getOffset(): bigint
 
   /**
-   * Gets the infos of the publisher's connection
+   * Gets the infos of the consumer's connection
    *
-   * @returns {ConnectionInfo} Infos on the publisher's connection
+   * @returns {ConnectionInfo} Infos on the consumer's connection
    */
   getConnectionInfo(): ConnectionInfo
 

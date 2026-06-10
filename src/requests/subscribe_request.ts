@@ -12,6 +12,12 @@ const OFFSET_TYPE = {
 
 export type OffsetType = keyof typeof OFFSET_TYPE
 
+/**
+ * The position in a stream from which a consumer starts reading
+ *
+ * Offsets are created through the static factory methods rather than the
+ * constructor, e.g. `Offset.first()` or `Offset.offset(42n)`.
+ */
 export class Offset {
   private constructor(
     public readonly type: OffsetType,
@@ -24,26 +30,40 @@ export class Offset {
     if (this.type === "timestamp" && this.value) writer.writeInt64(this.value)
   }
 
+  /** Start reading from the first available offset in the stream */
   static first() {
     return new Offset("first")
   }
 
+  /** Start reading from the last chunk of messages currently in the stream */
   static last() {
     return new Offset("last")
   }
 
+  /** Start reading from the next offset to be written (i.e. only new messages) */
   static next() {
     return new Offset("next")
   }
 
+  /**
+   * Start reading from a specific numeric offset
+   *
+   * @param offset - The offset to start from
+   */
   static offset(offset: bigint) {
     return new Offset("numeric", offset)
   }
 
+  /**
+   * Start reading from the first message stored after the given timestamp
+   *
+   * @param date - The point in time to start reading from
+   */
   static timestamp(date: Date) {
     return new Offset("timestamp", BigInt(date.getTime()))
   }
 
+  /** Create an independent copy of this offset */
   public clone() {
     return new Offset(this.type, this.value)
   }
