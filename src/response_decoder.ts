@@ -1,7 +1,7 @@
 import { EventEmitter } from "events"
 import { inspect } from "util"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
-import { FormatCode, FormatCodeType } from "./amqp10/decoder"
+import { AmqpValue, FormatCode, FormatCodeType } from "./amqp10/decoder"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
 import { Properties } from "./amqp10/properties"
@@ -373,10 +373,10 @@ export function decodeListHeader(dataResponse: DataReader, formatCode: number) {
 function decodeList(dataResponse: DataReader, formatCode: number) {
   const length = decodeListHeader(dataResponse, formatCode)
 
-  const list = []
+  const list: AmqpValue[] = []
   for (let i = 0; i < length; i++) {
     const elemFormatCode = dataResponse.readUInt8()
-    const elemValue = decodeFormatCode(dataResponse, elemFormatCode) as unknown
+    const elemValue = decodeFormatCode(dataResponse, elemFormatCode)
     list.push(elemValue)
   }
 
@@ -399,7 +399,7 @@ function decodeMapHeader(dataResponse: DataReader, formatCode: number) {
 function decodeMap(dataResponse: DataReader, formatCode: number) {
   const size = decodeMapHeader(dataResponse, formatCode)
 
-  const map: Record<string, unknown> = {}
+  const map: Record<string, AmqpValue> = {}
   for (let i = 0; i < size / 2; i++) {
     const keyFormatCode = dataResponse.readUInt8()
     const key = decodeFormatCode(dataResponse, keyFormatCode) as string
@@ -452,7 +452,7 @@ export function decodeBooleanType(dataResponse: DataReader, boolType: number) {
   }
 }
 
-export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number): AmqpValue {
   switch (formatCode) {
     case FormatCode.Map8:
     case FormatCode.Map32:

@@ -47,3 +47,9 @@ export const PropertySizeDescription =
   1 + // sizeOf FormatCode.List32 (byte)
   4 + // sizeOf field numbers (uint)
   4 // sizeof propertySize (uint)
+
+export type AmqpMap = {
+  [key: string]: AmqpValue
+}
+
+export type AmqpValue = boolean | number | bigint | string | AmqpValue[] | AmqpMap
