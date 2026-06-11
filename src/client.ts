@@ -379,6 +379,12 @@ export class Client {
     return true
   }
 
+  /**
+   * Declare a consumer for a super stream
+   *
+   * @param params - Super stream consumer configuration, including optional filter for server-side message filtering on each partition consumer
+   * @param handle - Message handler function that processes received messages
+   */
   public async declareSuperStreamConsumer(
     { superStream, offset, consumerRef, creditPolicy, filter }: DeclareSuperStreamConsumerParams,
     handle: SuperStreamConsumerFunc
@@ -398,14 +404,12 @@ export class Client {
   /**
    * Declare a publisher for a super stream
    *
-   * @param params - Super stream publisher configuration
+   * @param params - Super stream publisher configuration, including optional filter for server-side message filtering on each partition publisher
    * @param keyExtractor - Function to extract the routing key from a message
-   * @param filter - Optional filter function for server-side message filtering on each partition publisher
    */
   public async declareSuperStreamPublisher(
-    { superStream, publisherRef, routingStrategy }: DeclareSuperStreamPublisherParams,
-    keyExtractor: MessageKeyExtractorFunction,
-    filter?: FilterFunc
+    { superStream, publisherRef, routingStrategy, filter }: DeclareSuperStreamPublisherParams,
+    keyExtractor: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
       locator: this,
@@ -1027,6 +1031,7 @@ export interface DeclareSuperStreamPublisherParams {
   superStream: string
   publisherRef?: string
   routingStrategy?: RoutingStrategy
+  filter?: FilterFunc
 }
 
 /**
