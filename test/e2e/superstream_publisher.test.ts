@@ -339,5 +339,4 @@ describe("super stream publisher", () => {
       }
     }, 5000)
   })
-
 })
