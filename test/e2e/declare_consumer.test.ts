@@ -516,6 +516,69 @@ describe("declare consumer", () => {
         expect(receivedMessage?.messageHeader!.priority).deep.equal(headers.priority)
       })
     }).timeout(10000)
+
+    it("the complex message should be handled", async () => {
+      const streamQueue = "test_queue"
+      const message = "gap0YXNrTnVtYmVyoTA="
+
+      try {
+        const applicationProperties = {
+          byte: 127,
+          short: 32767,
+          int: 2147483647,
+          long: 2147483648,
+          double: 9223372036854775807,
+          string: "some_string",
+        }
+
+        const messageAnnotations = {
+          "x-list": ["elem1", "elem2", 3, false, { nested: "map" }],
+          "x-map": {
+            key1: 1,
+            key2: true,
+            key3: ["nested", "list"],
+          },
+        }
+
+        const headers = {
+          ...applicationProperties,
+          ...messageAnnotations,
+        }
+
+        await client.createStream({ stream: streamQueue, arguments: { "max-age": "14D" } })
+
+        amqpChannel.sendToQueue(streamQueue, Buffer.from(message), { headers })
+        let receivedMessage: Message
+        await client.declareConsumer(
+          { stream: streamQueue, consumerRef: "debug_consumer", offset: Offset.first() },
+          (msg) => {
+            receivedMessage = msg
+          }
+        )
+
+        await eventually(async () => {
+          // message
+          expect(receivedMessage?.content.toString()).deep.equal(message)
+
+          // basic types
+          expect(receivedMessage?.applicationProperties?.byte).deep.equal(applicationProperties.byte)
+          expect(receivedMessage?.applicationProperties?.short).deep.equal(applicationProperties.short)
+          expect(receivedMessage?.applicationProperties?.int).deep.equal(applicationProperties.int)
+          expect(receivedMessage?.applicationProperties?.long).deep.equal(BigInt(applicationProperties.long))
+          expect(receivedMessage?.applicationProperties?.double).deep.equal(applicationProperties.double)
+          expect(receivedMessage?.applicationProperties?.string).deep.equal(applicationProperties.string)
+
+          // composite types
+          expect(receivedMessage?.messageAnnotations).deep.equal({
+            ...messageAnnotations,
+            "x-exchange": "",
+            "x-routing-key": streamQueue,
+          })
+        })
+      } finally {
+        await client.deleteStream({ stream: streamQueue })
+      }
+    }).timeout(10000)
   })
 })
 

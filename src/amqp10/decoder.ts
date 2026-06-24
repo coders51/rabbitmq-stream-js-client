@@ -24,6 +24,7 @@ export const FormatCode = {
   Null: 0x40,
   ULong0: 0x44,
   Ubyte: 0x50,
+  Byte: 0x51,
   SmallUlong: 0x53,
   ULong: 0x80,
   Uint: 0x70,
@@ -32,7 +33,9 @@ export const FormatCode = {
   SmallUint: 0x52,
   SmallInt: 0x54,
   SmallLong: 0x55,
+  Short: 0x61,
   Long: 0x81,
+  Double: 0x82,
   Timestamp: 0x83,
   Bool: 0x56,
   BoolTrue: 0x41,
@@ -44,3 +47,9 @@ export const PropertySizeDescription =
   1 + // sizeOf FormatCode.List32 (byte)
   4 + // sizeOf field numbers (uint)
   4 // sizeof propertySize (uint)
+
+export type AmqpMap = {
+  [key: string]: AmqpValue
+}
+
+export type AmqpValue = boolean | number | bigint | string | AmqpValue[] | AmqpMap

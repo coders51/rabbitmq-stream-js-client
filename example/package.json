@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "amqplib": "^0.10.3",
+    "amqplib": "^0.10.9",
     "rabbitmq-stream-js-client": "file:../."
   },
   "engines": {

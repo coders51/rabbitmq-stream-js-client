@@ -1,7 +1,7 @@
 import { EventEmitter } from "events"
 import { inspect } from "util"
 import { ApplicationProperties } from "./amqp10/applicationProperties"
-import { FormatCode, FormatCodeType } from "./amqp10/decoder"
+import { AmqpValue, FormatCode, FormatCodeType } from "./amqp10/decoder"
 import { Annotations } from "./amqp10/messageAnnotations"
 import { Header } from "./amqp10/messageHeader"
 import { Properties } from "./amqp10/properties"
@@ -312,16 +312,16 @@ function decodeSubEntries(dataResponse: DataReader, compression: Compression, lo
 
 function decodeApplicationProperties(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
-  const applicationPropertiesLength = decodeFormatCode(dataResponse, formatCode)
+  const applicationPropertiesLength = decodeMapHeader(dataResponse, formatCode)
 
-  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength as number)
+  return ApplicationProperties.parse(dataResponse, applicationPropertiesLength)
 }
 
 function decodeMessageAnnotations(dataResponse: DataReader) {
   const formatCode = dataResponse.readUInt8()
-  const messageAnnotationsLength = decodeFormatCode(dataResponse, formatCode)
+  const messageAnnotationsLength = decodeMapHeader(dataResponse, formatCode)
 
-  return Annotations.parse(dataResponse, messageAnnotationsLength as number)
+  return Annotations.parse(dataResponse, messageAnnotationsLength)
 }
 
 function decodeMessageProperties(dataResponse: DataReader) {
@@ -335,9 +335,9 @@ function decodeMessageProperties(dataResponse: DataReader) {
   decodeFormatCode(dataResponse, nextType)
 
   const formatCode = dataResponse.readUInt8()
-  const propertiesLength = decodeFormatCode(dataResponse, formatCode)
+  const propertiesLength = decodeListHeader(dataResponse, formatCode)
 
-  return Properties.parse(dataResponse, propertiesLength as number)
+  return Properties.parse(dataResponse, propertiesLength)
 }
 
 function decodeMessageHeader(dataResponse: DataReader) {
@@ -350,9 +350,65 @@ function decodeMessageHeader(dataResponse: DataReader) {
   decodeAmqpValue(dataResponse)
 
   const formatCode = dataResponse.readUInt8()
-  const headerLength = decodeFormatCode(dataResponse, formatCode)
+  const headerLength = decodeListHeader(dataResponse, formatCode)
 
-  return Header.parse(dataResponse, headerLength as number)
+  return Header.parse(dataResponse, headerLength)
+}
+
+export function decodeListHeader(dataResponse: DataReader, formatCode: number) {
+  switch (formatCode) {
+    case FormatCode.List0:
+      return 0
+    case FormatCode.List8:
+      dataResponse.forward(1)
+      return dataResponse.readUInt8()
+    case FormatCode.List32:
+      dataResponse.forward(4)
+      return dataResponse.readUInt32()
+    default:
+      throw new Error("Invalid list header")
+  }
+}
+
+function decodeList(dataResponse: DataReader, formatCode: number) {
+  const length = decodeListHeader(dataResponse, formatCode)
+
+  const list: AmqpValue[] = []
+  for (let i = 0; i < length; i++) {
+    const elemFormatCode = dataResponse.readUInt8()
+    const elemValue = decodeFormatCode(dataResponse, elemFormatCode)
+    list.push(elemValue)
+  }
+
+  return list
+}
+
+function decodeMapHeader(dataResponse: DataReader, formatCode: number) {
+  switch (formatCode) {
+    case FormatCode.Map8:
+      dataResponse.forward(1)
+      return dataResponse.readUInt8()
+    case FormatCode.Map32:
+      dataResponse.forward(4)
+      return dataResponse.readUInt32()
+    default:
+      throw new Error("Invalid map header")
+  }
+}
+
+function decodeMap(dataResponse: DataReader, formatCode: number) {
+  const size = decodeMapHeader(dataResponse, formatCode)
+
+  const map: Record<string, AmqpValue> = {}
+  for (let i = 0; i < size / 2; i++) {
+    const keyFormatCode = dataResponse.readUInt8()
+    const key = decodeFormatCode(dataResponse, keyFormatCode) as string
+    const valueFormatCode = dataResponse.readUInt8()
+    const value = decodeFormatCode(dataResponse, valueFormatCode)
+    map[key] = value
+  }
+
+  return map
 }
 
 function decodeApplicationData(dataResponse: DataReader) {
@@ -396,30 +452,23 @@ export function decodeBooleanType(dataResponse: DataReader, boolType: number) {
   }
 }
 
-export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
+export function decodeFormatCode(dataResponse: DataReader, formatCode: number): AmqpValue {
   switch (formatCode) {
     case FormatCode.Map8:
-      // Read first empty byte
-      dataResponse.readUInt8()
-      return dataResponse.readUInt8()
     case FormatCode.Map32:
-      // Read first empty four bytes
-      dataResponse.readUInt32()
-      return dataResponse.readUInt32()
+      return decodeMap(dataResponse, formatCode)
     case FormatCode.SmallUlong:
-      return dataResponse.readInt8() // Read a SmallUlong
+      return dataResponse.readUInt8() // Read a SmallUlong
+    case FormatCode.Byte:
+      return dataResponse.readInt8()
     case FormatCode.Ubyte:
       return dataResponse.readUInt8()
     case FormatCode.ULong:
       return dataResponse.readUInt64() // Read an ULong
     case FormatCode.List0:
-      return 0
     case FormatCode.List8:
-      dataResponse.forward(1)
-      return dataResponse.readInt8() // Read length of List8
     case FormatCode.List32:
-      dataResponse.forward(4)
-      return dataResponse.readInt32()
+      return decodeList(dataResponse, formatCode)
     case FormatCode.Vbin8:
       return dataResponse.readUInt8()
     case FormatCode.Vbin32:
@@ -444,6 +493,8 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return dataResponse.readInt32()
     case FormatCode.Long:
       return dataResponse.readInt64()
+    case FormatCode.Double:
+      return dataResponse.readDouble()
     case FormatCode.Bool:
     case FormatCode.BoolTrue:
     case FormatCode.BoolFalse:
@@ -452,6 +503,10 @@ export function decodeFormatCode(dataResponse: DataReader, formatCode: number) {
       return 0
     case FormatCode.ULong0:
       return 0
+    case FormatCode.Timestamp:
+      return dataResponse.readUInt64()
+    case FormatCode.Short:
+      return dataResponse.readInt16()
     default:
       throw new Error(`FormatCode Invalid type ${formatCode}`)
   }
@@ -495,6 +550,12 @@ export class BufferDataReader implements DataReader {
   readUInt8(): number {
     const ret = this.data.readUInt8(this.offset)
     this.offset += 1
+    return ret
+  }
+
+  readInt16(): number {
+    const ret = this.data.readInt16BE(this.offset)
+    this.offset += 2
     return ret
   }
 

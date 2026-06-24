@@ -6,11 +6,13 @@ export interface DataReader {
   readToEnd(): DataReader
   readInt8(): number
   readUInt8(): number
+  readInt16(): number
   readUInt16(): number
   readUInt32(): number
   readInt32(): number
   readUInt64(): bigint
   readInt64(): bigint
+  readDouble(): number
   readString(): string
   readString8(): string
   readString32(): string
