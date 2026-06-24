@@ -57,6 +57,7 @@ import { coerce, lt } from "semver"
 import EventEmitter from "events"
 import { MetadataUpdateResponse } from "./responses/metadata_update_response"
 import { MetadataInfo } from "./responses/raw_response"
+import { IdAllocator } from "./id_allocator"
 import { StreamResponseError } from "./stream_response_error"
 
 /**
@@ -149,8 +150,8 @@ export class Connection {
   private filteringEnabled: boolean = false
   public userManuallyClose: boolean = false
   private setupCompleted: boolean = false
-  publisherId = 0
-  consumerId = 0
+  private consumersIdAllocator: IdAllocator = new IdAllocator()
+  private publishersIdAllocator: IdAllocator = new IdAllocator()
   private consumerListeners: ListenerEntry[] = []
   private publisherListeners: ListenerEntry[] = []
   private closeEventsEmitter = new EventEmitter()
@@ -703,15 +704,19 @@ export class Connection {
   }
 
   public getNextPublisherId() {
-    const publisherId = this.publisherId
-    this.publisherId++
-    return publisherId
+    return this.publishersIdAllocator.allocate()
+  }
+
+  public freePublisherId(id: number) {
+    this.publishersIdAllocator.free(id)
   }
 
   public getNextConsumerId() {
-    const consumerId = this.consumerId
-    this.consumerId++
-    return consumerId
+    return this.consumersIdAllocator.allocate()
+  }
+
+  public freeConsumerId(id: number) {
+    this.consumersIdAllocator.free(id)
   }
 }
 
