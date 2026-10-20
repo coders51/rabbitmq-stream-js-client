@@ -82,5 +82,6 @@ export class SuperStreamConsumer {
 
   async close(): Promise<void> {
     await Promise.all([...this.consumers.values()].map((c) => c.close()))
+    this.consumers.clear()
   }
 }
