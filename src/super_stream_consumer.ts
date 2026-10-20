@@ -81,7 +81,13 @@ export class SuperStreamConsumer {
   }
 
   async close(): Promise<void> {
-    await Promise.all([...this.consumers.values()].map((c) => c.close()))
+    // closeConsumer throws for consumers the client no longer tracks (e.g. already closed by the client itself)
+    const registered = new Set(this.locator.getConsumers().map(({ consumer }) => consumer.extendedId))
+    await Promise.all(
+      [...this.consumers.values()]
+        .filter((c) => registered.has(c.extendedId))
+        .map((c) => this.locator.closeConsumer(c.extendedId))
+    )
     this.consumers.clear()
   }
 }
