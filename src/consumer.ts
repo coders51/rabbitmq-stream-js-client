@@ -78,6 +78,7 @@ export interface Consumer {
   consumerId: number
   consumerRef?: string
   readonly extendedId: string
+  streamName: string
 }
 
 /**
