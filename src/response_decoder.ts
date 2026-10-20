@@ -146,7 +146,7 @@ function decodeResponse(
     const subscriptionId = dataResponse.readUInt8()
     const active = dataResponse.readUInt8()
     const data = { size, key, version, correlationId, subscriptionId, active }
-    logger.info(inspect(data))
+    logger.debug(inspect(data))
     return data as RawConsumerUpdateQuery
   }
   if (key === HeartbeatResponse.key) {
