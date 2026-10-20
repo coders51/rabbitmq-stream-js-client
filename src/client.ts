@@ -408,7 +408,7 @@ export class Client {
    * @param keyExtractor - Optional function to extract the routing key from a message (not required when key sent with the message)
    */
   public async declareSuperStreamPublisher(
-    { superStream, publisherRef, routingStrategy, filter }: DeclareSuperStreamPublisherParams,
+    { superStream, publisherRef, routingStrategy, filter, routingCacheSize }: DeclareSuperStreamPublisherParams,
     keyExtractor?: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
@@ -418,6 +418,7 @@ export class Client {
       publisherRef,
       routingStrategy,
       filter,
+      routingCacheSize,
     })
   }
 
@@ -1032,6 +1033,12 @@ export interface DeclareSuperStreamPublisherParams {
   publisherRef?: string
   routingStrategy?: RoutingStrategy
   filter?: FilterFunc
+
+  /**
+   * Maximum number of routing key -> partition entries kept in memory when using the "key" routing strategy.
+   * Least recently used entries are evicted first. Defaults to 10000.
+   */
+  routingCacheSize?: number
 }
 
 /**
