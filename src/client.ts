@@ -394,7 +394,14 @@ export class Client {
    * @param handle - Message handler function that processes received messages
    */
   public async declareSuperStreamConsumer(
-    { superStream, offset, consumerRef, creditPolicy, filter }: DeclareSuperStreamConsumerParams,
+    {
+      superStream,
+      offset,
+      consumerRef,
+      creditPolicy,
+      filter,
+      consumerUpdateListener,
+    }: DeclareSuperStreamConsumerParams,
     handle: SuperStreamConsumerFunc
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
@@ -406,6 +413,7 @@ export class Client {
       partitions,
       creditPolicy,
       filter,
+      consumerUpdateListener,
     })
   }
 
@@ -1080,6 +1088,7 @@ export interface DeclareSuperStreamConsumerParams {
   offset?: Offset
   creditPolicy?: ConsumerCreditPolicy
   filter?: ConsumerFilter
+  consumerUpdateListener?: ConsumerUpdateListener
 }
 
 export interface SubscribeParams {

@@ -19,6 +19,7 @@
     - [Clustering](#clustering)
     - [Load Balancer](#load-balancer)
     - [Super Stream](#super-stream)
+    - [Resuming a Super Stream Consumer](#resuming-a-super-stream-consumer)
     - [Filtering](#filtering)
     - [Mitigating connection issues](#mitigating-connection-issues)
   - [Running Examples](#running-examples)
@@ -360,6 +361,44 @@ await sleep(2000)
 
 await client.close()
 ```
+
+### Resuming a Super Stream Consumer
+
+`resolveStartOffset` works out where a consumer should start reading. It asks the server for the offset stored under the consumer reference and returns the offset right after it. If nothing is stored yet, it returns the default offset you give it.
+
+```typescript
+resolveStartOffset(client: Client, defaultOffset: Offset, consumerRef: string, stream: string): Promise<Offset>
+```
+
+- `stream` is the name of a **partition** stream (for example `super-stream-example-0`), not the name of the super stream. Offsets are stored per partition stream.
+- A stored offset of `n` gives `Offset.offset(n + 1n)`, so the last processed message is not delivered again.
+- If the server has no stored offset for the reference (`NoOffset`), `defaultOffset` is returned.
+- Any other error is rethrown.
+
+Do not call it before declaring the consumer. Pass it to the `consumerUpdateListener` parameter of `declareSuperStreamConsumer`. The listener is called for every partition, when that partition's consumer becomes active, with the consumer reference and the partition stream name, so each partition resumes from its own stored offset.
+
+```typescript
+const consumerRef = "my-consumer"
+
+await client.declareSuperStreamConsumer(
+  {
+    superStream: "super-stream-example",
+    consumerRef,
+    consumerUpdateListener: (ref, partition) => resolveStartOffset(client, Offset.first(), ref, partition),
+  },
+  async (message, consumer) => {
+    console.log(`Received message ${message.content.toString()}`)
+    await consumer.storeOffset(message.offset) // makes the next run resume after this message
+  }
+)
+```
+
+Notes:
+
+- Offsets are only stored if the consumer calls `storeOffset`, and the `consumerRef` must be the same between runs.
+- Super stream consumers are single active consumers, which is why the listener is called when a partition's consumer becomes active.
+
+A runnable version is in `example/src/superstream_resume_example.js`.
 
 ### Filtering
 
