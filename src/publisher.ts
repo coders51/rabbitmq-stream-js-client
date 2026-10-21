@@ -107,7 +107,6 @@ export interface MessageOptions {
   applicationProperties?: Record<string, string | number>
   messageAnnotations?: Record<string, MessageAnnotationsValue>
   publishingId?: bigint
-  routingKey?: string
 }
 
 /**
