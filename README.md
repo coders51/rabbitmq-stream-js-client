@@ -322,7 +322,6 @@ await client.close()
 ### Super Stream
 
 It is possible to create a super stream directly through the client only if you are using the latest (3.13.0-rc) management version.
-Currently we do not support batch publishing and compression - that feature is coming soon
 
 ```typescript
 const client = await rabbit.connect({
@@ -336,12 +335,22 @@ const client = await rabbit.connect({
 await client.createSuperStream({ streamName: "super-stream-example" })
 await sleep(200) // Waiting for partitions to be created
 
+// the routingKeyExtractor is only used if you do not provide a routingKey when sending a message
 const routingKeyExtractor = (content, msgOptions) => msgOptions.messageProperties.messageId
 const publisher = await client.declareSuperStreamPublisher({ superStream: "super-stream-example" }, routingKeyExtractor)
 
-await publisher.send(Buffer.from("Test message 1"), { messageProperties: { messageId: "1" } })
-await publisher.send(Buffer.from("Test message 2"), { messageProperties: { messageId: "2" } })
-await publisher.send(Buffer.from("Test message 3"), { messageProperties: { messageId: "3" } })
+// send messages one at a time
+await publisher.send(Buffer.from("Test message 1"), { routingKey: "1" })
+await publisher.send(Buffer.from("Test message 2"), { routingKey: "2" })
+await publisher.send(Buffer.from("Test message 3"), { routingKey: "3" })
+await publisher.send(Buffer.from("Test message 4"), { messageProperties: { messageId: "4" } })
+
+// or send them in a batch
+await publisher.sendSubEntries([
+  { content: Buffer.from("Test message 5"), routingKey: "5" },
+  { content: Buffer.from("Test message 6"), routingKey: "6" },
+  { content: Buffer.from("Test message 7"), routingKey: "7" },
+]);
 
 await client.declareSuperStreamConsumer({ superStream: "super-stream-example" }, (message) => {
   console.log(`Received message ${message.content.toString()}`)

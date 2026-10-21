@@ -11,9 +11,18 @@ type SuperStreamPublisherParams = {
   superStream: string
   publisherRef?: string
   routingStrategy?: RoutingStrategy
-  keyExtractor: MessageKeyExtractorFunction
+  keyExtractor?: MessageKeyExtractorFunction
   filter?: FilterFunc
 }
+
+export type SuperStreamMessageOptions = MessageOptions & {
+  /**
+   * Provide a routingKey here to avoid needing the key extractor
+   */
+  routingKey?: string
+}
+
+export type MessageWithOptions = Message & SuperStreamMessageOptions
 
 export class SuperStreamPublisher {
   private locator: Client
@@ -31,7 +40,7 @@ export class SuperStreamPublisher {
     this.publisherRef = params.publisherRef
     this.superStream = params.superStream
     this.routingStrategy = params.routingStrategy ?? "hash"
-    this.keyExtractor = params.keyExtractor
+    this.keyExtractor = params.keyExtractor ?? (() => undefined)
     this.filter = params.filter
   }
 
@@ -50,21 +59,21 @@ export class SuperStreamPublisher {
     this.publishers = new Map()
   }
 
-  public async send(message: Buffer, opts: MessageOptions): Promise<SendResult> {
+  public async send(message: Buffer, opts: SuperStreamMessageOptions): Promise<SendResult> {
     const partition = await this.routeMessage(message, opts)
     const publisher = await this.getPublisher(partition)
     return publisher.send(message, opts)
   }
 
-  public async basicSend(publishingId: bigint, message: Buffer, opts: MessageOptions): Promise<SendResult> {
+  public async basicSend(publishingId: bigint, message: Buffer, opts: SuperStreamMessageOptions): Promise<SendResult> {
     const partition = await this.routeMessage(message, opts)
     const publisher = await this.getPublisher(partition)
     return publisher.basicSend(publishingId, message, opts)
   }
 
-  public async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
+  public async sendSubEntries(messages: MessageWithOptions[], compressionType: CompressionType = CompressionType.None) {
     // route all messages
-    const messagesByPartition: Map<string, Message[]> = new Map()
+    const messagesByPartition: Map<string, MessageWithOptions[]> = new Map()
     await Promise.all(
       messages.map(async (m) => {
         const partition = await this.routeMessage(m.content, m)
@@ -96,30 +105,32 @@ export class SuperStreamPublisher {
     return bigIntMax(await Promise.all([...this.publishers.values()].map((p) => p.getLastPublishingId()))) ?? 0n
   }
 
-  private async routeMessage(messageContent: Buffer, msg: MessageOptions): Promise<string> {
-    const routingKey = this.keyExtractor(messageContent.toString(), msg)
+  private async routeMessage(messageContent: Buffer, msg: SuperStreamMessageOptions): Promise<string> {
+    const routingKey = msg.routingKey ?? this.keyExtractor(messageContent.toString(), msg)
     if (!routingKey) {
       throw new Error(`Routing key is empty or undefined with the provided extractor`)
     }
+
+    if (this.routingStrategy === "hash") {
+      const hash = murmur32(routingKey)
+      const partitionIndex = hash % this.partitions.length
+      return this.partitions[partitionIndex]
+    }
+
     let partition = this.routingCache.get(routingKey)
     if (!partition) {
-      if (this.routingStrategy === "hash") {
-        const hash = murmur32(routingKey)
-        const partitionIndex = hash % this.partitions.length
-        partition = this.partitions[partitionIndex]!
-      } else {
-        const targetPartitions = await this.locator.routeQuery({ routingKey, superStream: this.superStream })
-        if (!targetPartitions.length) {
-          throw new Error(`The server did not return any partition for routing key: ${routingKey}`)
-        }
-        partition = targetPartitions.find((tp) => this.partitions.find((p) => p === tp))
-        if (!partition) {
-          throw new Error(
-            `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
-          )
-        }
+      const targetPartitions = await this.locator.routeQuery({ routingKey, superStream: this.superStream })
+      if (!targetPartitions.length) {
+        throw new Error(`The server did not return any partition for routing key: ${routingKey}`)
+      }
+      partition = targetPartitions.find((tp) => this.partitions.find((p) => p === tp))
+      if (!partition) {
+        throw new Error(
+          `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
+        )
       }
     }
+
     this.routingCache.set(routingKey, partition)
     return partition
   }
