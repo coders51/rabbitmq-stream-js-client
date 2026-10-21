@@ -81,12 +81,11 @@ export class SuperStreamConsumer {
   }
 
   async close(): Promise<void> {
-    // closeConsumer throws for consumers the client no longer tracks (e.g. already closed by the client itself)
-    const registered = new Set(this.locator.getConsumers().map(({ consumer }) => consumer.extendedId))
+    // closeConsumer throws for consumers the client no longer tracks (e.g. already closed by the client itself).
+    // Compare instances rather than extendedIds: ids are recycled, so a stale partition could match a replacement.
+    const registered = new Set<Consumer>(this.locator.getConsumers().map(({ consumer }) => consumer))
     await Promise.all(
-      [...this.consumers.values()]
-        .filter((c) => registered.has(c.extendedId))
-        .map((c) => this.locator.closeConsumer(c.extendedId))
+      [...this.consumers.values()].filter((c) => registered.has(c)).map((c) => this.locator.closeConsumer(c.extendedId))
     )
     this.consumers.clear()
   }
