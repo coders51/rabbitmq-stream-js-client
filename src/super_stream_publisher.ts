@@ -19,11 +19,23 @@ type SuperStreamPublisherParams = {
   routingCacheSize?: number
 }
 
-export class SuperStreamPublisher {
+export type MessageWithOptions = Message & MessageOptions
+
+export interface SuperPublisher {
+  close(): Promise<void>
+  send(message: Buffer, opts: MessageOptions): Promise<SendResult>
+  basicSend(publishingId: bigint, message: Buffer, opts: MessageOptions): Promise<SendResult>
+  sendSubEntries(messages: MessageWithOptions[], compressionType?: CompressionType): Promise<void>
+  getLastPublishingId(): Promise<bigint>
+
+  readonly superStream: string
+}
+
+export class SuperStreamPublisher implements SuperPublisher {
   private locator: Client
   private partitions: string[] = []
   private publishers: Map<string, Publisher> = new Map()
-  private superStream: string
+  readonly superStream: string
   private publisherRef: string | undefined
   private keyExtractor: MessageKeyExtractorFunction
   private routingStrategy: RoutingStrategy
@@ -67,7 +79,7 @@ export class SuperStreamPublisher {
     return publisher.basicSend(publishingId, message, opts)
   }
 
-  public async sendSubEntries(messages: Message[], compressionType: CompressionType = CompressionType.None) {
+  public async sendSubEntries(messages: MessageWithOptions[], compressionType: CompressionType = CompressionType.None) {
     // route all messages
     const messagesByPartition: Map<string, Message[]> = new Map()
     await Promise.all(

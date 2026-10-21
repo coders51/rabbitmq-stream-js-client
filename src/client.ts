@@ -39,8 +39,8 @@ import { RouteResponse } from "./responses/route_response"
 import { StreamStatsResponse } from "./responses/stream_stats_response"
 import { SubscribeResponse } from "./responses/subscribe_response"
 import { UnsubscribeResponse } from "./responses/unsubscribe_response"
-import { SuperStreamConsumer, SuperStreamConsumerFunc } from "./super_stream_consumer"
-import { MessageKeyExtractorFunction, SuperStreamPublisher } from "./super_stream_publisher"
+import { SuperConsumer, SuperStreamConsumer, SuperStreamConsumerFunc } from "./super_stream_consumer"
+import { MessageKeyExtractorFunction, SuperPublisher, SuperStreamPublisher } from "./super_stream_publisher"
 import { DEFAULT_FRAME_MAX, REQUIRED_MANAGEMENT_VERSION, ResponseCode, sample, wait } from "./util"
 import { ConsumerCreditPolicy, CreditRequestWrapper, defaultCreditPolicy } from "./consumer_credit_policy"
 import { PublishConfirmResponse } from "./responses/publish_confirm_response"
@@ -395,7 +395,7 @@ export class Client {
       consumerUpdateListener,
     }: DeclareSuperStreamConsumerParams,
     handle: SuperStreamConsumerFunc
-  ): Promise<SuperStreamConsumer> {
+  ): Promise<SuperConsumer> {
     const partitions = await this.queryPartitions({ superStream })
     return SuperStreamConsumer.create(handle, {
       superStream,
@@ -418,7 +418,7 @@ export class Client {
   public async declareSuperStreamPublisher(
     { superStream, publisherRef, routingStrategy, filter, routingCacheSize }: DeclareSuperStreamPublisherParams,
     keyExtractor?: MessageKeyExtractorFunction
-  ): Promise<SuperStreamPublisher> {
+  ): Promise<SuperPublisher> {
     return SuperStreamPublisher.create({
       locator: this,
       superStream: superStream,
