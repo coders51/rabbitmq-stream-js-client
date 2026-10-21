@@ -116,7 +116,7 @@ export class SuperStreamPublisher {
       if (this.routingStrategy === "hash") {
         const hash = murmur32(routingKey)
         const partitionIndex = hash % this.partitions.length
-        partition = this.partitions[partitionIndex]
+        partition = this.partitions[partitionIndex]!
       } else {
         const targetPartitions = await this.locator.routeQuery({ routingKey, superStream: this.superStream })
         if (!targetPartitions.length) {
