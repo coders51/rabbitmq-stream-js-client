@@ -6,7 +6,14 @@ import { Offset } from "./requests/subscribe_request"
 
 export type SuperStreamConsumerFunc = (msg: Message, consumer: Consumer) => Promise<void> | void
 
-export class SuperStreamConsumer {
+export interface SuperConsumer {
+  close(): Promise<void>
+
+  readonly consumerRef: string
+  readonly superStream: string
+}
+
+export class SuperStreamConsumer implements SuperConsumer {
   private consumers: Map<string, Consumer> = new Map<string, Consumer>()
   public consumerRef: string
   readonly superStream: string
