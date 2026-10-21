@@ -1,10 +1,8 @@
 import { Client, ConsumerFilter } from "./client"
-import { Consumer } from "./consumer"
+import { Consumer, ConsumerUpdateListener } from "./consumer"
 import { ConsumerCreditPolicy, defaultCreditPolicy } from "./consumer_credit_policy"
 import { Message } from "./publisher"
 import { Offset } from "./requests/subscribe_request"
-import { isStreamResponseError } from "./stream_response_error"
-import { ResponseCode } from "./util"
 
 export type SuperStreamConsumerFunc = (msg: Message, consumer: Consumer) => Promise<void> | void
 
@@ -17,6 +15,7 @@ export class SuperStreamConsumer {
   private offset: Offset
   private creditPolicy: ConsumerCreditPolicy
   private filter?: ConsumerFilter
+  private consumerUpdateListener?: ConsumerUpdateListener
 
   private constructor(
     readonly handle: SuperStreamConsumerFunc,
@@ -28,6 +27,7 @@ export class SuperStreamConsumer {
       offset: Offset
       creditPolicy?: ConsumerCreditPolicy
       filter?: ConsumerFilter
+      consumerUpdateListener?: ConsumerUpdateListener
     }
   ) {
     this.superStream = params.superStream
@@ -37,23 +37,7 @@ export class SuperStreamConsumer {
     this.offset = params.offset
     this.creditPolicy = params.creditPolicy || defaultCreditPolicy
     this.filter = params.filter
-  }
-
-  /**
-   * Single active consumers are told where to start by the consumer update exchange. Resume after the
-   * offset last stored on the server for this consumerRef and partition; if nothing has been stored yet
-   * (e.g. a new consumerRef) use the offset the consumer was declared with.
-   */
-  private async resolveStartOffset(consumerRef: string, stream: string): Promise<Offset> {
-    try {
-      const stored = await this.locator.queryOffset({ reference: consumerRef, stream })
-      return Offset.offset(stored + 1n)
-    } catch (error) {
-      if (isStreamResponseError(error) && error.code === ResponseCode.NoOffset) {
-        return this.offset
-      }
-      throw error
-    }
+    this.consumerUpdateListener = params.consumerUpdateListener
   }
 
   async start(): Promise<void> {
@@ -65,7 +49,7 @@ export class SuperStreamConsumer {
             consumerRef: this.consumerRef,
             offset: this.offset,
             singleActive: true,
-            consumerUpdateListener: (ref, stream) => this.resolveStartOffset(ref, stream),
+            consumerUpdateListener: this.consumerUpdateListener,
             creditPolicy: this.creditPolicy,
             filter: this.filter,
           },
@@ -93,6 +77,7 @@ export class SuperStreamConsumer {
       offset: Offset
       creditPolicy?: ConsumerCreditPolicy
       filter?: ConsumerFilter
+      consumerUpdateListener?: ConsumerUpdateListener
     }
   ): Promise<SuperStreamConsumer> {
     const superStreamConsumer = new SuperStreamConsumer(handle, params)
