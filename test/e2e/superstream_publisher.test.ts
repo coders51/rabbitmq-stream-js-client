@@ -249,6 +249,83 @@ describe("super stream publisher", () => {
     )
   })
 
+  it("send uses the routingKey from the message - no key extractor needed", async () => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
+
+    for (let i = 0; i < 20; i++) {
+      await publisher.send(Buffer.from("hello"), { routingKey: `hello${i}` })
+    }
+
+    // same distribution as the hashing test, where the same keys come from the extractor
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-2`)).messages).to.eql(4)
+    }, 10000)
+  }).timeout(12000)
+
+  it("send prefers the routingKey from the message over the key extractor", async () => {
+    const messages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+      messages.push(msg)
+    })
+    // the extractor would make the send throw, as the key does not exist
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName, routingStrategy: "key" },
+      (_) => "non-existent"
+    )
+
+    await publisher.send(Buffer.from("Hello world"), { routingKey: "0" })
+
+    await eventually(() => {
+      expect(messages).to.have.length(1)
+    }, 2000)
+  })
+
+  it("send without routingKey in the message and without key extractor throws", async () => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
+
+    await expectToThrowAsync(
+      async () => {
+        await publisher.send(Buffer.from("Hello world"), {})
+      },
+      Error,
+      /Routing key is empty or undefined with the provided extractor/
+    )
+  })
+
+  it("sendSubEntries uses the routingKey from each message - no key extractor needed", async () => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
+    const messages = range(20).map((_, i) => ({ content: Buffer.from("hello"), routingKey: `hello${i}` }))
+
+    await publisher.sendSubEntries(messages, CompressionType.None)
+
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-2`)).messages).to.eql(4)
+    }, 10000)
+  }).timeout(12000)
+
+  it("sendSubEntries prefers the routingKey from the message over the key extractor", async () => {
+    const receivedMessages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => {
+      receivedMessages.push(m)
+    })
+    // the extractor would make the send throw, as the key does not exist
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName, routingStrategy: "key" },
+      (_) => "non-existent"
+    )
+    const messages = range(5).map((_, i) => ({ content: Buffer.from(`Hello world ${i}`), routingKey: "0" }))
+
+    await publisher.sendSubEntries(messages, CompressionType.Gzip)
+
+    await eventually(() => {
+      expect(receivedMessages).to.have.length(messages.length)
+    }, 5000)
+  })
+
   it("publishing a batch of messages without compression - should not raise error", async () => {
     const messageContents = range(5).map((_, i) => `Hello world ${i}`)
     const messages = messageContents.map((m, i) => ({
