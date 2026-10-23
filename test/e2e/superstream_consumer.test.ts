@@ -84,7 +84,7 @@ describe("super stream consumer", () => {
       })
     })
 
-    it("closing a super stream consumer - unregisters all partition consumers from the client", async () => {
+    it("closing a super stream consumer - un-registers all partition consumers from the client", async () => {
       const superStreamConsumer = await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
         return
       })
