@@ -136,17 +136,11 @@ export class SuperStreamPublisher {
   }
 
   private async initPublisher(partition: string): Promise<Publisher> {
-    const publisher: Publisher = await this.locator.declarePublisher(
+    const publisher = await this.locator.declarePublisher(
       {
         stream: partition,
         publisherRef: this.publisherRef,
-        connectionClosedListener: (hadError) => {
-          // the publisher is dead: forget it so the next send declares a fresh one
-          if (this.publishers.get(partition) === publisher) {
-            this.publishers.delete(partition)
-          }
-          this.connectionClosedListener?.(hadError)
-        },
+        connectionClosedListener: this.connectionClosedListener,
       },
       this.filter
     )

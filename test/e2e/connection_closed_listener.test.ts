@@ -259,7 +259,7 @@ describe("connection closed callback", () => {
       }, 5000)
     }).timeout(15000)
 
-    it("is invoked on partition connections of a super stream publisher and a new publisher is declared on the next send", async () => {
+    it("is invoked on partition connections of a super stream publisher and the same publisher can send after a client restart", async () => {
       const listenerSpy = spy((_hadError: boolean) => undefined)
       client = await createClient(username, password)
       const publisher = await client.declareSuperStreamPublisher({
