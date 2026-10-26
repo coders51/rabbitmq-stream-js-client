@@ -386,7 +386,14 @@ export class Client {
    * @param handle - Message handler function that processes received messages
    */
   public async declareSuperStreamConsumer(
-    { superStream, offset, consumerRef, creditPolicy, filter }: DeclareSuperStreamConsumerParams,
+    {
+      superStream,
+      offset,
+      consumerRef,
+      creditPolicy,
+      filter,
+      connectionClosedListener,
+    }: DeclareSuperStreamConsumerParams,
     handle: SuperStreamConsumerFunc
   ): Promise<SuperStreamConsumer> {
     const partitions = await this.queryPartitions({ superStream })
@@ -398,6 +405,7 @@ export class Client {
       partitions,
       creditPolicy,
       filter,
+      connectionClosedListener,
     })
   }
 
@@ -408,7 +416,7 @@ export class Client {
    * @param keyExtractor - Function to extract the routing key from a message
    */
   public async declareSuperStreamPublisher(
-    { superStream, publisherRef, routingStrategy, filter }: DeclareSuperStreamPublisherParams,
+    { superStream, publisherRef, routingStrategy, filter, connectionClosedListener }: DeclareSuperStreamPublisherParams,
     keyExtractor: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
@@ -418,6 +426,7 @@ export class Client {
       publisherRef,
       routingStrategy,
       filter,
+      connectionClosedListener,
     })
   }
 
@@ -1032,6 +1041,12 @@ export interface DeclareSuperStreamPublisherParams {
   publisherRef?: string
   routingStrategy?: RoutingStrategy
   filter?: FilterFunc
+
+  /**
+   * Called when the connection of a partition publisher closes unexpectedly.
+   * Partition publishers use their own connections, so the client-level `connection_closed` listener does not cover them.
+   */
+  connectionClosedListener?: ConnectionClosedListener
 }
 
 /**
@@ -1072,6 +1087,11 @@ export interface DeclareSuperStreamConsumerParams {
   offset?: Offset
   creditPolicy?: ConsumerCreditPolicy
   filter?: ConsumerFilter
+  /**
+   * Called when the connection of a partition consumer closes unexpectedly.
+   * Partition consumers use their own connections, so the client-level `connection_closed` listener does not cover them.
+   */
+  connectionClosedListener?: ConnectionClosedListener
 }
 
 export interface SubscribeParams {

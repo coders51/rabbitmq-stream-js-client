@@ -1,4 +1,4 @@
-import { Client, RoutingStrategy } from "./client"
+import { Client, ConnectionClosedListener, RoutingStrategy } from "./client"
 import { CompressionType } from "./compression"
 import { murmur32 } from "./hash/murmur32"
 import { FilterFunc, Message, MessageOptions, Publisher, SendResult } from "./publisher"
@@ -13,6 +13,7 @@ type SuperStreamPublisherParams = {
   routingStrategy?: RoutingStrategy
   keyExtractor: MessageKeyExtractorFunction
   filter?: FilterFunc
+  connectionClosedListener?: ConnectionClosedListener
 }
 
 export class SuperStreamPublisher {
@@ -25,6 +26,7 @@ export class SuperStreamPublisher {
   private routingStrategy: RoutingStrategy
   private routingCache: Map<string, string> = new Map()
   private filter?: FilterFunc
+  private connectionClosedListener?: ConnectionClosedListener
 
   private constructor(params: SuperStreamPublisherParams) {
     this.locator = params.locator
@@ -33,6 +35,7 @@ export class SuperStreamPublisher {
     this.routingStrategy = params.routingStrategy ?? "hash"
     this.keyExtractor = params.keyExtractor
     this.filter = params.filter
+    this.connectionClosedListener = params.connectionClosedListener
   }
 
   static async create(params: SuperStreamPublisherParams): Promise<SuperStreamPublisher> {
@@ -133,8 +136,18 @@ export class SuperStreamPublisher {
   }
 
   private async initPublisher(partition: string): Promise<Publisher> {
-    const publisher = await this.locator.declarePublisher(
-      { stream: partition, publisherRef: this.publisherRef },
+    const publisher: Publisher = await this.locator.declarePublisher(
+      {
+        stream: partition,
+        publisherRef: this.publisherRef,
+        connectionClosedListener: (hadError) => {
+          // the publisher is dead: forget it so the next send declares a fresh one
+          if (this.publishers.get(partition) === publisher) {
+            this.publishers.delete(partition)
+          }
+          this.connectionClosedListener?.(hadError)
+        },
+      },
       this.filter
     )
     this.publishers.set(partition, publisher)
