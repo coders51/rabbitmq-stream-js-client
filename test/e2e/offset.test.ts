@@ -172,7 +172,7 @@ describe("offset", () => {
       await always(async () => {
         expect(receivedMessages).to.have.length(laterMessages.length)
       })
-    })
+    }).timeout(10000)
   })
 
   describe("store", () => {

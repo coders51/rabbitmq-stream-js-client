@@ -136,7 +136,7 @@ describe("super stream publisher", () => {
 
     for (let i = 0; i < noOfPartitions * 3; i++) {
       await publisher.send(Buffer.from(`Hello world ${i}`), {
-        messageProperties: { messageId: randomUUID() },
+        messageProperties: { messageId: `${i}` },
       })
     }
 
