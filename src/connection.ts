@@ -245,11 +245,16 @@ export class Connection {
    *
    * This recreates the socket and re-establishes the connection including
    * the full handshake process (peer properties, auth, tuning, open).
+   * The previous socket is destroyed, so restarting a connection that is still
+   * alive does not leave an orphaned connection (and its consumers) on the broker.
    *
    * @returns A promise that resolves when the connection is restarted
    */
   public async restart() {
     this.unregisterSocketListeners()
+    // Listeners are gone, so this can't trigger connectionClosedListener; the "error" listener is
+    // intentionally kept so a late socket error is not unhandled.
+    this.socket.destroy()
     this.socket = this.createSocket()
     await this.registerSocketListeners()
     this.logSocket("restarted")
