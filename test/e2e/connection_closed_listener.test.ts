@@ -262,11 +262,14 @@ describe("connection closed callback", () => {
     it("is invoked on partition connections of a super stream publisher and the same publisher can send after a client restart", async () => {
       const listenerSpy = spy((_hadError: boolean) => undefined)
       client = await createClient(username, password)
-      const publisher = await client.declareSuperStreamPublisher({
-        superStream: superStreamName,
-        connectionClosedListener: listenerSpy,
-      })
-      await publisher.send(Buffer.from("before"), { routingKey: "key" })
+      const publisher = await client.declareSuperStreamPublisher(
+        {
+          superStream: superStreamName,
+          connectionClosedListener: listenerSpy,
+        },
+        () => "key"
+      )
+      await publisher.send(Buffer.from("before"), {})
       await sleep(5000)
 
       await rabbit.closeAllConnections()
@@ -275,7 +278,7 @@ describe("connection closed callback", () => {
         expect(listenerSpy).to.have.been.called.at.least(1)
       }, 5000)
       await client.restart()
-      await publisher.send(Buffer.from("after"), { routingKey: "key" })
+      await publisher.send(Buffer.from("after"), {})
     }).timeout(30000)
 
     it("is not invoked on a super stream consumer when the client closes it", async () => {
