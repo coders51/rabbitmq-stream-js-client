@@ -6,15 +6,25 @@ import { eventually, username, password } from "../support/util"
 import { Consumer } from "../../src/consumer"
 import { Message, Publisher } from "../../src/publisher"
 import { randomUUID } from "crypto"
+import { Socket } from "net"
+
+type ConnectionInternals = { connectionId: string; socket: Socket }
+type ClientInternals = { locatorConnection: ConnectionInternals }
+type ConsumerInternals = { connection: ConnectionInternals }
+
+const locatorOf = (client: Client) => (client as unknown as ClientInternals).locatorConnection
+const connectionOf = (consumer: Consumer) => (consumer as unknown as ConsumerInternals).connection
 
 describe("restart connections", () => {
   const rabbit = new Rabbit(username, password)
   let streamName: string
+  let otherStream: string | undefined
   let client: Client
 
   beforeEach(async () => {
     client = await createClient(username, password)
     streamName = createStreamName()
+    otherStream = undefined
     await rabbit.createStream(streamName)
   })
 
@@ -22,6 +32,7 @@ describe("restart connections", () => {
     try {
       await client.close()
       await rabbit.deleteStream(streamName)
+      if (otherStream) await rabbit.deleteStream(otherStream)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
     } catch (e) {}
@@ -38,6 +49,66 @@ describe("restart connections", () => {
       expect(connectionInfo.localPort).not.undefined
       expect(oldConnectionInfo.localPort).not.eql(connectionInfo.localPort)
     })
+  }).timeout(10000)
+
+  it("restarting a live connection destroys the previous socket instead of leaking it", async () => {
+    const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
+    const locatorSocket = locatorOf(client).socket
+    const consumerSocket = connectionOf(consumer).socket
+    expect(locatorSocket.destroyed).eql(false)
+    expect(consumerSocket.destroyed).eql(false)
+
+    await client.restart()
+
+    expect(locatorSocket.destroyed).eql(true)
+    expect(consumerSocket.destroyed).eql(true)
+    expect(locatorOf(client).socket).not.eql(locatorSocket)
+  }).timeout(10000)
+
+  it("restarting by connection id only restarts that connection and its consumers", async () => {
+    otherStream = createStreamName()
+    await rabbit.createStream(otherStream)
+    const messages1: string[] = []
+    const messages2: string[] = []
+    const consumer1 = await client.declareConsumer({ stream: streamName, offset: Offset.next() }, (m) => {
+      messages1.push(m.content.toString())
+    })
+    const consumer2 = await client.declareConsumer({ stream: otherStream, offset: Offset.next() }, (m) => {
+      messages2.push(m.content.toString())
+    })
+    const connection1 = connectionOf(consumer1)
+    const connection2 = connectionOf(consumer2)
+    expect(connection1.connectionId).not.eql(connection2.connectionId)
+    const locatorSocket = locatorOf(client).socket
+    const socket1 = connection1.socket
+    const socket2 = connection2.socket
+
+    await client.restart([connection1.connectionId])
+
+    expect(socket1.destroyed).eql(true)
+    expect(connection1.socket).not.eql(socket1)
+    expect(socket2.destroyed).eql(false)
+    expect(connection2.socket).eql(socket2)
+    expect(locatorSocket.destroyed).eql(false)
+
+    // both consumers still receive messages
+    const publisher1 = await client.declarePublisher({ stream: streamName })
+    const publisher2 = await client.declarePublisher({ stream: otherStream })
+    await publisher1.send(Buffer.from("one"))
+    await publisher2.send(Buffer.from("two"))
+    await eventually(() => {
+      expect(messages1).eql(["one"])
+      expect(messages2).eql(["two"])
+    })
+  }).timeout(20000)
+
+  it("restarting with an unknown connection id does nothing", async () => {
+    const locatorSocket = locatorOf(client).socket
+
+    await client.restart(["no-such-connection"])
+
+    expect(locatorOf(client).socket).eql(locatorSocket)
+    expect(locatorSocket.destroyed).eql(false)
   }).timeout(10000)
 
   it("client with publishers and consumers, socket connections are reestablished", async () => {

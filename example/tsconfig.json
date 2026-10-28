@@ -13,6 +13,12 @@
     "declaration": true,
     "allowJs": true
   },
-  "include": ["./*.js", "src/autoreconnect_example.js", "src/cluster_example.js", "src/superstream_example.js"],
+  "include": [
+    "./*.js",
+    "src/autoreconnect_example.js",
+    "src/cluster_example.js",
+    "src/superstream_example.js",
+    "src/superstream_autoconnect_example.js"
+  ],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }
