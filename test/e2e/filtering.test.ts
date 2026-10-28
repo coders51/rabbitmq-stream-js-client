@@ -108,6 +108,8 @@ describe("filtering", () => {
         await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties1 })
       for (let i = 0; i < 1000; i++)
         await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties2 })
+      // wait for the broker to persist the filtered messages, so they don't end up in the same chunk as the unfiltered ones
+      await eventually(async () => expect(await publisher.getLastPublishingId()).eql(2000n), 5000)
       for (let i = 0; i < 1000; i++) await publisher.send(Buffer.from(`test${i + 1}`))
 
       await client.declareConsumer(
@@ -269,6 +271,8 @@ describe("filtering", () => {
         await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties1 })
       for (let i = 0; i < 1000; i++)
         await publisher.send(Buffer.from(`test${i + 1}`), { applicationProperties: applicationProperties2 })
+      // wait for the broker to persist the filtered messages, so they don't end up in the same chunk as the unfiltered ones
+      await eventually(async () => expect(await publisher.getLastPublishingId()).eql(2000n), 5000)
       for (let i = 0; i < 1000; i++) await publisher.send(Buffer.from(`test${i + 1}`), {})
 
       await client.declareSuperStreamConsumer(
