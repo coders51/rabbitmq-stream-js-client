@@ -18,11 +18,13 @@ const connectionOf = (consumer: Consumer) => (consumer as unknown as ConsumerInt
 describe("restart connections", () => {
   const rabbit = new Rabbit(username, password)
   let streamName: string
+  let otherStream: string | undefined
   let client: Client
 
   beforeEach(async () => {
     client = await createClient(username, password)
     streamName = createStreamName()
+    otherStream = undefined
     await rabbit.createStream(streamName)
   })
 
@@ -30,6 +32,7 @@ describe("restart connections", () => {
     try {
       await client.close()
       await rabbit.deleteStream(streamName)
+      if (otherStream) await rabbit.deleteStream(otherStream)
       await rabbit.closeAllConnections()
       await rabbit.deleteAllQueues({ match: /my-stream-/ })
     } catch (e) {}
@@ -63,7 +66,7 @@ describe("restart connections", () => {
   }).timeout(10000)
 
   it("restarting by connection id only restarts that connection and its consumers", async () => {
-    const otherStream = createStreamName()
+    otherStream = createStreamName()
     await rabbit.createStream(otherStream)
     const messages1: string[] = []
     const messages2: string[] = []
@@ -97,7 +100,6 @@ describe("restart connections", () => {
       expect(messages1).eql(["one"])
       expect(messages2).eql(["two"])
     })
-    await rabbit.deleteStream(otherStream)
   }).timeout(20000)
 
   it("restarting with an unknown connection id does nothing", async () => {
