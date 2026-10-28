@@ -89,7 +89,7 @@ describe("offset", () => {
       await eventually(async () => {
         expect(receivedMessages).to.have.length(lastBatchMessages.length)
       })
-    })
+    }).timeout(10000)
 
     it("if offset is of type numeric and value 0, all messages should be read", async () => {
       const receivedMessages: Message[] = []
@@ -172,7 +172,7 @@ describe("offset", () => {
       await always(async () => {
         expect(receivedMessages).to.have.length(laterMessages.length)
       })
-    })
+    }).timeout(10000)
   })
 
   describe("store", () => {

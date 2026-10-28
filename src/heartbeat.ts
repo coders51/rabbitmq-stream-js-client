@@ -9,6 +9,7 @@ export interface HeartbeatConnection {
 
 export class Heartbeat {
   private MAX_HEARTBEATS_MISSED = 2
+  private SEND_TOLERANCE_MS = 50
   private interval: number = 0
   private lastMessageReceived = new Date()
   private lastMessageSent = new Date()
@@ -57,7 +58,7 @@ export class Heartbeat {
     const lastMessageSent = this.lastMessageSent.getTime()
     const noMessagesSentFor = Math.abs(now - lastMessageSent)
     this.logger.debug(`No messages sent for the last ${noMessagesSentFor} ms and the interval is ${this.interval}`)
-    if (noMessagesSentFor >= this.interval) {
+    if (noMessagesSentFor >= this.interval - this.SEND_TOLERANCE_MS) {
       await this.sendHeartbeat()
       this.reportLastMessageSent()
     }
