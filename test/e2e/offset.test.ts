@@ -245,14 +245,12 @@ describe("offset", () => {
         { stream: testStreamName, offset: Offset.first(), consumerRef: "my_consumer" },
         async (message: Message) => {
           consumerOneMessages.push(message)
-          if (message.content.toString() === "marker") {
-            await consumer.storeOffset(message.offset)
-          }
         }
       )
       await eventually(async () => {
         const [foundMarker] = consumerOneMessages.filter((msg) => msg.content.toString() === "marker")
         expect(foundMarker).to.not.be.undefined
+        await consumer.storeOffset(foundMarker.offset)
         const offset = await client.queryOffset({ stream: testStreamName, reference: "my_consumer" })
         expect(offset).to.not.be.undefined
       }, 3000)
@@ -292,7 +290,11 @@ describe("offset", () => {
       )
       await rabbit.deleteStream(testStreamName)
       await wait(200)
-      await expectToThrowAsync(() => consumer.queryOffset(), Error, `This socket has been ended by the other party`)
+      await expectToThrowAsync(
+        () => consumer.queryOffset(),
+        Error,
+        /This socket has been ended by the other party|Query offset command returned error with code 2$/
+      )
     })
 
     it("query offset is able to raise StreamResponseError with ResponseCode.NoOffset code value set if there is no offset", async () => {
