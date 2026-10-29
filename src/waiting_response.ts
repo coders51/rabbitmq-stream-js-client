@@ -21,4 +21,8 @@ export class WaitingResponse<T extends Response> {
   resolve(response: T) {
     this.promise.resolve(response)
   }
+
+  reject(reason: unknown) {
+    this.promise.reject(reason)
+  }
 }

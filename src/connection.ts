@@ -193,21 +193,25 @@ export class Connection {
         return rej(err)
       })
       this.socket.on("connect", async () => {
-        this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
-        this.peerProperties = (await this.exchangeProperties()).properties
-        this.filteringEnabled = lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION) ? false : true
-        await this.auth({
-          username: this.params.username,
-          password: this.params.password,
-          mechanism: this.params.mechanism ?? "PLAIN",
-        })
-        const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
-        const connectionOpened = await this.open({ virtualHost: this.params.vhost })
-        if (!connectionOpened.ok) return rej(connectionOpened.error)
-        if (!this.heartbeat.started) this.heartbeat.start(heartbeat)
-        await this.exchangeCommandVersions()
-        this.setupCompleted = true
-        return res(this)
+        try {
+          this.logger.info(`Connected to RabbitMQ ${this.params.hostname}:${this.params.port}`)
+          this.peerProperties = (await this.exchangeProperties()).properties
+          this.filteringEnabled = lt(coerce(this.rabbitManagementVersion)!, REQUIRED_MANAGEMENT_VERSION) ? false : true
+          await this.auth({
+            username: this.params.username,
+            password: this.params.password,
+            mechanism: this.params.mechanism ?? "PLAIN",
+          })
+          const { heartbeat } = await this.tune(this.params.heartbeat ?? 0)
+          const connectionOpened = await this.open({ virtualHost: this.params.vhost })
+          if (!connectionOpened.ok) return rej(connectionOpened.error)
+          if (!this.heartbeat.started) this.heartbeat.start(heartbeat)
+          await this.exchangeCommandVersions()
+          this.setupCompleted = true
+          return res(this)
+        } catch (e) {
+          return rej(e)
+        }
       })
       this.socket.on("drain", () => this.logger.warn(`Draining ${this.params.hostname}:${this.params.port}`))
       this.socket.on("timeout", () => {
@@ -223,6 +227,7 @@ export class Connection {
         this.logger.info(
           `Close event on socket for connection ${this.connectionId}, close cloud had_error? ${had_error}`
         )
+        this.rejectWaitingResponses()
         if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
       })
     })
@@ -246,6 +251,7 @@ export class Connection {
    */
   public async restart() {
     this.unregisterSocketListeners()
+    this.rejectWaitingResponses()
     this.socket = this.createSocket()
     await this.registerSocketListeners()
     this.logSocket("restarted")
@@ -474,6 +480,12 @@ export class Connection {
       ready: this.ready,
       vhost: this.vhost,
     }
+  }
+
+  private rejectWaitingResponses() {
+    const pending = this.waitingResponses
+    this.waitingResponses = []
+    pending.forEach((wr) => wr.reject(new Error(`Connection ${this.connectionId} closed before receiving a response`)))
   }
 
   private responseReceived<T extends Response>(response: T) {

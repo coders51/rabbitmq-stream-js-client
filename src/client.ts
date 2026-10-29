@@ -257,7 +257,11 @@ export class Client {
     }
     const publisher = new StreamPublisher(this.pool, streamPublisherParams, lastPublishingId, filter)
     connection.registerForClosePublisher(publisher.extendedId, params.stream, async () => {
-      await publisher.automaticClose()
+      try {
+        await publisher.automaticClose()
+      } catch (e) {
+        this.logger.error(`Error while automatically closing publisher ${publisher.extendedId}: ${inspect(e)}`)
+      }
       this.publishers.delete(publisher.extendedId)
     })
     this.publishers.set(publisher.extendedId, { publisher, connection, params, filter })
@@ -351,7 +355,11 @@ export class Client {
       if (params.connectionClosedListener) {
         params.connectionClosedListener(false)
       }
-      await this.closeConsumer(consumer.extendedId)
+      try {
+        await this.closeConsumer(consumer.extendedId)
+      } catch (e) {
+        this.logger.error(`Error while automatically closing consumer ${consumer.extendedId}: ${inspect(e)}`)
+      }
     })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection, superStreamConsumer?.superStream)
