@@ -84,6 +84,41 @@ describe("super stream consumer", () => {
       })
     })
 
+    it("closing a super stream consumer - un-registers all partition consumers from the client", async () => {
+      const superStreamConsumer = await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
+        return
+      })
+      expect(client.consumerCounts()).to.be.equal(noOfPartitions)
+
+      await superStreamConsumer.close()
+
+      expect(client.consumerCounts()).to.be.equal(0)
+    })
+
+    it("closing a super stream consumer twice - does not throw", async () => {
+      const superStreamConsumer = await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
+        return
+      })
+
+      await superStreamConsumer.close()
+      await superStreamConsumer.close()
+
+      expect(client.consumerCounts()).to.be.equal(0)
+    })
+
+    it("closing a super stream consumer after the client closed one partition consumer - does not throw", async () => {
+      const superStreamConsumer = await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
+        return
+      })
+      const [{ consumer }] = client.getConsumers()
+      await client.closeConsumer(consumer.extendedId)
+      expect(client.consumerCounts()).to.be.equal(noOfPartitions - 1)
+
+      await superStreamConsumer.close()
+
+      expect(client.consumerCounts()).to.be.equal(0)
+    })
+
     it("for a consumer the number of connections should be equals to the partitions' number", async () => {
       await client.declareSuperStreamConsumer({ superStream: superStreamName }, (_) => {
         return
