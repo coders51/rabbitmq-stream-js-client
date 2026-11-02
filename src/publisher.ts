@@ -382,17 +382,23 @@ export class StreamPublisher implements Publisher {
   public async close(): Promise<void> {
     if (this.closed) return
     this._closed = true
-    await this.flush()
-    await this.pool.releaseConnection(this.connection, true)
-    this.connection.freePublisherId(this.publisherId)
+    try {
+      await this.flush()
+    } finally {
+      await this.pool.releaseConnection(this.connection, true)
+      this.connection.freePublisherId(this.publisherId)
+    }
   }
 
   public async automaticClose(): Promise<void> {
     if (this.closed) return
     this._closed = true
-    await this.flush()
-    await this.pool.releaseConnection(this.connection, false)
-    this.connection.freePublisherId(this.publisherId)
+    try {
+      await this.flush()
+    } finally {
+      await this.pool.releaseConnection(this.connection, false)
+      this.connection.freePublisherId(this.publisherId)
+    }
   }
 
   public get streamName(): string {

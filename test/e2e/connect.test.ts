@@ -66,6 +66,26 @@ describe("connect", () => {
     )
   }).timeout(10000)
 
+  it("throw exception if credentials are wrong", async () => {
+    const [firstNode] = getTestNodesFromEnv()
+
+    await expectToThrowAsync(
+      async () => {
+        client = await connect({
+          hostname: firstNode.host,
+          port: firstNode.port,
+          username,
+          password: `wrong-${password}`,
+          vhost: "/",
+          frameMax: 0,
+          heartbeat: 0,
+        })
+      },
+      Error,
+      /^Unable Authenticate -> \d+$/
+    )
+  }).timeout(10000)
+
   it("using EXTERNAL auth", async () => {
     client = await createTlsClient()
 
