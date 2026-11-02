@@ -31,21 +31,22 @@ let client = undefined
 let publisher = undefined
 let consumer = undefined
 let consumerOffset = rabbit.Offset.first()
-let streamName = `example-${randomUUID()}`
+const streamName = `example-${randomUUID()}`
 const publisherOutbox = { messageIds: [], messages: new Map(), publishingIds: new Map(), offset: 0 }
 const received = new Set()
-let publishingId = 1n
+const publishingId = 1n
 let restartCount = 0
 let published = 0
 let confirmed = 0
 let callbackCalled = 0
 const logger = {
-  debug: (msg) => { return },
+  debug: (msg) => {
+    return
+  },
   info: (msg) => console.log(`[info]\t[${new Date().toISOString()}] ${msg}`),
   error: (msg) => console.log(`[error]\t[${new Date().toISOString()}] ${msg}`),
   warn: (msg) => console.log(`[warn]\t[${new Date().toISOString()}] ${msg}`),
 }
-
 
 function getNodesFromEnv() {
   const envValue = process.env.RABBIT_MQ_TEST_NODES ?? "localhost:5552"
@@ -115,10 +116,11 @@ function scheduleLogInfo() {
   setInterval(() => {
     logger.info(`outbox queue length: ${publisherOutbox.messageIds.length} offset ${publisherOutbox.offset}`)
     logger.info(`${inspect({ published, confirmed, received: received.size })}`)
-    logger.info(`client local port: ${inspect(client && client.getConnectionInfo().localPort)} consumer local port: ${inspect(consumer && consumer.getConnectionInfo().localPort)} publisher local port: ${inspect(publisher && publisher.getConnectionInfo().localPort)}`)
+    logger.info(
+      `client local port: ${inspect(client && client.getConnectionInfo().localPort)} consumer local port: ${inspect(consumer && consumer.getConnectionInfo().localPort)} publisher local port: ${inspect(publisher && publisher.getConnectionInfo().localPort)}`
+    )
   }, 3000)
 }
-
 
 /*
   at each interval, trigger a connection problem.
@@ -135,8 +137,7 @@ async function triggerConnectionIssues() {
           if (client) await client.close()
           res(true)
           return
-        }
-        catch (e) {
+        } catch (e) {
           rej(e)
           return
         }
@@ -152,9 +153,15 @@ async function triggerConnectionIssues() {
   informs us that the broker has correctly received the sent message. This triggers an update on
   the outbox state (the message is considered as sent)
 */
-async function setupPublisher(client) {
+async function setupPublisher(pubClient) {
   const publisherRef = `publisher - ${randomUUID()}`
-  const publisherConfig = { stream: streamName, publisherRef: publisherRef, connectionClosedListener: (err) => { return } }
+  const publisherConfig = {
+    stream: streamName,
+    publisherRef: publisherRef,
+    connectionClosedListener: (err) => {
+      return
+    },
+  }
   /*
     confirmedIds contains the list of publishingIds linked to messages correctly published in the stream
     These ids are not the messageIds that have been set in the message properties
@@ -165,9 +172,9 @@ async function setupPublisher(client) {
       return
     }
     confirmed = confirmed + confirmedIds.length
-    confirmedMessageIds = confirmedIds.map((publishingId) => {
-      const messageId = publisherOutbox.publishingIds.get(publishingId)
-      publisherOutbox.publishingIds.delete(publishingId)
+    confirmedMessageIds = confirmedIds.map((pubId) => {
+      const messageId = publisherOutbox.publishingIds.get(pubId)
+      publisherOutbox.publishingIds.delete(pubId)
       return messageId
     })
 
@@ -180,17 +187,23 @@ async function setupPublisher(client) {
       }
     })
   }
-  const publisher = await client.declarePublisher(publisherConfig)
-  publisher.on("publish_confirm", publisherConfirmCallback)
+  const pub = await pubClient.declarePublisher(publisherConfig)
+  pub.on("publish_confirm", publisherConfirmCallback)
   publisherOutbox.offset = 0
-  return publisher
+  return pub
 }
 
 /*
   in the consumer we can use the `messageId` property to make sure each message is "handled" once.
  */
-async function setupConsumer(client) {
-  const consumerConfig = { stream: streamName, offset: rabbit.Offset.timestamp(new Date()), connectionClosedListener: (err) => { return } }
+async function setupConsumer(conClient) {
+  const consumerConfig = {
+    stream: streamName,
+    offset: rabbit.Offset.timestamp(new Date()),
+    connectionClosedListener: (err) => {
+      return
+    },
+  }
   const receiveCallback = (msg) => {
     const msgId = msg.messageProperties.messageId
     if (received.has(msgId)) {
@@ -205,9 +218,8 @@ async function setupConsumer(client) {
     consumerOffset = msg.offset
     return
   }
-  return client.declareConsumer(consumerConfig, receiveCallback)
+  return conClient.declareConsumer(consumerConfig, receiveCallback)
 }
-
 
 /*
   setup of a client instance, a producer and a consumer. 
@@ -224,33 +236,37 @@ async function setup() {
       if (callbackCalled > 10) {
         process.exit(0)
       }
-      client.restart().then(() => {
-        logger.info(`Connections restarted!`)
-      }).catch((reason) => {
-        logger.warn(`Could not reconnect to Rabbit! ${reason}`)
-      })
+      client
+        .restart()
+        .then(() => {
+          logger.info(`Connections restarted!`)
+        })
+        .catch((reason) => {
+          logger.warn(`Could not reconnect to Rabbit! ${reason}`)
+        })
     }
     const firstNode = getNodesFromEnv()[0]
     logger.info(`Now invoking rabbit.connect on ${inspect(firstNode)}`)
-    client = await rabbit.connect({
-      hostname: firstNode.host,
-      port: firstNode.port,
-      username: rabbitUser,
-      password: rabbitPassword,
-      listeners: { connection_closed: connectionClosedCallback, },
-      vhost: "/",
-      heartbeat: 0,
-    }, logger)
+    client = await rabbit.connect(
+      {
+        hostname: firstNode.host,
+        port: firstNode.port,
+        username: rabbitUser,
+        password: rabbitPassword,
+        listeners: { connection_closed: connectionClosedCallback },
+        vhost: "/",
+        heartbeat: 0,
+      },
+      logger
+    )
     await client.createStream({ stream: streamName, arguments: {} })
     publisher = await setupPublisher(client)
     consumer = await setupConsumer(client)
     return { client, publisher, consumer }
-  }
-  catch (err) {
+  } catch (err) {
     logger.warn(`Setup-wide error: ${inspect(err)}`)
   }
 }
-
 
 async function main() {
   //instantiate the client, the producer and the consumer
@@ -271,4 +287,3 @@ main()
     logger.info("ERROR ", res)
     process.exit(-1)
   })
-

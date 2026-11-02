@@ -1,6 +1,6 @@
 import { expect, spy } from "chai"
 import { Client } from "../../src"
-import { createClient } from "../support/fake_data"
+import { createClient, createStreamName } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
 import { username, password, eventually, always } from "../support/util"
 import { randomUUID } from "crypto"
@@ -226,6 +226,78 @@ describe("connection closed callback", () => {
       expect(clientListenerSpy).to.have.been.called.at.most(1)
     }, 5000)
   }).timeout(15000)
+
+  describe("super streams", () => {
+    let superStreamName: string
+
+    beforeEach(async () => {
+      superStreamName = createStreamName()
+      await rabbit.createSuperStream(superStreamName)
+    })
+
+    afterEach(async () => {
+      try {
+        await rabbit.deleteSuperStream(superStreamName)
+      } catch (e) {}
+    })
+
+    it("is invoked on partition connections of a super stream consumer when the server closes them", async () => {
+      const listenerSpy = spy((_hadError: boolean) => undefined)
+      client = await createClient(username, password)
+      await client.declareSuperStreamConsumer(
+        { superStream: superStreamName, connectionClosedListener: listenerSpy },
+        (_msg) => {
+          return
+        }
+      )
+      await sleep(5000)
+
+      await rabbit.closeAllConnections()
+
+      await eventually(() => {
+        expect(listenerSpy).to.have.been.called.at.least(1)
+      }, 5000)
+    }).timeout(15000)
+
+    it("is invoked on partition connections of a super stream publisher and the same publisher can send after a client restart", async () => {
+      const listenerSpy = spy((_hadError: boolean) => undefined)
+      client = await createClient(username, password)
+      const publisher = await client.declareSuperStreamPublisher(
+        {
+          superStream: superStreamName,
+          connectionClosedListener: listenerSpy,
+        },
+        () => "key"
+      )
+      await publisher.send(Buffer.from("before"), {})
+      await sleep(5000)
+
+      await rabbit.closeAllConnections()
+
+      await eventually(() => {
+        expect(listenerSpy).to.have.been.called.at.least(1)
+      }, 5000)
+      await client.restart()
+      await publisher.send(Buffer.from("after"), {})
+    }).timeout(30000)
+
+    it("is not invoked on a super stream consumer when the client closes it", async () => {
+      const listenerSpy = spy((_hadError: boolean) => undefined)
+      client = await createClient(username, password)
+      await client.declareSuperStreamConsumer(
+        { superStream: superStreamName, connectionClosedListener: listenerSpy },
+        (_msg) => {
+          return
+        }
+      )
+
+      await client.close()
+
+      await always(() => {
+        expect(listenerSpy).to.have.been.called.exactly(0)
+      })
+    }).timeout(5000)
+  })
 })
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))

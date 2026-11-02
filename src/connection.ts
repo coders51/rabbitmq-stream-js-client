@@ -62,8 +62,10 @@ import { StreamResponseError } from "./stream_response_error"
 
 /**
  * Callback invoked when a connection closes
+ * @param hadError - True if the connection closed due to an error
+ * @param connectionId - Id of the connection that closed; pass it to `Client.restart` to restart only that connection
  */
-export type ConnectionClosedListener = (hadError: boolean) => void
+export type ConnectionClosedListener = (hadError: boolean, connectionId: string) => void
 
 /**
  * Extended listener parameters for connections, including delivery and consumer update listeners
@@ -223,7 +225,9 @@ export class Connection {
         this.logger.info(
           `Close event on socket for connection ${this.connectionId}, close cloud had_error? ${had_error}`
         )
-        if (this.connectionClosedListener && !this.userManuallyClose) this.connectionClosedListener(had_error)
+        if (this.connectionClosedListener && !this.userManuallyClose) {
+          this.connectionClosedListener(had_error, this.connectionId)
+        }
       })
     })
   }
@@ -241,11 +245,16 @@ export class Connection {
    *
    * This recreates the socket and re-establishes the connection including
    * the full handshake process (peer properties, auth, tuning, open).
+   * The previous socket is destroyed, so restarting a connection that is still
+   * alive does not leave an orphaned connection (and its consumers) on the broker.
    *
    * @returns A promise that resolves when the connection is restarted
    */
   public async restart() {
     this.unregisterSocketListeners()
+    // Listeners are gone, so this can't trigger connectionClosedListener; the "error" listener is
+    // intentionally kept so a late socket error is not unhandled.
+    this.socket.destroy()
     this.socket = this.createSocket()
     await this.registerSocketListeners()
     this.logSocket("restarted")

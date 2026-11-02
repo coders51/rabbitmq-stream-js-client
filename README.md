@@ -400,7 +400,7 @@ await client.close()
 
 ### Mitigating connection issues
 
-The library exposes some utility functions and properties that can help in building a more robust client application. One simple use case that is addressed in one of the examples (`example/autoreconnect_example.js`) shows how to build a client application that can handle simple network issues like a temporary disconnection. In this scenario we are _not_ dealing with a complex broker-side service disruption or a cluster reorganization; in particular, we assume that the stream topology and the node host names do not change.
+The library exposes some utility functions and properties that can help in building a more robust client application. One simple use case that is addressed in the examples (`example/autoreconnect_example.js` and `example/superstream_autoreconnect_example.js`) shows how to build a client application that can handle simple network issues like a temporary disconnection. In this scenario we are _not_ dealing with a complex broker-side service disruption or a cluster reorganization; in particular, we assume that the stream topology and the node host names do not change.
 
 The approach can be simply summed up as: register a `connection_closed` listener when instantiating a `Client` object, and then call the `client.restart().then(...)` method in its body.
 
@@ -431,18 +431,11 @@ There are various considerations to keep in mind when building a client applicat
 - consider using the outbox pattern when sending messages to the broker.
 - some form of deduplication should be implementend in the client application when receiving messages: the use of offsets when defining consumer instances does not avoid the possibility of receiving messages multiple times.
 
-See the comments and the implemenation in `example/autoreconnect_example.js` for a more in-depth view.
+See the comments and the implemenation in `example/autoreconnect_example.js` for a more in-depth view. For super streams see `example/superstream_autoreconnect_example.js`.
 
 ## Running Examples
 
 the folder /example contains a project that shows some examples on how to use the lib, to run it follow this steps
-
-move to the example folder and install the dependencies
-
-```shell
-cd example
-npm i
-```
 
 run the make command to launch a rabbit instance already stream enabled
 
@@ -456,10 +449,23 @@ add this line to your host file (on linux `/etc/hosts`) to correctly resolve rab
 127.0.0.1       rabbitmq
 ```
 
-then launch the examples
+move to the example folder and install the dependencies
+
+```shell
+cd example
+npm i
+```
+
+then launch the basic example
 
 ```shell
 npm start
+```
+
+To run an individual example, call `node [example_name.js]`
+
+```shell
+node autoreconnect_example.js
 ```
 
 ## Build from source
