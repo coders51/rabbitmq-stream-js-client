@@ -256,7 +256,6 @@ describe("super stream publisher", () => {
       await publisher.send(Buffer.from("hello"), { routingKey: `hello${i}` })
     }
 
-    // same distribution as the hashing test, where the same keys come from the extractor
     await eventually(async () => {
       expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
       expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
@@ -269,7 +268,6 @@ describe("super stream publisher", () => {
     await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
       messages.push(msg)
     })
-    // the extractor would make the send throw, as the key does not exist
     const publisher = await client.declareSuperStreamPublisher(
       { superStream: superStreamName, routingStrategy: "key" },
       (_) => "non-existent"
@@ -312,7 +310,6 @@ describe("super stream publisher", () => {
     await client.declareSuperStreamConsumer({ superStream: superStreamName }, (m: Message) => {
       receivedMessages.push(m)
     })
-    // the extractor would make the send throw, as the key does not exist
     const publisher = await client.declareSuperStreamPublisher(
       { superStream: superStreamName, routingStrategy: "key" },
       (_) => "non-existent"
