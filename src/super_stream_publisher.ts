@@ -22,7 +22,7 @@ export type SuperStreamMessageOptions = MessageOptions & {
   routingKey?: string
 }
 
-export type MessageWithOptions = Message & SuperStreamMessageOptions
+export type SuperStreamMessage = Message & SuperStreamMessageOptions
 
 export class SuperStreamPublisher {
   private locator: Client
@@ -71,9 +71,9 @@ export class SuperStreamPublisher {
     return publisher.basicSend(publishingId, message, opts)
   }
 
-  public async sendSubEntries(messages: MessageWithOptions[], compressionType: CompressionType = CompressionType.None) {
+  public async sendSubEntries(messages: SuperStreamMessage[], compressionType: CompressionType = CompressionType.None) {
     // route all messages
-    const messagesByPartition: Map<string, MessageWithOptions[]> = new Map()
+    const messagesByPartition: Map<string, SuperStreamMessage[]> = new Map()
     await Promise.all(
       messages.map(async (m) => {
         const partition = await this.routeMessage(m.content, m)
