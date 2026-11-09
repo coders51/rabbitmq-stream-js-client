@@ -292,6 +292,95 @@ describe("super stream publisher", () => {
     )
   })
 
+  it("send with an empty string routingKey throws and does not fall back to the key extractor", async () => {
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_) => "valid-key-from-extractor"
+    )
+
+    await expectToThrowAsync(
+      async () => {
+        await publisher.send(Buffer.from("Hello world"), { routingKey: "" })
+      },
+      Error,
+      /Routing key is empty or undefined with the provided extractor/
+    )
+  })
+
+  it("sendSubEntries with an empty string routingKey throws and does not fall back to the key extractor", async () => {
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_) => "valid-key-from-extractor"
+    )
+
+    await expectToThrowAsync(
+      async () => {
+        await publisher.sendSubEntries([{ content: Buffer.from("Hello world"), routingKey: "" }], CompressionType.None)
+      },
+      Error,
+      /Routing key is empty or undefined with the provided extractor/
+    )
+  })
+
+  it("basicSend uses the routingKey from the message - no key extractor needed", async () => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
+
+    for (let i = 0; i < 20; i++) {
+      await publisher.basicSend(BigInt(i), Buffer.from("hello"), { routingKey: `hello${i}` })
+    }
+
+    await eventually(async () => {
+      expect((await rabbit.getQueueInfo(`${superStreamName}-0`)).messages).to.eql(9)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-1`)).messages).to.eql(7)
+      expect((await rabbit.getQueueInfo(`${superStreamName}-2`)).messages).to.eql(4)
+    }, 10000)
+  }).timeout(12000)
+
+  it("basicSend prefers the routingKey from the message over the key extractor", async () => {
+    const messages: Message[] = []
+    await client.declareSuperStreamConsumer({ superStream: superStreamName }, (msg) => {
+      messages.push(msg)
+    })
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName, routingStrategy: "key", publisherRef: "publisher-ref" },
+      (_) => "non-existent"
+    )
+
+    await publisher.basicSend(1n, Buffer.from("Hello world"), { routingKey: "0" })
+
+    await eventually(async () => {
+      expect(messages).to.have.length(1)
+      expect(await publisher.getLastPublishingId()).to.be.eql(1n)
+    }, 2000)
+  })
+
+  it("basicSend without routingKey in the message and without key extractor throws", async () => {
+    const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
+
+    await expectToThrowAsync(
+      async () => {
+        await publisher.basicSend(1n, Buffer.from("Hello world"), {})
+      },
+      Error,
+      /Routing key is empty or undefined with the provided extractor/
+    )
+  })
+
+  it("basicSend with an empty string routingKey throws and does not fall back to the key extractor", async () => {
+    const publisher = await client.declareSuperStreamPublisher(
+      { superStream: superStreamName },
+      (_) => "valid-key-from-extractor"
+    )
+
+    await expectToThrowAsync(
+      async () => {
+        await publisher.basicSend(1n, Buffer.from("Hello world"), { routingKey: "" })
+      },
+      Error,
+      /Routing key is empty or undefined with the provided extractor/
+    )
+  })
+
   it("sendSubEntries uses the routingKey from each message - no key extractor needed", async () => {
     const publisher = await client.declareSuperStreamPublisher({ superStream: superStreamName })
     const messages = range(20).map((_, i) => ({ content: Buffer.from("hello"), routingKey: `hello${i}` }))
