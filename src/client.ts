@@ -115,6 +115,7 @@ type DeliverData = {
 export class Client {
   public readonly id: string = randomUUID()
   private consumers = new Map<string, ConsumerMappedValue>()
+  private readonly consumersClosing = new Map<StreamConsumer, Promise<boolean>>()
   private publishers = new Map<string, PublisherMappedValue>()
   private compressions = new Map<CompressionType, Compression>()
   private locatorConnection: Connection
@@ -361,6 +362,14 @@ export class Client {
         this.logger.error(`Error while automatically closing consumer ${consumer.extendedId}: ${inspect(e)}`)
       }
     })
+    consumer.setCloseHandler(async () => {
+      // compare instances: ids are recycled, so the id may belong to another consumer by now
+      if (this.consumers.get(consumer.extendedId)?.consumer === consumer) {
+        await this.closeConsumer(consumer.extendedId)
+      } else {
+        await consumer.closeInternal()
+      }
+    })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection, superStreamConsumer?.superStream)
     this.logger.info(
@@ -376,6 +385,16 @@ export class Client {
       throw new Error(`Consumer with id: ${extendedConsumerId} does not exist`)
     }
 
+    const inProgress = this.consumersClosing.get(activeConsumer.consumer)
+    if (inProgress) return inProgress
+    const closing = this.unsubscribeAndClose(activeConsumer, extendedConsumerId).finally(() => {
+      this.consumersClosing.delete(activeConsumer.consumer)
+    })
+    this.consumersClosing.set(activeConsumer.consumer, closing)
+    return closing
+  }
+
+  private async unsubscribeAndClose(activeConsumer: ConsumerMappedValue, extendedConsumerId: string) {
     const consumerId = extractConsumerId(extendedConsumerId)
     const { streamInfos } = await this.locatorConnection.sendAndWait<MetadataResponse>(
       new MetadataRequest({ streams: [activeConsumer.consumer.streamName] })
@@ -434,7 +453,7 @@ export class Client {
   }
 
   private async closeAllConsumers() {
-    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close()))
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.closeInternal()))
     this.consumers = new Map<string, ConsumerMappedValue>()
   }
 
@@ -931,7 +950,7 @@ export class Client {
   }
 
   private async closing(consumer: StreamConsumer, extendedConsumerId: string) {
-    await consumer.close()
+    await consumer.closeInternal()
     this.consumers.delete(extendedConsumerId)
     this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
   }

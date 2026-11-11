@@ -1,5 +1,6 @@
 import { expect } from "chai"
 import { Client, Offset } from "../../src"
+import { Consumer } from "../../src/consumer"
 import { Message, MessageOptions } from "../../src/publisher"
 import { range } from "../../src/util"
 import { createClient, createStreamName } from "../support/fake_data"
@@ -241,6 +242,75 @@ describe("super stream consumer", () => {
         expect(messages[1]).to.have.length(noOfMessagesPerPartition)
         expect(allPartitionKeysAreTheSame(messages[1]))
       })
+    })
+  })
+
+  describe("closing a partition consumer", () => {
+    beforeEach(async () => {
+      noOfPartitions = await rabbit.createSuperStream(superStreamName, 2)
+      sender = await roundRobinSender(client, superStreamName, noOfPartitions)
+    })
+
+    it("unsubscribes it, so that another consumer with the same reference can take over that partition", async () => {
+      const consumerRef = "close-partition"
+      const firstConsumerReceived = new Map<string, number>()
+      const secondConsumerReceived = new Map<string, number>()
+      const count = (into: Map<string, number>) => (_message: Message, consumer: Consumer) => {
+        into.set(consumer.streamName, (into.get(consumer.streamName) ?? 0) + 1)
+      }
+      await client.declareSuperStreamConsumer(
+        { superStream: superStreamName, consumerRef },
+        count(firstConsumerReceived)
+      )
+      const firstConsumers = client.getConsumers().map(({ consumer }) => consumer)
+      expect(firstConsumers).to.have.length(noOfPartitions)
+      await client.declareSuperStreamConsumer(
+        { superStream: superStreamName, consumerRef },
+        count(secondConsumerReceived)
+      )
+
+      const allConsumers = client.getConsumers().map(({ consumer }) => consumer)
+      expect(allConsumers).to.have.length(noOfPartitions * 2)
+      const secondConsumers = allConsumers.filter((c) => !firstConsumers.includes(c))
+      expect(secondConsumers).to.have.length(noOfPartitions)
+
+      // sending a probe to figure out which consumers are assigned to which partitions
+      await sender(1)
+      await eventually(() => {
+        for (const { streamName } of firstConsumers) {
+          expect((firstConsumerReceived.get(streamName) ?? 0) + (secondConsumerReceived.get(streamName) ?? 0)).to.equal(
+            1
+          )
+        }
+      })
+
+      const assignedConsumers = firstConsumers
+        .filter(({ streamName }) => firstConsumerReceived.has(streamName))
+        .concat(secondConsumers.filter(({ streamName }) => secondConsumerReceived.has(streamName)))
+      expect(assignedConsumers).to.have.length(noOfPartitions)
+      firstConsumerReceived.clear()
+      secondConsumerReceived.clear()
+
+      const closedConsumer = assignedConsumers[0]
+      await closedConsumer.close()
+
+      expect(client.consumerCounts()).to.be.equal(noOfPartitions * 2 - 1)
+      await sender(5)
+
+      const closedReceived = firstConsumers.includes(closedConsumer) ? firstConsumerReceived : secondConsumerReceived
+      const assertTakenOver = () => {
+        for (const { streamName } of firstConsumers) {
+          // expected may include the probe message sent first
+          const expected = streamName === closedConsumer.streamName ? 6 : 5
+          expect((firstConsumerReceived.get(streamName) ?? 0) + (secondConsumerReceived.get(streamName) ?? 0)).to.equal(
+            expected
+          )
+        }
+        expect(closedReceived.get(closedConsumer.streamName)).to.equal(undefined)
+      }
+      await eventually(assertTakenOver)
+      await waitSleeping(300)
+      assertTakenOver()
     })
   })
 })

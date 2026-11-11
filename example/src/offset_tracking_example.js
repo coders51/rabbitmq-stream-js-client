@@ -51,7 +51,7 @@ async function main() {
         lastOffset = message.offset
         await consumer.storeOffset(message.offset)
         console.log(`Done consuming, first offset was ${firstOffset}, last offset was ${lastOffset}`)
-        await consumer.close(true)
+        await consumer.close()
         process.exit(0)
       }
     }
