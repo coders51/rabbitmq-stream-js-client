@@ -38,7 +38,8 @@ export const computeExtendedConsumerId = (consumerId: number, connectionId: stri
  */
 export interface Consumer {
   /**
-   * Close the consumer and release the connection
+   * Close the consumer: unsubscribe it from the stream, remove it from the client and release its connection.
+   * Calling it again, or while it is already closing, has no further effect.
    */
   close(): Promise<void>
 
@@ -128,6 +129,8 @@ export class StreamConsumer implements Consumer {
   private creditsHandler: ConsumerCreditPolicy
   private consumerHandle: ConsumerFunc
   private closed: boolean
+  private closing?: Promise<void>
+  private closeHandler?: () => Promise<void>
   private singleActive: boolean = false
 
   constructor(
@@ -160,7 +163,27 @@ export class StreamConsumer implements Consumer {
     this.singleActive = params.singleActive ?? false
   }
 
+  /**
+   * Set by the client that created the consumer, so that `close` goes through the client: it unsubscribes the
+   * consumer and removes it from the client's registry. Without it, `close` only releases the consumer locally.
+   */
+  setCloseHandler(handler: () => Promise<void>): void {
+    this.closeHandler = handler
+  }
+
   async close(): Promise<void> {
+    if (this.closed) return
+    this.closing ??= (this.closeHandler ? this.closeHandler() : this.closeInternal()).finally(() => {
+      this.closing = undefined
+    })
+    await this.closing
+  }
+
+  /**
+   * Marks the consumer closed and releases its connection. It does not unsubscribe the consumer or remove it
+   * from the client: use `close` for that. The client calls it as the last step of closing a consumer.
+   */
+  async closeInternal(): Promise<void> {
     if (this.closed) return
     this.closed = true
     await this.pool.releaseConnection(this.connection, true)
