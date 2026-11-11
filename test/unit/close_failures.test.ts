@@ -85,6 +85,54 @@ describe("Close failures", () => {
     })
   })
 
+  describe("close with a close handler", () => {
+    it("goes through the handler, which finishes by releasing the consumer locally", async () => {
+      connection.incrRefCount()
+      const consumer = createConsumer()
+      const handler = spy(async () => {
+        await consumer.closeInternal()
+      })
+      consumer.setCloseHandler(handler)
+
+      await consumer.close()
+
+      expect(handler).to.have.been.called.once
+      expect(connection.refCount).eql(1)
+    })
+
+    it("concurrent calls share one handler call", async () => {
+      const consumer = createConsumer()
+      const handler = spy(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        await consumer.closeInternal()
+      })
+      consumer.setCloseHandler(handler)
+
+      await Promise.all([consumer.close(), consumer.close()])
+      await consumer.close()
+
+      expect(handler).to.have.been.called.once
+    })
+
+    it("a failed close can be repeated", async () => {
+      const consumer = createConsumer()
+      let attempts = 0
+      consumer.setCloseHandler(async () => {
+        if (attempts++ === 0) throw new Error("unsubscribe failed")
+        await consumer.closeInternal()
+      })
+
+      await consumer.close().then(
+        () => expect.fail("expected the close to fail"),
+        (e: Error) => expect(e.message).eql("unsubscribe failed")
+      )
+      await consumer.close()
+
+      expect(attempts).eql(2)
+      expect(connection.refCount).eql(0)
+    })
+  })
+
   describe("automaticClose", () => {
     it("publisher releases the connection even if flush fails", async () => {
       const publisher = createPublisher()

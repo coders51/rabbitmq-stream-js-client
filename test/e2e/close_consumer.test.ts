@@ -6,7 +6,7 @@ import { Offset } from "../../src/requests/subscribe_request"
 import { getMaxSharedConnectionInstances } from "../../src/util"
 import { createClient, createConsumer } from "../support/fake_data"
 import { Rabbit } from "../support/rabbit"
-import { eventually, expectToThrowAsync, getTestNodesFromEnv, password, username } from "../support/util"
+import { eventually, expectToThrowAsync, getTestNodesFromEnv, password, username, waitSleeping } from "../support/util"
 
 describe("close consumer", () => {
   const rabbit = new Rabbit(username, password)
@@ -51,6 +51,54 @@ describe("close consumer", () => {
       expect(readable).eql(false)
     })
   }).timeout(5000)
+
+  it("closing a consumer with its own close - unsubscribes it and removes it from the client", async () => {
+    const publisher = await client.declarePublisher({ stream: testStreamName })
+    const received: string[] = []
+    const consumer = await client.declareConsumer({ stream: testStreamName, offset: Offset.first() }, (message) => {
+      received.push(message.content.toString())
+    })
+    await publisher.send(Buffer.from("before"), {})
+    await eventually(() => {
+      expect(received).eql(["before"])
+    })
+
+    await consumer.close()
+
+    expect(client.consumerCounts()).eql(0)
+    await publisher.send(Buffer.from("after"), {})
+    await waitSleeping(500)
+    expect(received).eql(["before"])
+  }).timeout(10000)
+
+  it("closing a consumer with its own close - frees its subscription id for other consumers on the connection", async () => {
+    const first = await createConsumer(testStreamName, client)
+    const second = await createConsumer(testStreamName, client)
+
+    await first.close()
+
+    expect(client.consumerCounts()).eql(1)
+    expect(client.getConsumers().map(({ consumer }) => consumer)).eql([second])
+    expect(second.getConnectionInfo().readable).eql(true)
+  }).timeout(10000)
+
+  it("closing a consumer twice, or at the same time, is safe", async () => {
+    const consumer = await createConsumer(testStreamName, client)
+
+    await Promise.all([consumer.close(), consumer.close()])
+    await consumer.close()
+
+    expect(client.consumerCounts()).eql(0)
+  }).timeout(10000)
+
+  it("closing a consumer that the client already closed does not throw", async () => {
+    const consumer = await createConsumer(testStreamName, client)
+    await client.closeConsumer(consumer.extendedId)
+
+    await consumer.close()
+
+    expect(client.consumerCounts()).eql(0)
+  }).timeout(10000)
 
   it("closing a non-existing consumer should rise an error", async () => {
     const nonExistingConsumerId = computeExtendedConsumerId(123456, randomUUID())

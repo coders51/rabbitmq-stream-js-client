@@ -361,6 +361,14 @@ export class Client {
         this.logger.error(`Error while automatically closing consumer ${consumer.extendedId}: ${inspect(e)}`)
       }
     })
+    consumer.setCloseHandler(async () => {
+      // compare instances: ids are recycled, so the id may belong to another consumer by now
+      if (this.consumers.get(consumer.extendedId)?.consumer === consumer) {
+        await this.closeConsumer(consumer.extendedId)
+      } else {
+        await consumer.closeInternal()
+      }
+    })
     this.consumers.set(consumer.extendedId, { connection, consumer, params })
     await this.declareConsumerOnConnection(params, consumerId, connection, superStreamConsumer?.superStream)
     this.logger.info(
@@ -434,7 +442,7 @@ export class Client {
   }
 
   private async closeAllConsumers() {
-    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.close()))
+    await Promise.all([...this.consumers.values()].map(({ consumer }) => consumer.closeInternal()))
     this.consumers = new Map<string, ConsumerMappedValue>()
   }
 
@@ -931,7 +939,7 @@ export class Client {
   }
 
   private async closing(consumer: StreamConsumer, extendedConsumerId: string) {
-    await consumer.close()
+    await consumer.closeInternal()
     this.consumers.delete(extendedConsumerId)
     this.logger.info(`Closed consumer with id: ${extendedConsumerId}`)
   }
