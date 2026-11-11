@@ -115,6 +115,7 @@ type DeliverData = {
 export class Client {
   public readonly id: string = randomUUID()
   private consumers = new Map<string, ConsumerMappedValue>()
+  private readonly consumersClosing = new Map<StreamConsumer, Promise<boolean>>()
   private publishers = new Map<string, PublisherMappedValue>()
   private compressions = new Map<CompressionType, Compression>()
   private locatorConnection: Connection
@@ -384,6 +385,16 @@ export class Client {
       throw new Error(`Consumer with id: ${extendedConsumerId} does not exist`)
     }
 
+    const inProgress = this.consumersClosing.get(activeConsumer.consumer)
+    if (inProgress) return inProgress
+    const closing = this.unsubscribeAndClose(activeConsumer, extendedConsumerId).finally(() => {
+      this.consumersClosing.delete(activeConsumer.consumer)
+    })
+    this.consumersClosing.set(activeConsumer.consumer, closing)
+    return closing
+  }
+
+  private async unsubscribeAndClose(activeConsumer: ConsumerMappedValue, extendedConsumerId: string) {
     const consumerId = extractConsumerId(extendedConsumerId)
     const { streamInfos } = await this.locatorConnection.sendAndWait<MetadataResponse>(
       new MetadataRequest({ streams: [activeConsumer.consumer.streamName] })
