@@ -48,6 +48,12 @@ describe("resolveStartOffset", () => {
       expect(received).to.have.length(3)
     })
     await consumer.storeOffset(1n)
+
+    await eventually(async () => {
+      const result = await consumer.queryOffset()
+      expect(result).eql(1n)
+    })
+
     await consumer.close()
 
     const offset = await resolveStartOffset(client, Offset.first(), consumerRef, streamName)
@@ -92,6 +98,11 @@ describe("resolveStartOffset", () => {
         async (msg, partitionConsumer) => {
           received.push(msg.content.toString())
           await partitionConsumer.storeOffset(msg.offset)
+
+          await eventually(async () => {
+            const result = await partitionConsumer.queryOffset()
+            expect(result).eql(msg.offset)
+          })
         }
       )
       return { received, consumer }
