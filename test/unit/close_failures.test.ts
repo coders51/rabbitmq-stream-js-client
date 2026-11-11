@@ -114,6 +114,31 @@ describe("Close failures", () => {
       expect(handler).to.have.been.called.once
     })
 
+    it("a call that joins a close in progress waits for it to finish, even once the consumer is marked closed", async () => {
+      const consumer = createConsumer()
+      let finishHandler!: () => void
+      consumer.setCloseHandler(async () => {
+        await consumer.closeInternal()
+        // the client still has to remove the registry entry
+        await new Promise<void>((resolve) => {
+          finishHandler = resolve
+        })
+      })
+      const first = consumer.close()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+
+      let joined = false
+      const second = consumer.close().then(() => {
+        joined = true
+      })
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(joined).eql(false)
+
+      finishHandler()
+      await Promise.all([first, second])
+      expect(joined).eql(true)
+    })
+
     it("a failed close can be repeated", async () => {
       const consumer = createConsumer()
       let attempts = 0
