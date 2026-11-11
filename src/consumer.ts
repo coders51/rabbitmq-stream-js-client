@@ -172,11 +172,12 @@ export class StreamConsumer implements Consumer {
   }
 
   async close(): Promise<void> {
+    if (this.closing) return this.closing
     if (this.closed) return
-    this.closing ??= (this.closeHandler ? this.closeHandler() : this.closeInternal()).finally(() => {
+    this.closing = (this.closeHandler ? this.closeHandler() : this.closeInternal()).finally(() => {
       this.closing = undefined
     })
-    await this.closing
+    return this.closing
   }
 
   /**
