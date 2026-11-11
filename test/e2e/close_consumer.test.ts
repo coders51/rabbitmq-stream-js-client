@@ -91,6 +91,19 @@ describe("close consumer", () => {
     expect(client.consumerCounts()).eql(0)
   }).timeout(10000)
 
+  it("closing a consumer through different entry points at the same time unsubscribes it once", async () => {
+    const consumer = await createConsumer(testStreamName, client)
+
+    const results = await Promise.allSettled([
+      consumer.close(),
+      client.closeConsumer(consumer.extendedId),
+      client.closeConsumer(consumer.extendedId),
+    ])
+
+    expect(results.map((r) => r.status)).eql(["fulfilled", "fulfilled", "fulfilled"])
+    expect(client.consumerCounts()).eql(0)
+  })
+
   it("closing a consumer that the client already closed does not throw", async () => {
     const consumer = await createConsumer(testStreamName, client)
     await client.closeConsumer(consumer.extendedId)
