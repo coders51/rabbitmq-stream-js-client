@@ -119,7 +119,6 @@ describe("Close failures", () => {
       let finishHandler!: () => void
       consumer.setCloseHandler(async () => {
         await consumer.closeInternal()
-        // the client still has to remove the registry entry
         await new Promise<void>((resolve) => {
           finishHandler = resolve
         })
