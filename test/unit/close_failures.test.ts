@@ -117,12 +117,13 @@ describe("Close failures", () => {
     it("a call that joins a close in progress waits for it to finish, even once the consumer is marked closed", async () => {
       const consumer = createConsumer()
       let finishHandler!: () => void
-      consumer.setCloseHandler(async () => {
+      const handler = spy(async () => {
         await consumer.closeInternal()
         await new Promise<void>((resolve) => {
           finishHandler = resolve
         })
       })
+      consumer.setCloseHandler(handler)
       const first = consumer.close()
       await new Promise((resolve) => setTimeout(resolve, 20))
 
@@ -136,6 +137,7 @@ describe("Close failures", () => {
       finishHandler()
       await Promise.all([first, second])
       expect(joined).eql(true)
+      expect(handler).to.have.been.called.once
     })
 
     it("a failed close can be repeated", async () => {
