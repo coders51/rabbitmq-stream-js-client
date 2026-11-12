@@ -613,11 +613,18 @@ export class Client {
     for (const { consumer, connection, params } of this.consumers.values()) {
       if (!uniqueConnectionIds.has(connection.connectionId)) {
         this.logger.info(`Restarting consumer connection ${connection.connectionId}`)
+        this.deactivateConsumersOn(connection.connectionId)
         await connection.restart()
       }
       uniqueConnectionIds.add(connection.connectionId)
       const consumerParams = { ...params, offset: Offset.offset(consumer.getOffset()) }
-      await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
+      if (!consumer.isSingleActive) consumer.setActive(true)
+      try {
+        await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
+      } catch (e) {
+        consumer.setActive(false)
+        throw e
+      }
     }
 
     for (const { publisher, connection, params, filter } of this.publishers.values()) {
@@ -781,6 +788,12 @@ export class Client {
     await consumer.creditPolicy.onChunkCompleted(creditRequestWrapper)
   }
 
+  private deactivateConsumersOn(connectionId: string) {
+    for (const { consumer, connection } of this.consumers.values()) {
+      if (connection.connectionId === connectionId) consumer.setActive(false)
+    }
+  }
+
   private getConsumerUpdateCallback(connectionId: string) {
     return async (response: ConsumerUpdateQuery) => {
       const { consumer, connection } = this.consumers.get(
@@ -793,6 +806,7 @@ export class Client {
         this.logger.error(`On consumer_update_query no consumer found`)
         return
       }
+      consumer.setActive(response.active === 1)
       const offset = await this.getConsumerOrServerSavedOffset(consumer)
       consumer.updateConsumerOffset(offset)
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
@@ -877,7 +891,10 @@ export class Client {
     const connectionId = randomUUID()
     const connectionListeners = {
       ...this.params.listeners,
-      connection_closed: connectionClosedListener,
+      connection_closed: (hadError: boolean) => {
+        this.deactivateConsumersOn(connectionId)
+        connectionClosedListener?.(hadError)
+      },
       deliverV1: this.getDeliverV1Callback(connectionId),
       deliverV2: this.getDeliverV2Callback(connectionId),
       consumer_update_query: this.getConsumerUpdateCallback(connectionId),

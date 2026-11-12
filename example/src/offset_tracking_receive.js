@@ -35,12 +35,12 @@ async function main() {
         console.log("First message received")
       }
       if (messageCount % 10 === 0) {
-        await consumer.storeOffset(message.offset)
+        await consumer.storeOffset(message.offset).catch((e) => console.warn("Could not store the offset", e)) // a failed store must not escape the handler
       }
       if (message.content.toString() === "marker") {
         console.log("Marker found")
         lastOffset = message.offset
-        await consumer.storeOffset(message.offset)
+        await consumer.storeOffset(message.offset).catch((e) => console.warn("Could not store the offset", e)) // a failed store must not escape the handler
         await consumer.close()
       }
     }
