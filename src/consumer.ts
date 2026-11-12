@@ -46,6 +46,7 @@ export interface Consumer {
    * Store the stream offset on the server
    *
    * @param {bigint} offsetValue - The value of the offset to save, if not specified the local offset is used
+   * @throws {SocketNotOpenError} If the connection's socket is not open, for example after the connection was lost
    */
   storeOffset(offsetValue?: bigint): Promise<void>
 

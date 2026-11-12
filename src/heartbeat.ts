@@ -1,6 +1,7 @@
 import { Logger } from "./logger"
 import { HeartbeatRequest } from "./requests/heartbeat_request"
 import { Request } from "./requests/request"
+import { SocketNotOpenError } from "./socket_not_open_error"
 
 export interface HeartbeatConnection {
   send(cmd: Request): Promise<void>
@@ -67,10 +68,15 @@ export class Heartbeat {
     this.timeout = setTimeout(() => this.heartbeat(), this.interval)
   }
 
-  private sendHeartbeat() {
+  private async sendHeartbeat() {
     this.logger.debug("Sending heartbeat")
     // TODO -> raise and event instead of send data
-    return this.connection.send(new HeartbeatRequest())
+    try {
+      await this.connection.send(new HeartbeatRequest())
+    } catch (e) {
+      if (!(e instanceof SocketNotOpenError)) throw e
+      this.logger.debug(`Heartbeat not sent: ${e.message}`)
+    }
   }
 
   private async idleDetection() {

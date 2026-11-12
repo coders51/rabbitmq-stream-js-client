@@ -4,6 +4,7 @@ import { CompressionType } from "./compression"
 import { Connection, ConnectionInfo } from "./connection"
 import { ConnectionPool } from "./connection_pool"
 import { Logger } from "./logger"
+import { SocketNotOpenError } from "./socket_not_open_error"
 import { FrameSizeException } from "./requests/frame_size_exception"
 import { PublishRequest, PublishRequestMessage } from "./requests/publish_request"
 import { PublishRequestV2 } from "./requests/publish_request_v2"
@@ -384,6 +385,10 @@ export class StreamPublisher implements Publisher {
     this._closed = true
     try {
       await this.flush()
+    } catch (e) {
+      // the connection is gone: nothing left to flush to, the publisher is closing anyway
+      if (!(e instanceof SocketNotOpenError)) throw e
+      this.logger.debug(`Publisher ${this.publisherId} not flushed on close: ${e.message}`)
     } finally {
       await this.pool.releaseConnection(this.connection, true)
       this.connection.freePublisherId(this.publisherId)
@@ -395,6 +400,10 @@ export class StreamPublisher implements Publisher {
     this._closed = true
     try {
       await this.flush()
+    } catch (e) {
+      // the connection is gone: nothing left to flush to, the publisher is closing anyway
+      if (!(e instanceof SocketNotOpenError)) throw e
+      this.logger.debug(`Publisher ${this.publisherId} not flushed on close: ${e.message}`)
     } finally {
       await this.pool.releaseConnection(this.connection, false)
       this.connection.freePublisherId(this.publisherId)

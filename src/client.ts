@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto"
+import { SocketNotOpenError } from "./socket_not_open_error"
 import { coerce, lt } from "semver"
 import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
@@ -724,7 +725,13 @@ export class Client {
 
   private askForCredit(subscriptionId: number, connection: Connection): CreditRequestWrapper {
     return async (howMany: number) => {
-      return connection.send(new CreditRequest({ subscriptionId: subscriptionId, credit: howMany }))
+      try {
+        await connection.send(new CreditRequest({ subscriptionId: subscriptionId, credit: howMany }))
+      } catch (e) {
+        // a delivery can still be handled after the connection is gone: there is nobody to give credit to
+        if (!(e instanceof SocketNotOpenError)) throw e
+        this.logger.debug(`Credit not requested: ${e.message}`)
+      }
     }
   }
 
@@ -796,9 +803,14 @@ export class Client {
       const offset = await this.getConsumerOrServerSavedOffset(consumer)
       consumer.updateConsumerOffset(offset)
       this.logger.debug(`on consumer_update_query -> ${consumer.consumerRef}`)
-      await connection.send(
-        new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset })
-      )
+      try {
+        await connection.send(
+          new ConsumerUpdateResponse({ correlationId: response.correlationId, responseCode: 1, offset })
+        )
+      } catch (e) {
+        if (!(e instanceof SocketNotOpenError)) throw e
+        this.logger.debug(`consumer_update_query reply not sent: ${e.message}`)
+      }
     }
   }
 
