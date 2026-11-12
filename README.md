@@ -395,7 +395,7 @@ The broker can give a stream to another consumer with the same `consumerRef` whi
 - A consumer can be reactivated when:
   - the broker re-assigns this consumer, or
   - after a `client.restart()`
-- `consumer.activeSignal` is an `AbortSignal` that aborts when the consumer stops being active. A new one is created when the consumer becomes active later. A handler should store this value once per message and check it during retries and before storing the offset.
+- `consumer.deactivatedSignal` is an `AbortSignal` that aborts when the consumer is deactivated. A new one is created when the consumer becomes active later, so a signal read earlier stays aborted. A handler should read it once per message and check it during retries and before storing the offset.
 - The library only reports this. It does not stop an inactive consumer from handling messages or storing offsets, and it does not interrupt a handler that is already running. Checking is up to the handler: an inactive consumer that stores an offset can overwrite the offset stored by the consumer that took over.
 - A handler must not let an error escape, including a failed `storeOffset`: see [Errors in a Handler](#errors-in-a-handler).
 
@@ -403,7 +403,7 @@ The broker can give a stream to another consumer with the same `consumerRef` whi
 await client.declareSuperStreamConsumer(
   { superStream: "super-stream-example", consumerRef },
   async (message, consumer) => {
-    const signal = consumer.activeSignal // for the whole time this message is handled
+    const signal = consumer.deactivatedSignal // for the whole time this message is handled
     while (!(await tryToHandle(message))) {
       await sleep(1000)
       if (signal.aborted) return // another consumer has the partition: it handles this message now

@@ -52,16 +52,20 @@ export interface Consumer {
   /**
    * Whether the broker delivers messages to this consumer.
    *
-   * @see activeSignal for a signal that aborts when the consumer stops being active
+   * @see deactivatedSignal for a signal that aborts when the consumer is deactivated
    */
   isActive(): boolean
 
   /**
-   * Aborts when this consumer stops being active. A new signal is generated each time the consumer becomes active.
+   * Aborts when this consumer is deactivated: the broker gave the stream to another consumer, the connection was
+   * lost, or the consumer was closed. It is already aborted while the consumer is not active.
+   *
+   * A new signal is generated each time the consumer becomes active, so read it once per message: a signal that
+   * was read earlier stays aborted.
    *
    * @see isActive for checking if the consumer is currently active
    */
-  readonly activeSignal: AbortSignal
+  readonly deactivatedSignal: AbortSignal
 
   /**
    * Get the saved offset on the server
@@ -182,7 +186,7 @@ export class StreamConsumer implements Consumer {
     return !this.activation.signal.aborted
   }
 
-  public get activeSignal(): AbortSignal {
+  public get deactivatedSignal(): AbortSignal {
     return this.activation.signal
   }
 
