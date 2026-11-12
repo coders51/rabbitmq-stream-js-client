@@ -64,6 +64,21 @@ describe("consumer active state", () => {
       expect(consumer.activeSignal).not.equal(signal)
       expect(consumer.activeSignal.aborted).eql(false)
     }).timeout(20000)
+
+    it("is told through its signal when client.restart() replaces its healthy connection", async () => {
+      const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
+      const signal = consumer.activeSignal
+      expect(consumer.isActive()).eql(true)
+
+      await client.restart()
+
+      expect(signal.aborted).eql(true)
+      await eventually(() => {
+        expect(consumer.isActive()).eql(true)
+      })
+      expect(consumer.activeSignal).not.equal(signal)
+      expect(consumer.activeSignal.aborted).eql(false)
+    }).timeout(20000)
   })
 
   describe("single active consumers", () => {
