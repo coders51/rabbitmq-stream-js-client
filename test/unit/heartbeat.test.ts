@@ -62,9 +62,11 @@ describe("heartbeat", () => {
     hb.stop()
   })
 
-  it("keeps going when the socket is not open", async () => {
+  it("stops, without rescheduling, when the socket is not open, and can be started again", async () => {
     const connection = new ConnectionMock()
+    let sends = 0
     connection.send = () => {
+      sends++
       return Promise.reject(new SocketNotOpenError("c1"))
     }
     const unhandled: unknown[] = []
@@ -73,11 +75,15 @@ describe("heartbeat", () => {
     const hb = new Heartbeat(connection, logger)
     hb.start(1)
 
-    await wait(1500)
-    hb.stop()
+    await wait(2500)
     process.off("unhandledRejection", onUnhandled)
 
     expect(unhandled).eql([])
+    expect(sends).eql(1)
+    expect(hb.started).eql(false)
+    hb.start(1)
+    expect(hb.started).eql(true)
+    hb.stop()
   }).timeout(10000)
 
   it("does not hide other send errors", async () => {

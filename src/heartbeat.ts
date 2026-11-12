@@ -60,7 +60,12 @@ export class Heartbeat {
     const noMessagesSentFor = Math.abs(now - lastMessageSent)
     this.logger.debug(`No messages sent for the last ${noMessagesSentFor} ms and the interval is ${this.interval}`)
     if (noMessagesSentFor >= this.interval - this.SEND_TOLERANCE_MS) {
-      await this.sendHeartbeat()
+      const sent = await this.sendHeartbeat()
+      if (!sent) {
+        // The socket is gone: don't keep timers alive. A new connection setup starts the heartbeat again.
+        this.stop()
+        return
+      }
       this.reportLastMessageSent()
     }
     await this.idleDetection()
@@ -68,14 +73,16 @@ export class Heartbeat {
     this.timeout = setTimeout(() => this.heartbeat(), this.interval)
   }
 
-  private async sendHeartbeat() {
+  private async sendHeartbeat(): Promise<boolean> {
     this.logger.debug("Sending heartbeat")
     // TODO -> raise and event instead of send data
     try {
       await this.connection.send(new HeartbeatRequest())
+      return true
     } catch (e) {
       if (!(e instanceof SocketNotOpenError)) throw e
-      this.logger.debug(`Heartbeat not sent: ${e.message}`)
+      this.logger.debug(`Heartbeat not sent, stopping it: ${e.message}`)
+      return false
     }
   }
 
