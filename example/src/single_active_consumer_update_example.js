@@ -38,7 +38,7 @@ async function main() {
     async (message) => {
       messagesFromFirstConsumer.push(`Message ${message.content.toString("utf-8")} from ${consumerRef}`)
       if (messagesFromFirstConsumer.length === 50) {
-        await consumer1.storeOffset(message.offset)
+        await consumer1.storeOffset(message.offset).catch((e) => console.warn("Could not store the offset", e)) // a failed store must not escape the handler
       }
     }
   )

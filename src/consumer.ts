@@ -50,6 +50,20 @@ export interface Consumer {
   storeOffset(offsetValue?: bigint): Promise<void>
 
   /**
+   * Whether the broker delivers messages to this consumer.
+   *
+   * @see activeSignal for a signal that aborts when the consumer stops being active
+   */
+  isActive(): boolean
+
+  /**
+   * Aborts when this consumer stops being active. A new signal is generated each time the consumer becomes active.
+   *
+   * @see isActive for checking if the consumer is currently active
+   */
+  readonly activeSignal: AbortSignal
+
+  /**
    * Get the saved offset on the server
    *
    * @returns {bigint} The value of the stream offset
@@ -128,6 +142,7 @@ export class StreamConsumer implements Consumer {
   private creditsHandler: ConsumerCreditPolicy
   private consumerHandle: ConsumerFunc
   private closed: boolean
+  private activation: AbortController
   private singleActive: boolean = false
 
   constructor(
@@ -158,11 +173,35 @@ export class StreamConsumer implements Consumer {
     this.consumerUpdateListener = params.consumerUpdateListener
     this.closed = false
     this.singleActive = params.singleActive ?? false
+    this.activation = new AbortController()
+    // A single active consumer is made active by the broker, before it delivers anything to it
+    if (this.singleActive) this.activation.abort()
+  }
+
+  public isActive(): boolean {
+    return !this.activation.signal.aborted
+  }
+
+  public get activeSignal(): AbortSignal {
+    return this.activation.signal
+  }
+
+  /**
+   * Called by the client when the broker changes whether this consumer is the active one, and when the connection status changes
+   */
+  setActive(active: boolean): void {
+    if (this.closed || active === this.isActive()) return
+    if (active) {
+      this.activation = new AbortController()
+    } else {
+      this.activation.abort()
+    }
   }
 
   async close(): Promise<void> {
     if (this.closed) return
     this.closed = true
+    this.activation.abort()
     await this.pool.releaseConnection(this.connection, true)
     this.connection.freeConsumerId(this.consumerId)
   }
@@ -170,6 +209,7 @@ export class StreamConsumer implements Consumer {
   async automaticClose(): Promise<void> {
     if (this.closed) return
     this.closed = true
+    this.activation.abort()
     await this.pool.releaseConnection(this.connection, false)
     this.connection.freeConsumerId(this.consumerId)
   }
