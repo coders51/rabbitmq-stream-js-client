@@ -613,6 +613,7 @@ export class Client {
     for (const { consumer, connection, params } of this.consumers.values()) {
       if (!uniqueConnectionIds.has(connection.connectionId)) {
         this.logger.info(`Restarting consumer connection ${connection.connectionId}`)
+        this.deactivateConsumersOn(connection.connectionId)
         await connection.restart()
       }
       uniqueConnectionIds.add(connection.connectionId)
