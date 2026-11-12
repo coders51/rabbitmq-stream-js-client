@@ -618,8 +618,13 @@ export class Client {
       }
       uniqueConnectionIds.add(connection.connectionId)
       const consumerParams = { ...params, offset: Offset.offset(consumer.getOffset()) }
-      await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
       if (!consumer.isSingleActive) consumer.setActive(true)
+      try {
+        await this.declareConsumerOnConnection(consumerParams, consumer.consumerId, connection)
+      } catch (e) {
+        consumer.setActive(false)
+        throw e
+      }
     }
 
     for (const { publisher, connection, params, filter } of this.publishers.values()) {

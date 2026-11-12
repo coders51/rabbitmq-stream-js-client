@@ -79,6 +79,21 @@ describe("consumer active state", () => {
       expect(consumer.activeSignal).not.equal(signal)
       expect(consumer.activeSignal.aborted).eql(false)
     }).timeout(20000)
+
+    it("is already active, with its new signal, when the resubscription is sent, so deliveries decoded with the subscribe reply see a live signal", async () => {
+      const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
+      const internals = client as unknown as { declareConsumerOnConnection: (...args: unknown[]) => Promise<void> }
+      const original = internals.declareConsumerOnConnection.bind(client)
+      const seenAtSubscribe: boolean[] = []
+      internals.declareConsumerOnConnection = (...args: unknown[]) => {
+        seenAtSubscribe.push(consumer.isActive() && !consumer.activeSignal.aborted)
+        return original(...args)
+      }
+
+      await client.restart()
+
+      expect(seenAtSubscribe).eql([true])
+    }).timeout(20000)
   })
 
   describe("single active consumers", () => {
