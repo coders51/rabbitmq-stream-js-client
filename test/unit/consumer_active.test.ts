@@ -47,7 +47,7 @@ describe("StreamConsumer active state", () => {
       const consumer = createConsumer(false)
 
       expect(consumer.isActive()).eql(true)
-      expect(consumer.activeSignal.aborted).eql(false)
+      expect(consumer.deactivatedSignal.aborted).eql(false)
     })
 
     it("handles messages and stores offsets", async () => {
@@ -69,7 +69,7 @@ describe("StreamConsumer active state", () => {
       const consumer = createConsumer(true)
 
       expect(consumer.isActive()).eql(false)
-      expect(consumer.activeSignal.aborted).eql(true)
+      expect(consumer.deactivatedSignal.aborted).eql(true)
     })
 
     it("becomes active when the broker says so", async () => {
@@ -83,7 +83,7 @@ describe("StreamConsumer active state", () => {
       await consumer.storeOffset(1n)
 
       expect(consumer.isActive()).eql(true)
-      expect(consumer.activeSignal.aborted).eql(false)
+      expect(consumer.deactivatedSignal.aborted).eql(false)
       expect(handled).eql([1n])
       expect(storedOffsets).eql([1n])
     })
@@ -92,7 +92,7 @@ describe("StreamConsumer active state", () => {
   describe("losing and regaining the active state", () => {
     it("aborts the signal that was read while the consumer was active", () => {
       const consumer = createConsumer(false)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
 
       consumer.setActive(false)
 
@@ -116,24 +116,24 @@ describe("StreamConsumer active state", () => {
 
     it("gives a new signal when the consumer is active again, and the old one stays aborted", () => {
       const consumer = createConsumer(false)
-      const first = consumer.activeSignal
+      const first = consumer.deactivatedSignal
       consumer.setActive(false)
 
       consumer.setActive(true)
 
       expect(consumer.isActive()).eql(true)
       expect(first.aborted).eql(true)
-      expect(consumer.activeSignal).not.equal(first)
-      expect(consumer.activeSignal.aborted).eql(false)
+      expect(consumer.deactivatedSignal).not.equal(first)
+      expect(consumer.deactivatedSignal.aborted).eql(false)
     })
 
     it("does nothing when the state does not change", () => {
       const consumer = createConsumer(false)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
 
       consumer.setActive(true)
 
-      expect(consumer.activeSignal).equal(signal)
+      expect(consumer.deactivatedSignal).equal(signal)
       expect(signal.aborted).eql(false)
     })
   })
@@ -141,7 +141,7 @@ describe("StreamConsumer active state", () => {
   describe("closing", () => {
     it("makes the consumer inactive and aborts its signal", async () => {
       const consumer = createConsumer(false)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
 
       await consumer.close()
 
@@ -157,12 +157,12 @@ describe("StreamConsumer active state", () => {
       consumer.setActive(true)
 
       expect(consumer.isActive()).eql(false)
-      expect(consumer.activeSignal.aborted).eql(true)
+      expect(consumer.deactivatedSignal.aborted).eql(true)
     })
 
     it("also applies to an automatic close", async () => {
       const consumer = createConsumer(false)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
 
       await consumer.automaticClose()
 

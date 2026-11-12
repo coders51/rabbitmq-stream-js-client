@@ -37,7 +37,7 @@ describe("consumer active state", () => {
 
     it("is active, and inactive once it is closed", async () => {
       const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
       expect(consumer.isActive()).eql(true)
       expect(signal.aborted).eql(false)
 
@@ -49,7 +49,7 @@ describe("consumer active state", () => {
 
     it("is inactive when its connection is lost, and active again, with a new signal, after the restart", async () => {
       const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
 
       ;(connectionOf(consumer) as unknown as { socket: { destroy: () => void } }).socket.destroy()
 
@@ -61,13 +61,13 @@ describe("consumer active state", () => {
       await eventually(() => {
         expect(consumer.isActive()).eql(true)
       })
-      expect(consumer.activeSignal).not.equal(signal)
-      expect(consumer.activeSignal.aborted).eql(false)
+      expect(consumer.deactivatedSignal).not.equal(signal)
+      expect(consumer.deactivatedSignal.aborted).eql(false)
     }).timeout(20000)
 
     it("is told through its signal when client.restart() replaces its healthy connection", async () => {
       const consumer = await client.declareConsumer({ stream: streamName, offset: Offset.first() }, () => undefined)
-      const signal = consumer.activeSignal
+      const signal = consumer.deactivatedSignal
       expect(consumer.isActive()).eql(true)
 
       await client.restart()
@@ -76,8 +76,8 @@ describe("consumer active state", () => {
       await eventually(() => {
         expect(consumer.isActive()).eql(true)
       })
-      expect(consumer.activeSignal).not.equal(signal)
-      expect(consumer.activeSignal.aborted).eql(false)
+      expect(consumer.deactivatedSignal).not.equal(signal)
+      expect(consumer.deactivatedSignal.aborted).eql(false)
     }).timeout(20000)
 
     it("is already active, with its new signal, when the resubscription is sent, so deliveries decoded with the subscribe reply see a live signal", async () => {
@@ -86,7 +86,7 @@ describe("consumer active state", () => {
       const original = internals.declareConsumerOnConnection.bind(client)
       const seenAtSubscribe: boolean[] = []
       internals.declareConsumerOnConnection = (...args: unknown[]) => {
-        seenAtSubscribe.push(consumer.isActive() && !consumer.activeSignal.aborted)
+        seenAtSubscribe.push(consumer.isActive() && !consumer.deactivatedSignal.aborted)
         return original(...args)
       }
 
@@ -115,12 +115,12 @@ describe("consumer active state", () => {
 
       expect(first.isActive()).eql(true)
       expect(second.isActive()).eql(false)
-      expect(second.activeSignal.aborted).eql(true)
+      expect(second.deactivatedSignal.aborted).eql(true)
       await client.closeConsumer(first.extendedId)
       await eventually(() => {
         expect(second.isActive()).eql(true)
       })
-      expect(second.activeSignal.aborted).eql(false)
+      expect(second.deactivatedSignal.aborted).eql(false)
     }).timeout(20000)
 
     it("on a super stream: the consumer that the broker gives the partition away from is told, and nothing is delivered twice", async () => {
@@ -142,7 +142,7 @@ describe("consumer active state", () => {
         expect(client.getConsumers().filter(({ consumer }) => consumer.isActive())).to.have.length(noOfPartitions)
       })
       const before = client.getConsumers().map(({ consumer }) => consumer)
-      const signals = new Map(before.map((consumer) => [consumer, consumer.activeSignal]))
+      const signals = new Map(before.map((consumer) => [consumer, consumer.deactivatedSignal]))
       await declare("b")
 
       await eventually(() => {
