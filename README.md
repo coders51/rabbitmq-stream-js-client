@@ -442,6 +442,8 @@ const publisher = await client.declareSuperStreamPublisher({
 })
 ```
 
+A runnable example of both options is in [example/src/superstream_routing_cache_example.js](example/src/superstream_routing_cache_example.js).
+
 ### Filtering
 
 It is possible to tag messages while publishing and filter them on both the broker side and client side
