@@ -10,7 +10,7 @@ export class LruCache<K, V> implements KeyValueCache<K, V> {
    * @param maxSize When 0, cache is unbounded. When <0 (or NaN) cache is disable.
    */
   constructor(private readonly maxSize: number) {
-    this.disabled = !(maxSize >= 0)
+    this.disabled = !(maxSize >= 0) || (maxSize > 0 && maxSize < 1)
     this.maxSize = this.disabled ? 0 : Math.floor(maxSize)
   }
 
