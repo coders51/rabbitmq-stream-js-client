@@ -19,6 +19,7 @@
     - [Clustering](#clustering)
     - [Load Balancer](#load-balancer)
     - [Super Stream](#super-stream)
+      - [Routing strategies and the routing cache](#routing-strategies-and-the-routing-cache)
     - [Resuming a Super Stream Consumer](#resuming-a-super-stream-consumer)
     - [Filtering](#filtering)
     - [Mitigating connection issues](#mitigating-connection-issues)
@@ -351,7 +352,7 @@ await publisher.sendSubEntries([
   { content: Buffer.from("Test message 5"), routingKey: "5" },
   { content: Buffer.from("Test message 6"), routingKey: "6" },
   { content: Buffer.from("Test message 7"), routingKey: "7" },
-]);
+])
 
 await client.declareSuperStreamConsumer({ superStream: "super-stream-example" }, (message) => {
   console.log(`Received message ${message.content.toString()}`)
@@ -399,6 +400,49 @@ Notes:
 - Super stream consumers are single active consumers, which is why the listener is called when a partition's consumer becomes active.
 
 A runnable version is in `example/src/superstream_resume_example.js`.
+
+=======
+
+#### Routing strategies and the routing cache
+
+The publisher picks the partition for each message from its routing key, using one of two strategies (`routingStrategy`):
+
+- `"hash"` (default): the partition is computed locally from a murmur32 hash of the routing key. No cache is involved.
+- `"key"`: the server resolves the routing key against the super stream's binding keys. To avoid a server round trip for every message with the same routing key, the publisher caches routing key -> partition lookups.
+
+The cache is only used with the `"key"` strategy. By default it is an in-memory LRU cache holding up to 10000 routing keys. You can tune it with `routingCacheSize`:
+
+```typescript
+const publisher = await client.declareSuperStreamPublisher({
+  superStream: "super-stream-example",
+  routingStrategy: "key",
+  routingCacheSize: 500, // keep at most 500 routing keys, evicting the least recently used
+})
+```
+
+| `routingCacheSize` | Behavior                                                  |
+| ------------------ | --------------------------------------------------------- |
+| positive number    | LRU cache holding at most that many keys (default: 10000) |
+| `0`                | unbounded: entries are never evicted                      |
+| negative           | cache disabled: the server is queried for every message   |
+
+Fractional sizes are rounded down. Beware that `0` lets the cache grow unbounded with the number of distinct routing keys.
+
+To use your own cache (for example one with expiration), pass a `routingCache` implementing the exported `KeyValueCache<string, string>` interface (`get`, `set` and `clear`). When provided, it replaces the built-in cache and `routingCacheSize` is ignored.
+
+For example, using the [lru-cache](https://www.npmjs.com/package/lru-cache) package to expire entries after a minute:
+
+```typescript
+import { LRUCache } from "lru-cache"
+
+const publisher = await client.declareSuperStreamPublisher({
+  superStream: "super-stream-example",
+  routingStrategy: "key",
+  routingCache: new LRUCache<string, string>({ max: 1000, ttl: 60_000 }),
+})
+```
+
+A runnable example of both options is in [example/src/superstream_routing_cache_example.js](example/src/superstream_routing_cache_example.js).
 
 ### Filtering
 

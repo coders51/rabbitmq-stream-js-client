@@ -1,4 +1,5 @@
-import { expect } from "chai"
+import { use as chaiUse, expect, spy } from "chai"
+import spies from "chai-spies"
 import { randomUUID } from "crypto"
 import { Client } from "../../src"
 import { Message, MessageOptions } from "../../src/publisher"
@@ -7,6 +8,8 @@ import { Rabbit } from "../support/rabbit"
 import { eventually, expectToThrowAsync, password, username, wait } from "../support/util"
 import { CompressionType } from "../../src/compression"
 import { range } from "../../src/util"
+
+chaiUse(spies)
 
 describe("super stream publisher", () => {
   let superStreamName: string
@@ -225,6 +228,70 @@ describe("super stream publisher", () => {
     await eventually(() => {
       expect(messages).to.have.length(noOfPartitions * 2)
     })
+  })
+
+  it("key routing strategy - the routing key is resolved only once thanks to the cache", async () => {
+    const sandbox = spy.sandbox()
+    try {
+      sandbox.on(client, "routeQuery")
+      const publisher = await client.declareSuperStreamPublisher(
+        { superStream: superStreamName, routingStrategy: "key" },
+        () => "0"
+      )
+
+      await publisher.send(Buffer.from("first"), {})
+      await publisher.send(Buffer.from("second"), {})
+
+      expect(client.routeQuery).to.have.been.called.once
+    } finally {
+      sandbox.restore()
+    }
+  })
+
+  it("key routing strategy - routingCacheSize bounds the cache", async () => {
+    const sandbox = spy.sandbox()
+    try {
+      sandbox.on(client, "routeQuery")
+      const publisher = await client.declareSuperStreamPublisher(
+        { superStream: superStreamName, routingStrategy: "key", routingCacheSize: 1 },
+        (content) => content
+      )
+
+      await publisher.send(Buffer.from("0"), {})
+      await publisher.send(Buffer.from("1"), {})
+      await publisher.send(Buffer.from("0"), {})
+
+      expect(client.routeQuery).to.have.been.called.exactly(3)
+    } finally {
+      sandbox.restore()
+    }
+  })
+
+  it("key routing strategy - a custom routingCache is used instead of the built-in one", async () => {
+    const entries = new Map<string, string>()
+    const cache = {
+      get: (key: string) => entries.get(key),
+      set: (key: string, value: string) => {
+        entries.set(key, value)
+      },
+      clear: () => entries.clear(),
+    }
+    const sandbox = spy.sandbox()
+    try {
+      sandbox.on(client, "routeQuery")
+      const publisher = await client.declareSuperStreamPublisher(
+        { superStream: superStreamName, routingStrategy: "key", routingCache: cache, routingCacheSize: -1 },
+        () => "0"
+      )
+
+      await publisher.send(Buffer.from("first"), {})
+      await publisher.send(Buffer.from("second"), {})
+
+      expect(client.routeQuery).to.have.been.called.once
+      expect([...entries.keys()]).to.eql(["0"])
+    } finally {
+      sandbox.restore()
+    }
   })
 
   it("superstream publishing with key routing strategy - the routingKey is not an existing bindingKey for the superstream", async () => {

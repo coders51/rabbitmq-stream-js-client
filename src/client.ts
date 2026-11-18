@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto"
 import { coerce, lt } from "semver"
 import { inspect } from "util"
+import { KeyValueCache } from "./cache"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
@@ -420,11 +421,24 @@ export class Client {
   /**
    * Declare a publisher for a super stream
    *
-   * @param params - Super stream publisher configuration, including optional filter for server-side message filtering on each partition publisher
+   * @param params - Super stream publisher configuration
+   * @param params.superStream - Name of the super stream to publish to
+   * @param params.publisherRef - Optional publisher reference, used on each partition publisher (e.g. for message deduplication)
+   * @param params.routingStrategy - How messages are mapped to partitions: "hash" (murmur32 of the routing key, computed locally; default) or "key" (the server resolves the routing key against the super stream's binding keys)
+   * @param params.filter - Optional function extracting a filter value from each message, for server-side message filtering on each partition publisher
+   * @param params.routingCacheSize - Maximum number of routing key -> partition entries kept in memory with the "key" routing strategy. Least recently used entries are evicted first. Defaults to 10000; 0 is unbounded and a negative value disables the cache. Ignored when `routingCache` is provided
+   * @param params.routingCache - Custom cache for routing key -> partition lookups with the "key" routing strategy. Overrides the built-in LRU cache and `routingCacheSize`
    * @param keyExtractor - Optional function to extract the routing key from a message (not required when routingKey sent with the message)
    */
   public async declareSuperStreamPublisher(
-    { superStream, publisherRef, routingStrategy, filter }: DeclareSuperStreamPublisherParams,
+    {
+      superStream,
+      publisherRef,
+      routingStrategy,
+      filter,
+      routingCacheSize,
+      routingCache,
+    }: DeclareSuperStreamPublisherParams,
     keyExtractor?: MessageKeyExtractorFunction
   ): Promise<SuperStreamPublisher> {
     return SuperStreamPublisher.create({
@@ -434,6 +448,8 @@ export class Client {
       publisherRef,
       routingStrategy,
       filter,
+      routingCacheSize,
+      routingCache,
     })
   }
 
@@ -1044,10 +1060,41 @@ export type RoutingStrategy = "key" | "hash"
  * Parameters for declaring a super stream publisher
  */
 export interface DeclareSuperStreamPublisherParams {
+  /**
+   * Name of the super stream to publish to
+   */
   superStream: string
+
+  /**
+   * Optional publisher reference, used on each partition publisher (e.g. for message deduplication)
+   */
   publisherRef?: string
+
+  /**
+   * How messages are mapped to partitions: "hash" (murmur32 of the routing key, computed locally; default)
+   * or "key" (the server resolves the routing key against the super stream's binding keys)
+   */
   routingStrategy?: RoutingStrategy
+
+  /**
+   * Optional function extracting a filter value from each message,
+   * for server-side message filtering on each partition publisher
+   */
   filter?: FilterFunc
+
+  /**
+   * Maximum number of routing key -> partition entries kept in memory with the "key" routing strategy.
+   * Least recently used entries are evicted first. Defaults to 10000.
+   * 0 means unbounded; a negative value disables the cache.
+   * Ignored when `routingCache` is provided.
+   */
+  routingCacheSize?: number
+
+  /**
+   * Custom cache for routing key -> partition lookups with the "key" routing strategy.
+   * Overrides the built-in LRU cache and `routingCacheSize`.
+   */
+  routingCache?: KeyValueCache<string, string>
 }
 
 /**
