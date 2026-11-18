@@ -1,6 +1,7 @@
 import { expect } from "chai"
 import { KeyValueCache } from "../../src/cache"
 import { Client } from "../../src/client"
+import { murmur32 } from "../../src/hash/murmur32"
 import { Publisher, SendResult } from "../../src/publisher"
 import { SuperStreamPublisher } from "../../src/super_stream_publisher"
 
@@ -26,9 +27,11 @@ class RecordingCache implements KeyValueCache<string, string> {
 
 describe("SuperStreamPublisher routing cache", () => {
   let routeQueries: string[]
+  let declaredStreams: string[]
 
   const stubLocator = () => {
     routeQueries = []
+    declaredStreams = []
     const publisher = { send: async () => ({ sent: true }) as SendResult, close: async () => undefined }
     return {
       queryPartitions: async () => ["p0", "p1"],
@@ -36,7 +39,10 @@ describe("SuperStreamPublisher routing cache", () => {
         routeQueries.push(routingKey)
         return ["p1"]
       },
-      declarePublisher: async () => publisher as unknown as Publisher,
+      declarePublisher: async ({ stream }: { stream: string }) => {
+        declaredStreams.push(stream)
+        return publisher as unknown as Publisher
+      },
     } as unknown as Client
   }
 
@@ -92,8 +98,14 @@ describe("SuperStreamPublisher routing cache", () => {
     expect(routeQueries).to.deep.equal(["k"])
   })
 
-  it("does not touch the cache with the hash routing strategy", async () => {
+  it("does not use the cache with the hash routing strategy", async () => {
+    const routingKey = "k"
+    const partitions = ["p0", "p1"]
+    const hashPartition = partitions[murmur32(routingKey) % partitions.length]
+    const poisonedPartition = partitions.find((p) => p !== hashPartition) as string
+    // a cache that would send the key somewhere else if it were consulted
     const cache = new RecordingCache()
+    cache.entries.set(routingKey, poisonedPartition)
     const publisher = await SuperStreamPublisher.create({
       locator: stubLocator(),
       superStream: "super",
@@ -101,9 +113,12 @@ describe("SuperStreamPublisher routing cache", () => {
       routingCache: cache,
     })
 
-    await publisher.send(Buffer.from("m1"), { routingKey: "k" })
+    await publisher.send(Buffer.from("m1"), { routingKey })
+    await publisher.send(Buffer.from("m2"), { routingKey })
 
+    expect(declaredStreams).to.deep.equal([hashPartition])
     expect(cache.gets).to.deep.equal([])
+    expect(cache.sets).to.deep.equal([])
     expect(routeQueries).to.deep.equal([])
   })
 })
