@@ -2,11 +2,15 @@ export * from "./client"
 export { Publisher, Message } from "./publisher"
 export { Consumer, ConsumerUpdateListener, ConsumerFunc } from "./consumer"
 export { Offset } from "./requests/subscribe_request"
-export * from "./helpers"
-export * from "./error_codes"
-export * from "./stream_response_error"
+export { resolveStartOffset } from "./helpers"
+export { StreamResponseError, isStreamResponseError } from "./stream_response_error"
 export { ResponseCode } from "./util"
-export * from "./responses/responses"
+export {
+  PublishConfirmResponse,
+  PublishErrorResponse,
+  MetadataUpdateResponse,
+  SubscribeResponse,
+} from "./responses/responses"
 export { SuperConsumer, SuperStreamConsumerFunc } from "./super_stream_consumer"
 export {
   SuperPublisher,
