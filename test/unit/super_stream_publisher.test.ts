@@ -98,6 +98,52 @@ describe("SuperStreamPublisher routing cache", () => {
     expect(routeQueries).to.deep.equal(["k"])
   })
 
+  describe("built-in cache sized with routingCacheSize", () => {
+    const sendKeys = async (keys: string[], routingCacheSize?: number) => {
+      const publisher = await SuperStreamPublisher.create({
+        locator: stubLocator(),
+        superStream: "super",
+        routingStrategy: "key",
+        routingCacheSize,
+      })
+      for (const routingKey of keys) {
+        await publisher.send(Buffer.from("m"), { routingKey })
+      }
+    }
+
+    it("caches routing keys by default", async () => {
+      await sendKeys(["k", "k", "k"])
+
+      expect(routeQueries).to.deep.equal(["k"])
+    })
+
+    it("evicts the least recently used key when full", async () => {
+      await sendKeys(["a", "b", "a"], 1)
+
+      expect(routeQueries).to.deep.equal(["a", "b", "a"])
+    })
+
+    it("keeps up to routingCacheSize keys", async () => {
+      await sendKeys(["a", "b", "a", "b"], 2)
+
+      expect(routeQueries).to.deep.equal(["a", "b"])
+    })
+
+    it("is unbounded when routingCacheSize is 0", async () => {
+      const keys = Array.from({ length: 50 }, (_, i) => `k${i}`)
+
+      await sendKeys([...keys, ...keys], 0)
+
+      expect(routeQueries).to.deep.equal(keys)
+    })
+
+    it("disables the cache when routingCacheSize is negative", async () => {
+      await sendKeys(["k", "k", "k"], -1)
+
+      expect(routeQueries).to.deep.equal(["k", "k", "k"])
+    })
+  })
+
   it("does not use the cache with the hash routing strategy", async () => {
     const routingKey = "k"
     const partitions = ["p0", "p1"]
