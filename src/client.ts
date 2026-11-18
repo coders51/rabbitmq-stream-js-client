@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto"
 import { coerce, lt } from "semver"
 import { inspect } from "util"
+import { KeyValueCache } from "./cache"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
@@ -424,7 +425,14 @@ export class Client {
    * @param keyExtractor - Optional function to extract the routing key from a message (not required when routingKey sent with the message)
    */
   public async declareSuperStreamPublisher(
-    { superStream, publisherRef, routingStrategy, filter, routingCacheSize }: DeclareSuperStreamPublisherParams,
+    {
+      superStream,
+      publisherRef,
+      routingStrategy,
+      filter,
+      routingCacheSize,
+      routingCache,
+    }: DeclareSuperStreamPublisherParams,
     keyExtractor?: MessageKeyExtractorFunction
   ): Promise<SuperPublisher> {
     return SuperStreamPublisher.create({
@@ -435,6 +443,7 @@ export class Client {
       routingStrategy,
       filter,
       routingCacheSize,
+      routingCache,
     })
   }
 
@@ -1053,8 +1062,16 @@ export interface DeclareSuperStreamPublisherParams {
   /**
    * Maximum number of routing key -> partition entries kept in memory when using the "key" routing strategy.
    * Least recently used entries are evicted first. Defaults to 10000.
+   * 0 means unbounded; a negative value disables the cache.
+   * Ignored when `routingCache` is provided.
    */
   routingCacheSize?: number
+
+  /**
+   * Custom cache for routing key -> partition lookups, used with the "key" routing strategy.
+   * Overrides the built-in LRU cache (and `routingCacheSize`).
+   */
+  routingCache?: KeyValueCache<string, string>
 }
 
 /**

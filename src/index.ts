@@ -1,6 +1,7 @@
 export * from "./client"
 export { Publisher, Message } from "./publisher"
 export { Consumer, ConsumerUpdateListener, ConsumerFunc } from "./consumer"
+export { KeyValueCache } from "./cache"
 export { Offset } from "./requests/subscribe_request"
 export { resolveStartOffset } from "./helpers"
 export { StreamResponseError, isStreamResponseError } from "./stream_response_error"
