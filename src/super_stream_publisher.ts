@@ -1,3 +1,4 @@
+import { KeyValueCache } from "./cache"
 import { Client, RoutingStrategy } from "./client"
 import { CompressionType } from "./compression"
 import { murmur32 } from "./hash/murmur32"
@@ -17,6 +18,7 @@ type SuperStreamPublisherParams = {
   keyExtractor?: MessageKeyExtractorFunction
   filter?: FilterFunc
   routingCacheSize?: number
+  routingCache?: KeyValueCache<string, string>
 }
 
 export type SuperStreamMessageOptions = MessageOptions & {
@@ -36,7 +38,7 @@ export class SuperStreamPublisher {
   private publisherRef: string | undefined
   private keyExtractor: MessageKeyExtractorFunction
   private routingStrategy: RoutingStrategy
-  private routingCache: LruCache<string, string>
+  private routingCache: KeyValueCache<string, string>
   private filter?: FilterFunc
 
   private constructor(params: SuperStreamPublisherParams) {
@@ -46,7 +48,7 @@ export class SuperStreamPublisher {
     this.routingStrategy = params.routingStrategy ?? "hash"
     this.keyExtractor = params.keyExtractor ?? (() => undefined)
     this.filter = params.filter
-    this.routingCache = new LruCache(params.routingCacheSize ?? DEFAULT_ROUTING_CACHE_SIZE)
+    this.routingCache = params.routingCache ?? new LruCache(params.routingCacheSize ?? DEFAULT_ROUTING_CACHE_SIZE)
   }
 
   static async create(params: SuperStreamPublisherParams): Promise<SuperStreamPublisher> {
@@ -134,9 +136,9 @@ export class SuperStreamPublisher {
           `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
         )
       }
+      this.routingCache.set(routingKey, partition)
     }
 
-    this.routingCache.set(routingKey, partition)
     return partition
   }
 

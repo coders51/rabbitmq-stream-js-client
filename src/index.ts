@@ -1,4 +1,5 @@
 export * from "./client"
+export { KeyValueCache } from "./cache"
 export { Publisher } from "./publisher"
 export { Consumer } from "./consumer"
 export { Offset } from "./requests/subscribe_request"
