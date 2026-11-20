@@ -239,7 +239,8 @@ export class StreamConsumer implements Consumer {
   }
 
   public async handle(message: Message) {
-    if (this.closed || this.isMessageOffsetLessThanConsumers(message)) return
+    // An inactive consumer does not get the rest of a chunk it already received, the new active consumer handles them
+    if (this.closed || !this.isActive() || this.isMessageOffsetLessThanConsumers(message)) return
     await this.consumerHandle(message)
     this.maybeUpdateLocalOffset(message)
   }

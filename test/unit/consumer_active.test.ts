@@ -100,18 +100,19 @@ describe("StreamConsumer active state", () => {
       expect(consumer.isActive()).eql(false)
     })
 
-    it("does not stop the consumer from handling messages or storing offsets: that is up to the handler", async () => {
+    it("does not hand messages to the handler while inactive, but does not stop storing offsets", async () => {
       const handled: bigint[] = []
       const consumer = createConsumer(false, (m) => {
         handled.push(m.offset!)
       })
+      await consumer.handle(message(1n))
       consumer.setActive(false)
 
-      await consumer.handle(message(1n))
-      await consumer.storeOffset(1n)
+      await consumer.handle(message(2n))
+      await consumer.storeOffset(2n)
 
       expect(handled).eql([1n])
-      expect(storedOffsets).eql([1n])
+      expect(storedOffsets).eql([2n])
     })
 
     it("gives a new signal when the consumer is active again, and the old one stays aborted", () => {
