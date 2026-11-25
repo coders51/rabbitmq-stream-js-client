@@ -5,6 +5,7 @@ import { inspect } from "util"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Heartbeat } from "./heartbeat"
 import { Logger } from "./logger"
+import { SocketNotOpenError } from "./socket_not_open_error"
 import { CloseRequest } from "./requests/close_request"
 import { ExchangeCommandVersionsRequest } from "./requests/exchange_command_versions_request"
 import { OpenRequest } from "./requests/open_request"
@@ -519,6 +520,8 @@ export class Connection {
    *
    * @param cmd - The request to send
    * @returns A promise that resolves when the request is sent
+   * @throws {SocketNotOpenError} If the socket is not open
+   * @throws {Error} If writing to the socket fails
    */
   public send(cmd: Request): Promise<void> {
     return new Promise((res, rej) => {
@@ -538,6 +541,8 @@ export class Connection {
           }
           return res()
         })
+      } else {
+        return rej(new SocketNotOpenError(this.connectionId))
       }
     })
   }

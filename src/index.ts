@@ -1,6 +1,7 @@
 export * from "./client"
 export { Publisher, Message } from "./publisher"
 export { Consumer, ConsumerUpdateListener, ConsumerFunc } from "./consumer"
+export { SocketNotOpenError } from "./socket_not_open_error"
 export { Offset } from "./requests/subscribe_request"
 export { resolveStartOffset } from "./helpers"
 export { StreamResponseError, isStreamResponseError } from "./stream_response_error"
