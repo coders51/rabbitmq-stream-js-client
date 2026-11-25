@@ -279,7 +279,7 @@ describe("super stream publisher", () => {
     try {
       sandbox.on(client, "routeQuery")
       const publisher = await client.declareSuperStreamPublisher(
-        { superStream: superStreamName, routingStrategy: "key", routingCache: cache, routingCacheSize: -1 },
+        { superStream: superStreamName, routingStrategy: "key", routingCache: cache, routingCacheSize: 0 },
         () => "0"
       )
 

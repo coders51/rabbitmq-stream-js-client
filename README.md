@@ -383,10 +383,11 @@ const publisher = await client.declareSuperStreamPublisher({
 | `routingCacheSize` | Behavior                                                  |
 | ------------------ | --------------------------------------------------------- |
 | positive number    | LRU cache holding at most that many keys (default: 10000) |
-| `0`                | unbounded: entries are never evicted                      |
-| negative           | cache disabled: the server is queried for every message   |
+| `0`                | cache disabled: the server is queried for every message   |
+| `Infinity`         | unbounded: entries are never evicted                      |
+| negative or `NaN`  | throws a `RangeError`                                     |
 
-Fractional sizes are rounded down. Beware that `0` lets the cache grow unbounded with the number of distinct routing keys.
+Fractional sizes are rounded down (so a size below 1 disables the cache). Beware that `Infinity` lets the cache grow unbounded with the number of distinct routing keys.
 
 To use your own cache (for example one with expiration), pass a `routingCache` implementing the exported `KeyValueCache<string, string>` interface (`get`, `set` and `clear`). When provided, it replaces the built-in cache and `routingCacheSize` is ignored. Cache keys have the form `<superStream>:<routingKey>`, so a single cache can safely be shared by publishers of different super streams.
 

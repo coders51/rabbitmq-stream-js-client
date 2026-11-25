@@ -54,8 +54,8 @@ describe("LruCache", () => {
     expect(cache.size).to.equal(2)
   })
 
-  it("is unbounded when maxSize is 0", () => {
-    const cache = new LruCache<number, number>(0)
+  it("is unbounded when maxSize is Infinity", () => {
+    const cache = new LruCache<number, number>(Infinity)
 
     for (let i = 0; i < 1000; i++) cache.set(i, i)
 
@@ -63,14 +63,20 @@ describe("LruCache", () => {
     expect(cache.get(0)).to.equal(0)
   })
 
-  it("disables caching when maxSize is negative or NaN", () => {
-    for (const maxSize of [-1, -0.5, NaN]) {
+  it("disables caching when maxSize is 0 or a fraction below 1", () => {
+    for (const maxSize of [0, 0.5]) {
       const cache = new LruCache<string, string>(maxSize)
 
       cache.set("a", "1")
 
       expect(cache.size, `maxSize ${maxSize}`).to.equal(0)
       expect(cache.get("a"), `maxSize ${maxSize}`).to.equal(undefined)
+    }
+  })
+
+  it("throws when maxSize is negative or NaN", () => {
+    for (const maxSize of [-1, -0.5, -Infinity, NaN]) {
+      expect(() => new LruCache<string, string>(maxSize), `maxSize ${maxSize}`).to.throw(RangeError)
     }
   })
 })

@@ -84,7 +84,7 @@ describe("SuperStreamPublisher routing cache", () => {
       locator: stubLocator(),
       superStream: "super",
       routingStrategy: "key",
-      routingCacheSize: -1,
+      routingCacheSize: 0,
       routingCache: cache,
     })
 
@@ -125,18 +125,30 @@ describe("SuperStreamPublisher routing cache", () => {
       expect(routeQueries).to.deep.equal(["a", "b"])
     })
 
-    it("is unbounded when routingCacheSize is 0", async () => {
+    it("is unbounded when routingCacheSize is Infinity", async () => {
       const keys = Array.from({ length: 50 }, (_, i) => `k${i}`)
 
-      await sendKeys([...keys, ...keys], 0)
+      await sendKeys([...keys, ...keys], Infinity)
 
       expect(routeQueries).to.deep.equal(keys)
     })
 
-    it("disables the cache when routingCacheSize is negative", async () => {
-      await sendKeys(["k", "k", "k"], -1)
+    it("disables the cache when routingCacheSize is 0", async () => {
+      await sendKeys(["k", "k", "k"], 0)
 
       expect(routeQueries).to.deep.equal(["k", "k", "k"])
+    })
+
+    it("throws when routingCacheSize is negative or NaN", async () => {
+      for (const size of [-1, NaN]) {
+        let error: unknown
+        try {
+          await sendKeys(["k"], size)
+        } catch (e) {
+          error = e
+        }
+        expect(error, `routingCacheSize ${size}`).to.be.instanceOf(RangeError)
+      }
     })
   })
 

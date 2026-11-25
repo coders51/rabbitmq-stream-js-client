@@ -5,7 +5,7 @@
     routingKey -> partition lookups. The cache is only used with the "key" routingStrategy:
     the "hash" strategy computes the partition locally and never uses the cache.
 
-    - routingCacheSize: size of the built-in LRU cache (default 10000, 0 = unbounded, negative = disabled)
+    - routingCacheSize: size of the built-in LRU cache (default 10000, 0 = disabled, Infinity = unbounded, negative or NaN = error)
     - routingCache: your own cache object (get/set/clear), it replaces the built-in one.
       Entries are keyed by "<superStream>:<routingKey>", so one cache can be shared by several super streams
 */

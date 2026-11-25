@@ -426,7 +426,7 @@ export class Client {
    * @param params.publisherRef - Optional publisher reference, used on each partition publisher (e.g. for message deduplication)
    * @param params.routingStrategy - How messages are mapped to partitions: "hash" (murmur32 of the routing key, computed locally; default) or "key" (the server resolves the routing key against the super stream's binding keys)
    * @param params.filter - Optional function extracting a filter value from each message, for server-side message filtering on each partition publisher
-   * @param params.routingCacheSize - Maximum number of routing key -> partition entries kept in memory with the "key" routing strategy. Least recently used entries are evicted first. Defaults to 10000; 0 is unbounded and a negative value disables the cache. Ignored when `routingCache` is provided
+   * @param params.routingCacheSize - Maximum number of routing key -> partition entries kept in memory with the "key" routing strategy. Least recently used entries are evicted first. Defaults to 10000; 0 disables the cache, Infinity is unbounded, and a negative value or NaN throws a RangeError. Ignored when `routingCache` is provided
    * @param params.routingCache - Custom cache for routing key -> partition lookups with the "key" routing strategy. Overrides the built-in LRU cache and `routingCacheSize`
    * @param keyExtractor - Optional function to extract the routing key from a message (not required when routingKey sent with the message)
    */
@@ -1085,7 +1085,7 @@ export interface DeclareSuperStreamPublisherParams {
   /**
    * Maximum number of routing key -> partition entries kept in memory with the "key" routing strategy.
    * Least recently used entries are evicted first. Defaults to 10000.
-   * 0 means unbounded; a negative value disables the cache.
+   * 0 disables the cache and Infinity makes it unbounded; a negative value or NaN throws a RangeError.
    * Ignored when `routingCache` is provided.
    */
   routingCacheSize?: number
