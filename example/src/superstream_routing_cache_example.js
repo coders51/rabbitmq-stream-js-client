@@ -35,10 +35,6 @@ class CountingCache {
   set(key, partition) {
     this.entries.set(key, partition)
   }
-
-  clear() {
-    this.entries.clear()
-  }
 }
 
 async function main() {

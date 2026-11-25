@@ -19,10 +19,6 @@ class RecordingCache implements KeyValueCache<string, string> {
     this.sets.push([key, value])
     this.entries.set(key, value)
   }
-
-  clear(): void {
-    this.entries.clear()
-  }
 }
 
 describe("SuperStreamPublisher routing cache", () => {

@@ -37,8 +37,4 @@ export class LruCache<K, V> implements KeyValueCache<K, V> {
       if (!oldest.done) this.entries.delete(oldest.value)
     }
   }
-
-  clear(): void {
-    this.entries.clear()
-  }
 }

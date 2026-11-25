@@ -274,7 +274,6 @@ describe("super stream publisher", () => {
       set: (key: string, value: string) => {
         entries.set(key, value)
       },
-      clear: () => entries.clear(),
     }
     const sandbox = spy.sandbox()
     try {

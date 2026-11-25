@@ -7,6 +7,4 @@ export interface KeyValueCache<K, V> {
   get(key: K): V | undefined
   /** Stores a value. Implementations may evict other entries or ignore the call */
   set(key: K, value: V): void
-  /** Removes all entries */
-  clear(): void
 }
