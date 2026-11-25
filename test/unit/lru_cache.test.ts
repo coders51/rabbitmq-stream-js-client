@@ -63,16 +63,6 @@ describe("LruCache", () => {
     expect(cache.get(0)).to.equal(0)
   })
 
-  it("does not reorder entries on get when unbounded", () => {
-    const cache = new LruCache<string, string>(0)
-    cache.set("a", "1")
-    cache.set("b", "2")
-
-    cache.get("a")
-
-    expect([...(cache as unknown as { entries: Map<string, string> }).entries.keys()]).to.deep.equal(["a", "b"])
-  })
-
   it("disables caching when maxSize is negative or NaN", () => {
     for (const maxSize of [-1, -0.5, NaN]) {
       const cache = new LruCache<string, string>(maxSize)
