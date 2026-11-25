@@ -388,7 +388,7 @@ const publisher = await client.declareSuperStreamPublisher({
 
 Fractional sizes are rounded down. Beware that `0` lets the cache grow unbounded with the number of distinct routing keys.
 
-To use your own cache (for example one with expiration), pass a `routingCache` implementing the exported `KeyValueCache<string, string>` interface (`get`, `set` and `clear`). When provided, it replaces the built-in cache and `routingCacheSize` is ignored.
+To use your own cache (for example one with expiration), pass a `routingCache` implementing the exported `KeyValueCache<string, string>` interface (`get`, `set` and `clear`). When provided, it replaces the built-in cache and `routingCacheSize` is ignored. Cache keys have the form `<superStream>:<routingKey>`, so a single cache can safely be shared by publishers of different super streams.
 
 For example, using the [lru-cache](https://www.npmjs.com/package/lru-cache) package to expire entries after a minute:
 

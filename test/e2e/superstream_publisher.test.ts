@@ -287,7 +287,7 @@ describe("super stream publisher", () => {
       await publisher.send(Buffer.from("second"), {})
 
       expect(client.routeQuery).to.have.been.called.once
-      expect([...entries.keys()]).to.eql(["0"])
+      expect([...entries.keys()]).to.eql([`${superStreamName}:0`])
     } finally {
       sandbox.restore()
     }

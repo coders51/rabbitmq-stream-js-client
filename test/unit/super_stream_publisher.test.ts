@@ -54,8 +54,8 @@ describe("SuperStreamPublisher routing cache", () => {
     await publisher.send(Buffer.from("m1"), { routingKey: "k" })
     await publisher.send(Buffer.from("m2"), { routingKey: "k" })
 
-    expect(cache.gets).to.deep.equal(["k", "k"])
-    expect(cache.sets).to.deep.equal([["k", "p1"]])
+    expect(cache.gets).to.deep.equal(["super:k", "super:k"])
+    expect(cache.sets).to.deep.equal([["super:k", "p1"]])
     expect(routeQueries).to.deep.equal(["k"])
   })
 
@@ -147,7 +147,7 @@ describe("SuperStreamPublisher routing cache", () => {
     const poisonedPartition = partitions.find((p) => p !== hashPartition) as string
     // a cache that would send the key somewhere else if it were consulted
     const cache = new RecordingCache()
-    cache.entries.set(routingKey, poisonedPartition)
+    cache.entries.set(`super:${routingKey}`, poisonedPartition)
     const publisher = await SuperStreamPublisher.create({
       locator: stubLocator(),
       superStream: "super",

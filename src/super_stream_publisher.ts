@@ -134,7 +134,9 @@ export class SuperStreamPublisher implements SuperPublisher {
       return this.partitions[partitionIndex]
     }
 
-    let partition = this.routingCache.get(routingKey)
+    const cacheKey = this.superStream + ":" + routingKey
+
+    let partition = this.routingCache.get(cacheKey)
     if (!partition) {
       const targetPartitions = await this.locator.routeQuery({ routingKey, superStream: this.superStream })
       if (!targetPartitions.length) {
@@ -146,7 +148,7 @@ export class SuperStreamPublisher implements SuperPublisher {
           `Key routing strategy failed: server returned partitions ${targetPartitions} but no match was found`
         )
       }
-      this.routingCache.set(routingKey, partition)
+      this.routingCache.set(cacheKey, partition)
     }
 
     return partition

@@ -6,7 +6,8 @@
     the "hash" strategy computes the partition locally and never uses the cache.
 
     - routingCacheSize: size of the built-in LRU cache (default 10000, 0 = unbounded, negative = disabled)
-    - routingCache: your own cache object (get/set/clear), it replaces the built-in one
+    - routingCache: your own cache object (get/set/clear), it replaces the built-in one.
+      Entries are keyed by "<superStream>:<routingKey>", so one cache can be shared by several super streams
 */
 
 const rabbit = require("rabbitmq-stream-js-client")
@@ -76,13 +77,13 @@ async function main() {
 
   // only the first message of each routing key had to ask the server
   console.log(`custom cache: ${cache.misses} misses (server queried), ${cache.hits} hits`)
-  console.log(`cached routing keys: ${[...cache.entries.keys()].join(", ")}`)
+  console.log(`cached keys: ${[...cache.entries.keys()].join(", ")}`)
 
   // sample output:
   /*
 Creating super stream example-uuid
 custom cache: 3 misses (server queried), 3 hits
-cached routing keys: 0, 1, 2
+cached keys: example-uuid:0, example-uuid:1, example-uuid:2
 done!
 */
 
