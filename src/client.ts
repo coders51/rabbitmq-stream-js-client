@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto"
 import { coerce, lt } from "semver"
 import { inspect } from "util"
-import { KeyValueCache } from "./cache"
+import { SimpleStringCache } from "./cache"
 import { Compression, CompressionType, GzipCompression, NoneCompression } from "./compression"
 import { Connection, ConnectionInfo, ConnectionParams, errorMessageOf } from "./connection"
 import { ConnectionPool, ConnectionPurpose } from "./connection_pool"
@@ -1094,7 +1094,7 @@ export interface DeclareSuperStreamPublisherParams {
    * Custom cache for routing key -> partition lookups with the "key" routing strategy.
    * Overrides the built-in LRU cache and `routingCacheSize`.
    */
-  routingCache?: KeyValueCache<string, string>
+  routingCache?: SimpleStringCache
 }
 
 /**

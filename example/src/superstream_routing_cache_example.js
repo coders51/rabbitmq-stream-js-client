@@ -6,7 +6,7 @@
     the "hash" strategy computes the partition locally and never uses the cache.
 
     - routingCacheSize: size of the built-in LRU cache (default 10000, 0 = disabled, Infinity = unbounded, negative or NaN = error)
-    - routingCache: your own cache object (get/set/clear), it replaces the built-in one.
+    - routingCache: your own cache object (get/set), it replaces the built-in one.
       Entries are keyed by "<superStream>:<routingKey>", so one cache can be shared by several super streams
 */
 
@@ -16,7 +16,7 @@ const { randomUUID } = require("crypto")
 const rabbitUser = process.env.RABBITMQ_USER || "rabbit"
 const rabbitPassword = process.env.RABBITMQ_PASSWORD || "rabbit"
 
-// A custom cache only needs get, set and clear (see the exported KeyValueCache interface).
+// A custom cache only needs get and set (see the exported SimpleStringCache interface).
 // This one counts hits and misses so we can see how often the server needs to be queried.
 // In a real application you could back it with a library such as lru-cache (to add a ttl, for example).
 class CountingCache {

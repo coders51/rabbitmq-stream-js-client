@@ -2,9 +2,9 @@
  * Minimal key/value cache contract. Implement it to plug a custom cache
  * (e.g. with TTLs or shared storage) into the library.
  */
-export interface KeyValueCache<K, V> {
+export interface SimpleStringCache {
   /** Returns the cached value, or undefined on a miss */
-  get(key: K): V | undefined
+  get(key: string): string | undefined
   /** Stores a value. Implementations may evict other entries or ignore the call */
-  set(key: K, value: V): void
+  set(key: string, value: string): void
 }

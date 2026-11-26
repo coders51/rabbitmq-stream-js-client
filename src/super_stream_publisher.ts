@@ -1,4 +1,4 @@
-import { KeyValueCache } from "./cache"
+import { SimpleStringCache } from "./cache"
 import { Client, RoutingStrategy } from "./client"
 import { CompressionType } from "./compression"
 import { murmur32 } from "./hash/murmur32"
@@ -18,7 +18,7 @@ type SuperStreamPublisherParams = {
   keyExtractor?: MessageKeyExtractorFunction
   filter?: FilterFunc
   routingCacheSize?: number
-  routingCache?: KeyValueCache<string, string>
+  routingCache?: SimpleStringCache
 }
 
 export type SuperStreamMessageOptions = MessageOptions & {
@@ -48,7 +48,7 @@ export class SuperStreamPublisher implements SuperPublisher {
   private publisherRef: string | undefined
   private keyExtractor: MessageKeyExtractorFunction
   private routingStrategy: RoutingStrategy
-  private routingCache: KeyValueCache<string, string>
+  private routingCache: SimpleStringCache
   private filter?: FilterFunc
 
   private constructor(params: SuperStreamPublisherParams) {

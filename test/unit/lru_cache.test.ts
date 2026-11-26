@@ -4,7 +4,7 @@ import { LruCache } from "../../src/lru_cache"
 
 describe("LruCache", () => {
   it("stores and retrieves values", () => {
-    const cache = new LruCache<string, string>(2)
+    const cache = new LruCache(2)
 
     cache.set("a", "1")
 
@@ -13,15 +13,15 @@ describe("LruCache", () => {
   })
 
   it("never grows beyond maxSize", () => {
-    const cache = new LruCache<number, number>(3)
+    const cache = new LruCache(3)
 
-    for (let i = 0; i < 100; i++) cache.set(i, i)
+    for (let i = 0; i < 100; i++) cache.set(i.toString(), i.toString())
 
     expect(cache.size).to.equal(3)
   })
 
   it("evicts the least recently used entry", () => {
-    const cache = new LruCache<string, string>(2)
+    const cache = new LruCache(2)
     cache.set("a", "1")
     cache.set("b", "2")
 
@@ -34,7 +34,7 @@ describe("LruCache", () => {
   })
 
   it("overwriting a key refreshes it without growing", () => {
-    const cache = new LruCache<string, string>(2)
+    const cache = new LruCache(2)
     cache.set("a", "1")
     cache.set("b", "2")
 
@@ -47,25 +47,25 @@ describe("LruCache", () => {
   })
 
   it("floors a fractional maxSize", () => {
-    const cache = new LruCache<number, number>(2.9)
+    const cache = new LruCache(2.9)
 
-    for (let i = 0; i < 10; i++) cache.set(i, i)
+    for (let i = 0; i < 10; i++) cache.set(i.toString(), i.toString())
 
     expect(cache.size).to.equal(2)
   })
 
   it("is unbounded when maxSize is Infinity", () => {
-    const cache = new LruCache<number, number>(Infinity)
+    const cache = new LruCache(Infinity)
 
-    for (let i = 0; i < 1000; i++) cache.set(i, i)
+    for (let i = 0; i < 1000; i++) cache.set(i.toString(), i.toString())
 
     expect(cache.size).to.equal(1000)
-    expect(cache.get(0)).to.equal(0)
+    expect(cache.get("0")).to.equal("0")
   })
 
   it("disables caching when maxSize is 0 or a fraction below 1", () => {
     for (const maxSize of [0, 0.5]) {
-      const cache = new LruCache<string, string>(maxSize)
+      const cache = new LruCache(maxSize)
 
       cache.set("a", "1")
 
@@ -76,7 +76,7 @@ describe("LruCache", () => {
 
   it("throws when maxSize is negative or NaN", () => {
     for (const maxSize of [-1, -0.5, -Infinity, NaN]) {
-      expect(() => new LruCache<string, string>(maxSize), `maxSize ${maxSize}`).to.throw(RangeError)
+      expect(() => new LruCache(maxSize), `maxSize ${maxSize}`).to.throw(RangeError)
     }
   })
 })

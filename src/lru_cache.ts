@@ -1,7 +1,7 @@
-import { KeyValueCache } from "./cache"
+import { SimpleStringCache } from "./cache"
 
-export class LruCache<K, V extends {}> implements KeyValueCache<K, V> {
-  private entries: Map<K, V> = new Map()
+export class LruCache implements SimpleStringCache {
+  private entries: Map<string, string> = new Map()
   private readonly maxSize: number
 
   /**
@@ -21,7 +21,7 @@ export class LruCache<K, V extends {}> implements KeyValueCache<K, V> {
     return this.entries.size
   }
 
-  get(key: K): V | undefined {
+  get(key: string): string | undefined {
     const value = this.entries.get(key)
     if (value === undefined) return undefined
     if (this.maxSize === Infinity) return value // unbounded: no eviction, so no need to track recency
@@ -31,7 +31,7 @@ export class LruCache<K, V extends {}> implements KeyValueCache<K, V> {
     return value
   }
 
-  set(key: K, value: V): void {
+  set(key: string, value: string): void {
     if (this.maxSize === 0) return // disabled
     this.entries.delete(key)
     this.entries.set(key, value)

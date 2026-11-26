@@ -1,11 +1,11 @@
 import { expect } from "chai"
-import { KeyValueCache } from "../../src/cache"
+import { SimpleStringCache } from "../../src/cache"
 import { Client } from "../../src/client"
 import { murmur32 } from "../../src/hash/murmur32"
 import { Publisher, SendResult } from "../../src/publisher"
 import { SuperStreamPublisher } from "../../src/super_stream_publisher"
 
-class RecordingCache implements KeyValueCache<string, string> {
+class RecordingCache implements SimpleStringCache {
   readonly entries = new Map<string, string>()
   readonly gets: string[] = []
   readonly sets: [string, string][] = []
@@ -60,7 +60,7 @@ describe("SuperStreamPublisher routing cache", () => {
   })
 
   it("queries the server on every send when the custom cache never stores", async () => {
-    const noopCache: KeyValueCache<string, string> = {
+    const noopCache: SimpleStringCache = {
       get: () => undefined,
       set: () => undefined,
     }
