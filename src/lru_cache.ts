@@ -1,6 +1,6 @@
 import { KeyValueCache } from "./cache"
 
-export class LruCache<K, V> implements KeyValueCache<K, V> {
+export class LruCache<K, V extends {}> implements KeyValueCache<K, V> {
   private entries: Map<K, V> = new Map()
   private readonly maxSize: number
 
