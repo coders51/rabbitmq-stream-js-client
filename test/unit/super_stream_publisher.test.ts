@@ -63,7 +63,6 @@ describe("SuperStreamPublisher routing cache", () => {
     const noopCache: KeyValueCache<string, string> = {
       get: () => undefined,
       set: () => undefined,
-      clear: () => undefined,
     }
     const publisher = await SuperStreamPublisher.create({
       locator: stubLocator(),
